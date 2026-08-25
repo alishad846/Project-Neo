@@ -1,0 +1,43 @@
+import {
+  Body,
+  Controller,
+  Get,
+  Param,
+  ParseIntPipe,
+  Patch,
+  Post,
+} from '@nestjs/common';
+
+import { ProductsService } from './products.service';
+import { productGenome } from '../db/schema';
+
+@Controller('products')
+export class ProductsController {
+  constructor(private readonly productsService: ProductsService) {}
+
+  @Post()
+  createProduct(@Body() data: typeof productGenome.$inferInsert) {
+    return this.productsService.createProduct(data);
+  }
+
+  @Get()
+  getAllProducts() {
+    return this.productsService.getAllProducts();
+  }
+
+  @Get(':id')
+  getProductById(@Param('id', ParseIntPipe) id: number) {
+    return this.productsService.getProductById(id);
+  }
+  @Patch(':id')
+updateProduct(
+  @Param('id', ParseIntPipe) id: number,
+  @Body() data: Partial<typeof productGenome.$inferInsert>,
+) {
+  return this.productsService.updateProduct(id, data);
+}
+@Get(':id/history')
+getProductHistory(@Param('id', ParseIntPipe) id: number) {
+  return this.productsService.getProductHistory(id);
+}
+}
