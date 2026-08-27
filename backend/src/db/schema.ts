@@ -7,6 +7,7 @@ import {
   decimal,
   jsonb,
   timestamp,
+  boolean,
 } from 'drizzle-orm/pg-core';
 
 export const productGenome = pgTable('product_genome', {
@@ -43,6 +44,8 @@ export const productGenome = pgTable('product_genome', {
   attributes: jsonb('attributes'),
 
   version: integer('version').default(1).notNull(),
+
+  isArchived: boolean('is_archived').default(false).notNull(),
 
   createdAt: timestamp('created_at').defaultNow().notNull(),
 

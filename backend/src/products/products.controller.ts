@@ -1,6 +1,7 @@
 import {
   Body,
   Controller,
+  Delete,
   Get,
   Param,
   ParseIntPipe,
@@ -39,5 +40,20 @@ updateProduct(
 @Get(':id/history')
 getProductHistory(@Param('id', ParseIntPipe) id: number) {
   return this.productsService.getProductHistory(id);
+}
+@Post(':id/rollback/:version')
+rollbackProduct(
+  @Param('id', ParseIntPipe) id: number,
+  @Param('version', ParseIntPipe) version: number,
+) {
+  return this.productsService.rollbackProduct(id, version);
+}
+@Delete(':id')
+archiveProduct(@Param('id', ParseIntPipe) id: number) {
+  return this.productsService.archiveProduct(id);
+}
+@Post(':id/restore')
+restoreProduct(@Param('id', ParseIntPipe) id: number) {
+  return this.productsService.restoreProduct(id);
 }
 }
