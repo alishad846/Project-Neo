@@ -1,51 +1,61 @@
-import { Injectable } from '@nestjs/common';
-// import { db } from '../db/database'; 
-// import { productGenome } from '../db/schema'; 
-// import { eq } from 'drizzle-orm';
-import { PricingEngine } from './pricing-engine'; 
+import { Injectable } from "@nestjs/common";
+import { executeDryRun, type SkuCosting, type PricingRule } from "@neo/rules-engine";
+import { ProductsService } from "../products/products.service";
+import { TransactionsService } from "../transactions/transactions.service";
+
+function toCosting(g: {
+  sku: string; category: string | null; weight: string | null; costPrice: string | null; sellingPrice: string | null;
+}): SkuCosting {
+  return {
+    sku: g.sku,
+    currentPrice: parseFloat(g.sellingPrice ?? "0"),
+    baseCost: parseFloat(g.costPrice ?? "0"),
+    weightKg: parseFloat(g.weight ?? "0.5"),
+    category: g.category ?? "*",
+  };
+}
 
 @Injectable()
 export class PricingService {
-  
-  async calculateDryRun(rule: any) {
-    // TEMPORARY MOCK DATA (Bypassing DB so we can test without .env)
-    const mockSkus = [
-      { sku: 'KURTI-001', title: 'Red Cotton Kurti', sellingPrice: '899', costPrice: '450' },
-      { sku: 'KURTI-002', title: 'Blue Silk Kurti', sellingPrice: '1299', costPrice: '700' }
-    ];
+  constructor(
+    private readonly products: ProductsService,
+    private readonly transactions: TransactionsService,
+  ) {}
 
-    const engineInput = mockSkus.map(record => ({
-      id: record.sku,
-      title: record.title || 'Untitled',
-      currentPrice: parseFloat(record.sellingPrice) || 0,
-      baseCost: parseFloat(record.costPrice) || 0,
-      shippingCharge: 56.0, 
-      gstRate: 0.05,        
-      returnRate: 0.15      
-    }));
-
-    const impactedSkus = PricingEngine.executeDryRun(rule, engineInput);
-
-    const estimatedTotalMarginDelta = impactedSkus.reduce((total: number, sku: any) => {
-      return total + (sku.proposedEstimatedMargin - sku.currentEstimatedMargin);
-    }, 0);
-
-    return {
-      ruleSummary: `Applied action: ${rule.actionType}`,
-      totalSkusEvaluated: impactedSkus.length,
-      impactedSkus: impactedSkus,
-      estimatedTotalMarginDelta: estimatedTotalMarginDelta
-    };
+  async calculateDryRun(rule: PricingRule) {
+    const genomes = await this.products.getAllProducts();
+    const skus = genomes.map(toCosting);
+    return executeDryRun(rule, skus, new Date());
   }
 
-  async applyPrices(rule: any) {
-    const dryRunResults = await this.calculateDryRun(rule);
+  async applyPrices(rule: PricingRule) {
+    const genomes = await this.products.getAllProducts();
+    const skus = genomes.map(toCosting);
+    const dry = executeDryRun(rule, skus, new Date());
 
-    console.log("Saving snapshot to transaction history...", dryRunResults.impactedSkus);
+    // dry.diffs[i] corresponds to genomes[i] (executeDryRun preserves input order),
+    // so correlate by index rather than a sku-keyed Map: productGenome.sku has no
+    // uniqueness constraint and duplicate skus would silently collapse in a Map.
+    const snapshot = dry.diffs.map((d, i) => ({
+      productId: genomes[i].id,
+      previousPrice: genomes[i].sellingPrice ?? "0",
+    }));
 
-    // TEMPORARY DB BYPASS
-    console.log("Mocking DB Update for SKUs...");
-    
-    return { success: true, message: `Successfully updated ${dryRunResults.totalSkusEvaluated} SKUs.` };
+    const txn = await this.transactions.createPriceTxn(snapshot, dry.diffs);
+    try {
+      for (let i = 0; i < dry.diffs.length; i++) {
+        await this.products.updateProduct(genomes[i].id, {
+          sellingPrice: dry.diffs[i].proposedPrice.toFixed(2),
+        });
+      }
+    } catch (e) {
+      await this.transactions.rollbackPriceTxn(txn.id);
+      throw new Error(`apply failed for txn ${txn.id}, rolled back: ${(e as Error).message}`);
+    }
+    return { txnId: txn.id, updated: dry.diffs.length };
+  }
+
+  async undo(txnId: number) {
+    return this.transactions.rollbackPriceTxn(txnId);
   }
 }

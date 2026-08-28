@@ -5,7 +5,7 @@ services:
       POSTGRES_USER: neo
       POSTGRES_PASSWORD: neo
       POSTGRES_DB: neo
-    ports: ["5432:5432"]
+    ports: ["5433:5432"]
     volumes: ["neo_pg:/var/lib/postgresql/data"]
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U neo"]

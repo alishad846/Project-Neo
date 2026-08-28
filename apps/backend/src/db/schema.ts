@@ -90,3 +90,13 @@ export const productGenomeHistory = pgTable('product_genome_history', {
 
   archivedAt: timestamp('archived_at').defaultNow().notNull(),
 });
+
+export const transactions = pgTable('transactions', {
+  id: serial('id').primaryKey(),
+  adapterId: varchar('adapter_id', { length: 50 }).notNull().default('internal'),
+  kind: varchar('kind', { length: 50 }).notNull(),
+  snapshot: jsonb('snapshot').notNull(),
+  diff: jsonb('diff'),
+  result: varchar('result', { length: 20 }).notNull().default('success'),
+  createdAt: timestamp('created_at').defaultNow().notNull(),
+});
