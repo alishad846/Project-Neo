@@ -256,6 +256,8 @@ function AIComposer({
 }) {
   const product = selectedProduct || products[0];
 
+  const [generated, setGenerated] = useState(false);
+
   return (
     <>
       <div className="pageIntro">
@@ -285,44 +287,52 @@ function AIComposer({
           <option value="meesho">Meesho</option>
         </select>
 
-        <button className="generateButton">
+        <button
+          className="generateButton"
+          onClick={() => setGenerated(true)}
+        >
           ✨ Generate with AI
         </button>
       </div>
 
-      <div className="generatedCard">
-        <div className="generatedHeader">
-          <h2>Generated Content</h2>
-          <span>AI Draft</span>
+      {generated && (
+        <div className="generatedCard">
+          <div className="generatedHeader">
+            <h2>Generated Content</h2>
+            <span>AI Draft</span>
+          </div>
+
+          <label>Product Title</label>
+
+          <input
+            defaultValue={`${product.colour} ${product.fabric} ${product.name}`}
+          />
+
+          <label>Description</label>
+
+          <textarea
+            defaultValue={`Upgrade your wardrobe with this ${product.name.toLowerCase()}. Made from quality ${product.fabric.toLowerCase()} fabric in ${product.colour.toLowerCase()}, this product is comfortable and suitable for everyday use.`}
+            rows={5}
+          />
+
+          <label>Keywords</label>
+
+          <div className="tags">
+            <span>Women</span>
+            <span>{product.fabric}</span>
+            <span>{product.colour}</span>
+            <span>{product.pattern}</span>
+            <span>Fashion</span>
+          </div>
+
+          <button
+            className="primaryButton fullButton"
+            onClick={onPreview}
+          >
+            Preview Listing →
+          </button>
         </div>
-
-        <label>Product Title</label>
-
-        <input
-          defaultValue={`${product.colour} ${product.fabric} ${product.name}`}
-        />
-
-        <label>Description</label>
-
-        <textarea
-          defaultValue={`Upgrade your wardrobe with this ${product.name.toLowerCase()}. Made from quality ${product.fabric.toLowerCase()} fabric in ${product.colour.toLowerCase()}, this product is comfortable and suitable for everyday use.`}
-          rows={5}
-        />
-
-        <label>Keywords</label>
-
-        <div className="tags">
-          <span>Women</span>
-          <span>{product.fabric}</span>
-          <span>{product.colour}</span>
-          <span>{product.pattern}</span>
-          <span>Fashion</span>
-        </div>
-
-        <button className="primaryButton fullButton" onClick={onPreview}>
-          Preview Listing →
-        </button>
-      </div>
+      )}
 
       <button className="backButton" onClick={onBack}>
         ← Back
@@ -340,6 +350,40 @@ function Preview({
   onBack: () => void;
   onConfirm: () => void;
 }) {
+  const [confirmed, setConfirmed] = useState(false);
+
+  if (confirmed) {
+    return (
+      <>
+        <div className="pageIntro">
+          <p className="eyebrow">SUCCESS</p>
+          <h1>Listing Confirmed</h1>
+          <p>
+            Your marketplace listing has been reviewed and confirmed.
+          </p>
+        </div>
+
+        <div className="successCard">
+          <div className="successIcon">✓</div>
+
+          <h2>Ready for Meesho</h2>
+
+          <p>
+            {product.name} has successfully passed seller review.
+          </p>
+
+          <span className="status statusReady">
+            Ready to Publish
+          </span>
+        </div>
+
+        <button className="primaryButton fullButton" onClick={onBack}>
+          Back to Catalogue
+        </button>
+      </>
+    );
+  }
+
   return (
     <>
       <div className="pageIntro">
@@ -383,7 +427,13 @@ function Preview({
         ✎ Edit Listing
       </button>
 
-      <button className="generateButton" onClick={onConfirm}>
+      <button
+        className="generateButton"
+        onClick={() => {
+          setConfirmed(true);
+          onConfirm();
+        }}
+      >
         ✓ Confirm & Publish
       </button>
 
@@ -395,10 +445,11 @@ function Preview({
 }
 
 function PriceManager() {
-  const [confirmed, setConfirmed] = useState(false);
+  const [preview, setPreview] = useState(false);
+  const [updated, setUpdated] = useState(false);
 
   return (
-    <div>
+    <>
       <div className="pageIntro">
         <p className="eyebrow">PRICE MANAGER</p>
 
@@ -437,29 +488,53 @@ function PriceManager() {
         <input
           className="priceInput"
           type="number"
-          placeholder="Enter new price"
           defaultValue="749"
+          min="0"
         />
 
         <button
           className="primaryButton fullButton"
-          onClick={() => setConfirmed(true)}
+          onClick={() => setPreview(true)}
         >
           Preview Changes
         </button>
       </div>
 
-      {confirmed && (
+      {preview && !updated && (
         <div className="successCard">
-          <strong>Dry Run Ready ✓</strong>
+          <strong>Dry Run Preview ✓</strong>
 
           <p>
-            2 products selected. A snapshot will be created before
-            applying the price changes.
+            2 products selected. Previous prices will be saved in a
+            snapshot before applying the changes.
           </p>
 
-          <button className="generateButton">
+          <button
+            className="generateButton"
+            onClick={() => setUpdated(true)}
+          >
             Confirm Price Update
+          </button>
+        </div>
+      )}
+
+      {updated && (
+        <div className="successCard">
+          <strong>Price Update Successful ✓</strong>
+
+          <p>
+            Prices have been updated. A snapshot is available for
+            undo.
+          </p>
+
+          <button
+            className="secondaryButton fullButton"
+            onClick={() => {
+              setUpdated(false);
+              setPreview(false);
+            }}
+          >
+            ↶ Undo Last Update
           </button>
         </div>
       )}
@@ -472,17 +547,13 @@ function PriceManager() {
           undone.
         </span>
       </div>
-
-      <button className="secondaryButton fullButton">
-        ↶ Undo Last Update
-      </button>
-    </div>
+    </>
   );
 }
 
 function App() {
   const [page, setPage] = useState<
-    "catalogue" | "ai" | "prices" | "details" | "preview"
+    "catalogue" | "details" | "ai" | "preview" | "prices"
   >("catalogue");
 
   const [selectedProduct, setSelectedProduct] =
@@ -501,52 +572,6 @@ function App() {
     setPage("preview");
   };
 
-  if (page === "details" && selectedProduct) {
-    return (
-      <div className="app">
-        <main className="content">
-          <ProductDetails
-            product={selectedProduct}
-            onBack={() => setPage("catalogue")}
-            onGenerate={openAI}
-          />
-        </main>
-      </div>
-    );
-  }
-
-  if (page === "ai") {
-    return (
-      <div className="app">
-        <main className="content">
-          <AIComposer
-            selectedProduct={selectedProduct}
-            onBack={() =>
-              selectedProduct
-                ? setPage("details")
-                : setPage("catalogue")
-            }
-            onPreview={openPreview}
-          />
-        </main>
-      </div>
-    );
-  }
-
-  if (page === "preview" && selectedProduct) {
-    return (
-      <div className="app">
-        <main className="content">
-          <Preview
-            product={selectedProduct}
-            onBack={() => setPage("ai")}
-            onConfirm={() => alert("Listing confirmed successfully!")}
-          />
-        </main>
-      </div>
-    );
-  }
-
   return (
     <div className="app">
       <header className="header">
@@ -557,14 +582,48 @@ function App() {
           </div>
         </div>
 
-        <button className="iconButton">⚙</button>
+        <button className="iconButton" title="Settings">
+          ⚙
+        </button>
       </header>
 
       <main className="content">
         {page === "catalogue" && (
           <Catalogue
             onView={viewProduct}
-            onAdd={() => alert("Add Product coming next")}
+            onAdd={() =>
+              alert(
+                "Add Product flow will connect to the Product Genome."
+              )
+            }
+          />
+        )}
+
+        {page === "details" && selectedProduct && (
+          <ProductDetails
+            product={selectedProduct}
+            onBack={() => setPage("catalogue")}
+            onGenerate={openAI}
+          />
+        )}
+
+        {page === "ai" && (
+          <AIComposer
+            selectedProduct={selectedProduct}
+            onBack={() =>
+              selectedProduct
+                ? setPage("details")
+                : setPage("catalogue")
+            }
+            onPreview={openPreview}
+          />
+        )}
+
+        {page === "preview" && selectedProduct && (
+          <Preview
+            product={selectedProduct}
+            onBack={() => setPage("ai")}
+            onConfirm={() => {}}
           />
         )}
 
@@ -574,7 +633,11 @@ function App() {
       <footer className="footer">
         <button
           className={
-            page === "catalogue" ? "footerButton active" : "footerButton"
+            page === "catalogue" ||
+            page === "details" ||
+            page === "preview"
+              ? "footerButton active"
+              : "footerButton"
           }
           onClick={() => setPage("catalogue")}
         >
@@ -582,7 +645,11 @@ function App() {
         </button>
 
         <button
-          className="footerButton"
+          className={
+            page === "ai"
+              ? "footerButton active"
+              : "footerButton"
+          }
           onClick={() => {
             setSelectedProduct(products[0]);
             setPage("ai");
@@ -593,7 +660,9 @@ function App() {
 
         <button
           className={
-            page === "prices" ? "footerButton active" : "footerButton"
+            page === "prices"
+              ? "footerButton active"
+              : "footerButton"
           }
           onClick={() => setPage("prices")}
         >
