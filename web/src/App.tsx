@@ -141,11 +141,14 @@ function Dashboard({
               marketplace attributes.
             </p>
            <button
-            onClick={() =>
-              alert(
-                "Product Genome is available in the Neo browser extension."
-              )
-            }
+            onClick={() => {
+              window.postMessage(
+                {
+                  type: "NEO_OPEN_EXTENSION",
+                },
+                "*"
+              );
+            }}
           >
             View Catalogue →
           </button>

@@ -555,6 +555,10 @@ function App() {
   const [page, setPage] = useState<
     "catalogue" | "details" | "ai" | "preview" | "prices"
   >("catalogue");
+  const [message, setMessage] = useState<{
+  type: "success" | "error" | "info";
+  text: string;
+} | null>(null);
 
   const [selectedProduct, setSelectedProduct] =
     useState<Product | null>(null);
@@ -574,6 +578,21 @@ function App() {
 
   return (
     <div className="app">
+      {message && (
+  <div className={`appMessage ${message.type}`}>
+    <span>
+      {message.type === "success"
+        ? "✓"
+        : message.type === "error"
+        ? "!"
+        : "i"}
+    </span>
+
+    <p>{message.text}</p>
+
+    <button onClick={() => setMessage(null)}>×</button>
+  </div>
+)}
       <header className="header">
         <div>
           <div className="brand">NEO</div>
@@ -603,7 +622,13 @@ function App() {
           <ProductDetails
             product={selectedProduct}
             onBack={() => setPage("catalogue")}
-            onGenerate={openAI}
+           onGenerate={() => {
+  setMessage({
+    type: "success",
+    text: "Product information loaded. Ready to generate marketplace listing.",
+  });
+  openAI();
+}}
           />
         )}
 
@@ -623,7 +648,13 @@ function App() {
           <Preview
             product={selectedProduct}
             onBack={() => setPage("ai")}
-            onConfirm={() => {}}
+           onConfirm={() => {
+  setMessage({
+    type: "success",
+    text: "Listing confirmed successfully.",
+  });
+  setPage("catalogue");
+}}
           />
         )}
 
