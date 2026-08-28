@@ -7,16 +7,20 @@ import {
   ParseIntPipe,
   Patch,
   Post,
+  UsePipes,
 } from '@nestjs/common';
 
 import { ProductsService } from './products.service';
 import { productGenome } from '../db/schema';
+import { ZodValidationPipe } from '../common/zod-validation.pipe';
+import { productGenomeInsertSchema } from '@neo/genome';
 
 @Controller('products')
 export class ProductsController {
   constructor(private readonly productsService: ProductsService) {}
 
   @Post()
+  @UsePipes(new ZodValidationPipe(productGenomeInsertSchema))
   createProduct(@Body() data: typeof productGenome.$inferInsert) {
     return this.productsService.createProduct(data);
   }

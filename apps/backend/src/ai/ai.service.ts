@@ -45,7 +45,7 @@ export class AiService {
       } catch (dbError) {
         return {
           status: "Database Save Failed!",
-          errorMessage: dbError.message
+          errorMessage: dbError instanceof Error ? dbError.message : String(dbError)
         };
       }
     }
