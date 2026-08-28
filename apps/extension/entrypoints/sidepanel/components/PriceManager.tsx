@@ -91,7 +91,7 @@ export function PriceManager() {
               <p style={{ color: "green", fontSize: 13 }}>Applied as transaction #{txnId}.</p>
               <button disabled={busy}
                 onClick={() => run(() => undoPricing(txnId), () => invalidatePreview())}>
-                Undo
+                Previous
               </button>
             </div>
           )}

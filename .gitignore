@@ -4,3 +4,8 @@ dist/
 .turbo/
 *.log
 .env
+
+# Local-only working notes (kept on disk, never committed)
+.superpowers/
+docs/superpowers/
+docs/PROJECT_BRIEF.md

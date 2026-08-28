@@ -33,7 +33,10 @@ function App() {
         <button onClick={() => setTab("catalogue")} style={{ flex: 1, padding: 10, fontWeight: tab === "catalogue" ? 700 : 400 }}>Catalogue</button>
         <button onClick={() => setTab("pricing")} style={{ flex: 1, padding: 10, fontWeight: tab === "pricing" ? 700 : 400 }}>Price Manager</button>
       </nav>
-      {tab === "catalogue" ? <Catalogue /> : <PriceManager />}
+      {/* Both tabs stay mounted so switching tabs never discards Price Manager's
+          in-progress preview or an applied-but-not-yet-reverted transaction. */}
+      <div style={{ display: tab === "catalogue" ? "block" : "none" }}><Catalogue /></div>
+      <div style={{ display: tab === "pricing" ? "block" : "none" }}><PriceManager /></div>
     </div>
   );
 }
