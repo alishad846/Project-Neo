@@ -4,8 +4,8 @@ WORKDIR /repo
 COPY pnpm-workspace.yaml package.json pnpm-lock.yaml turbo.json tsconfig.base.json ./
 COPY packages ./packages
 COPY apps/backend ./apps/backend
-RUN pnpm install --frozen-lockfile
-RUN pnpm --filter @neo/backend build
+RUN pnpm install --frozen-lockfile --filter @neo/backend...
+RUN pnpm --filter @neo/backend... build
 
 FROM node:20-alpine
 RUN corepack enable
