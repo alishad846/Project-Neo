@@ -4,6 +4,7 @@ import { QueryClientProvider, useQuery } from "@tanstack/react-query";
 import { queryClient } from "./lib/queryClient";
 import { getProducts } from "./api";
 import { PriceManager } from "./components/PriceManager";
+import { AIComposer } from "./components/AIComposer";
 import { Header } from "./components/Header";
 import "./style.css";
 
@@ -34,7 +35,7 @@ function Catalogue() {
 }
 
 function App() {
-  const [tab, setTab] = useState<"catalogue" | "pricing">("catalogue");
+  const [tab, setTab] = useState<"catalogue" | "pricing" | "composer">("catalogue");
   return (
     <div className="min-h-screen bg-[#fff0f5]">
       <Header />
@@ -59,11 +60,23 @@ function App() {
         >
           Price Manager
         </button>
+        <button
+          onClick={() => setTab("composer")}
+          className={`flex-1 rounded-lg border-2 border-black px-3 py-2 font-cartoon text-xs font-semibold transition-all ${
+            tab === "composer"
+              ? "bg-[#ff90e8] shadow-[3px_3px_0px_0px_#000] -translate-y-0.5"
+              : "bg-white"
+          }`}
+        >
+          AI Composer
+        </button>
       </nav>
-      {/* Both tabs stay mounted so switching tabs never discards Price Manager's
-          in-progress preview or an applied-but-not-yet-reverted transaction. */}
+      {/* All three tabs stay mounted so switching tabs never discards Price Manager's
+          in-progress preview, an applied-but-not-yet-reverted transaction, or the
+          AI Composer's in-progress draft. */}
       <div style={{ display: tab === "catalogue" ? "block" : "none" }}><Catalogue /></div>
       <div style={{ display: tab === "pricing" ? "block" : "none" }}><PriceManager /></div>
+      <div style={{ display: tab === "composer" ? "block" : "none" }}><AIComposer /></div>
     </div>
   );
 }

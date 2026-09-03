@@ -141,6 +141,9 @@ importers:
 
   apps/extension:
     dependencies:
+      '@neo/adapter-meesho':
+        specifier: workspace:*
+        version: link:../../packages/adapter-meesho
       '@neo/genome':
         specifier: workspace:*
         version: link:../../packages/genome

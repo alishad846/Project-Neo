@@ -16,6 +16,7 @@
     "postinstall": "wxt prepare"
   },
   "dependencies": {
+    "@neo/adapter-meesho": "workspace:*",
     "@neo/genome": "workspace:*",
     "@neo/ui": "workspace:*",
     "@tailwindcss/vite": "^4.3.3",
