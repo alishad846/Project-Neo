@@ -17,7 +17,7 @@ export function Hero() {
   }, []);
 
   return (
-    <main className="relative h-screen w-full overflow-hidden bg-[#fff0f5] text-black selection:bg-[#ff90e8] scroll-smooth">
+    <section className="relative h-screen w-full overflow-hidden bg-[#fff0f5] text-black selection:bg-[#ff90e8] scroll-smooth">
       <div
         className="bg-grid absolute inset-0 z-0 opacity-10"
         style={{ backgroundImage: "radial-gradient(circle, #000 2px, transparent 2.5px)", backgroundSize: "30px 30px" }}
@@ -87,6 +87,6 @@ export function Hero() {
           <span className="mx-8">★ SNAP · EXTRACT · AUTOFILL</span>
         </div>
       </div>
-    </main>
+    </section>
   );
 }
