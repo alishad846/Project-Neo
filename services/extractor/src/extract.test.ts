@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { extractHeuristic, parseModelResponse } from "./extract";
+import { extractHeuristic, parseModelResponse, parseModelDescription } from "./extract";
 
 describe("extractHeuristic", () => {
   it("always reports low confidence and heuristic source", () => {
@@ -51,5 +51,64 @@ describe("parseModelResponse", () => {
 
   it("parses boolean fields like blousePiece", () => {
     expect(parseModelResponse('{"blousePiece": true}')).toEqual({ blousePiece: true });
+  });
+});
+
+describe("parseModelDescription", () => {
+  it("maps a clothing description with several attributes", () => {
+    expect(
+      parseModelDescription("A woman in a round neck full sleeve floral kurti for a festive occasion")
+    ).toEqual({
+      neckType: "Round Neck",
+      sleeveLength: "Full Sleeve",
+      pattern: "Floral",
+      occasion: "Festive",
+    });
+  });
+
+  it("returns null when no clothing attributes are found (no fabrication)", () => {
+    expect(parseModelDescription("a plain green puzzle piece on a black background")).toBeNull();
+  });
+
+  it("maps v-neck variants", () => {
+    expect(parseModelDescription("This top has a v-neck design")).toEqual({ neckType: "V-Neck" });
+  });
+
+  it("maps collar and boat neck", () => {
+    expect(parseModelDescription("a shirt with a collar")).toEqual({ neckType: "Collar" });
+    expect(parseModelDescription("a top with a boat neck")).toEqual({ neckType: "Boat Neck" });
+  });
+
+  it("maps three-quarter and half sleeve variants", () => {
+    expect(parseModelDescription("a kurti with three-quarter sleeves")).toEqual({ sleeveLength: "Three-Quarter" });
+    expect(parseModelDescription("a top with 3/4 sleeves")).toEqual({ sleeveLength: "Three-Quarter" });
+    expect(parseModelDescription("a top with half sleeves")).toEqual({ sleeveLength: "Half Sleeve" });
+    expect(parseModelDescription("a sleeveless dress")).toEqual({ sleeveLength: "Sleeveless" });
+  });
+
+  it("maps pattern keywords", () => {
+    expect(parseModelDescription("a printed dress")).toEqual({ pattern: "Printed" });
+    expect(parseModelDescription("a solid plain top")).toEqual({ pattern: "Solid" });
+    expect(parseModelDescription("a striped shirt")).toEqual({ pattern: "Striped" });
+    expect(parseModelDescription("a checked and checkered plaid pattern")).toEqual({ pattern: "Checked" });
+    expect(parseModelDescription("an embroidered kurti")).toEqual({ pattern: "Embroidered" });
+  });
+
+  it("maps casual occasion", () => {
+    expect(parseModelDescription("a casual everyday top for daily wear")).toEqual({ occasion: "Casual" });
+  });
+
+  it("maps blousePiece and sareeLength for saree descriptions", () => {
+    expect(parseModelDescription("a saree that comes with a blouse piece, 6.3 metres long")).toEqual({
+      blousePiece: true,
+      sareeLength: "6.3 metres",
+    });
+  });
+
+  it("does not fabricate attributes not present in the text", () => {
+    const result = parseModelDescription("a round neck top");
+    expect(result).toEqual({ neckType: "Round Neck" });
+    expect(result).not.toHaveProperty("sleeveLength");
+    expect(result).not.toHaveProperty("pattern");
   });
 });

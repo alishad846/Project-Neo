@@ -15,7 +15,7 @@ export interface ExtractedAttributes {
 
 export interface ExtractResult {
   attributes: ExtractedAttributes;
-  confidence: "low" | "high";
+  confidence: "low" | "medium" | "high";
   source: "heuristic" | "model";
 }
 
@@ -63,4 +63,69 @@ export function parseModelResponse(responseText: string): ExtractedAttributes | 
   } catch {
     return null;
   }
+}
+
+// moondream (and most small vision models) answer in natural-language prose,
+// not JSON. This maps clearly-present keywords in that prose to the same
+// attribute vocabulary the heuristic/compile pipeline expects. Only maps what
+// is explicitly present in the text; never guesses. Returns null when nothing
+// is found so the caller can fall back to the heuristic (fail-safe, never
+// fabricate).
+export function parseModelDescription(text: string): ExtractedAttributes | null {
+  const lower = text.toLowerCase();
+  const attributes: ExtractedAttributes = {};
+
+  if (/round neck|crew neck/.test(lower)) {
+    attributes.neckType = "Round Neck";
+  } else if (/v-?\s?neck/.test(lower)) {
+    attributes.neckType = "V-Neck";
+  } else if (/boat neck/.test(lower)) {
+    attributes.neckType = "Boat Neck";
+  } else if (/collar/.test(lower)) {
+    attributes.neckType = "Collar";
+  }
+
+  if (/full sleeve|long sleeve/.test(lower)) {
+    attributes.sleeveLength = "Full Sleeve";
+  } else if (/three.?quarter|3\/4/.test(lower)) {
+    attributes.sleeveLength = "Three-Quarter";
+  } else if (/half sleeve|short sleeve/.test(lower)) {
+    attributes.sleeveLength = "Half Sleeve";
+  } else if (/sleeveless/.test(lower)) {
+    attributes.sleeveLength = "Sleeveless";
+  }
+
+  if (/floral/.test(lower)) {
+    attributes.pattern = "Floral";
+  } else if (/embroider/.test(lower)) {
+    attributes.pattern = "Embroidered";
+  } else if (/checked|checkered|plaid/.test(lower)) {
+    attributes.pattern = "Checked";
+  } else if (/striped?/.test(lower)) {
+    attributes.pattern = "Striped";
+  } else if (/print(ed)?/.test(lower)) {
+    attributes.pattern = "Printed";
+  } else if (/\bsolid\b/.test(lower)) {
+    // "plain" is deliberately excluded: it too often describes a background or
+    // color (e.g. "plain black background") rather than a garment's pattern,
+    // and matching it risks fabricating an attribute from a non-clothing image.
+    attributes.pattern = "Solid";
+  }
+
+  if (/party|festive|wedding|ethnic/.test(lower)) {
+    attributes.occasion = "Festive";
+  } else if (/casual|daily|everyday/.test(lower)) {
+    attributes.occasion = "Casual";
+  }
+
+  if (/blouse piece|with blouse/.test(lower)) {
+    attributes.blousePiece = true;
+  }
+
+  const sareeLengthMatch = lower.match(/(\d(?:\.\d)?)\s*m(?:etre)?s?\b/);
+  if (sareeLengthMatch) {
+    attributes.sareeLength = `${sareeLengthMatch[1]} metres`;
+  }
+
+  return Object.keys(attributes).length > 0 ? attributes : null;
 }

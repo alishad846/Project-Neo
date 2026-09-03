@@ -9,7 +9,7 @@ import { TransactionsService } from '../transactions/transactions.service';
 
 export interface ExtractResult {
   attributes: Record<string, unknown>;
-  confidence: 'low' | 'high';
+  confidence: 'low' | 'medium' | 'high';
   source: 'heuristic' | 'model';
 }
 
