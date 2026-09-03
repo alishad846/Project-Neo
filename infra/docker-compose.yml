@@ -26,6 +26,22 @@ services:
     ports: ["9000:9000", "9001:9001"]
     volumes: ["neo_minio:/data"]
 
+  ollama:
+    image: ollama/ollama:latest
+    ports: ["11434:11434"]
+    volumes: ["neo_ollama:/root/.ollama"]
+
+  extractor:
+    build:
+      context: ..
+      dockerfile: services/extractor/Dockerfile
+    depends_on: [ollama]
+    environment:
+      OLLAMA_URL: http://ollama:11434
+      OLLAMA_MODEL: moondream
+      PORT: 8000
+    ports: ["8000:8000"]
+
   backend:
     build:
       context: ..
@@ -42,3 +58,4 @@ services:
 volumes:
   neo_pg:
   neo_minio:
+  neo_ollama:
