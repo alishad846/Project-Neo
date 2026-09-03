@@ -178,6 +178,15 @@ importers:
 
   apps/web:
     dependencies:
+      '@neo/ui':
+        specifier: workspace:*
+        version: link:../../packages/ui
+      gsap:
+        specifier: ^3.12.0
+        version: 3.15.0
+      lucide-react:
+        specifier: ^0.400.0
+        version: 0.400.0(react@19.2.8)
       react:
         specifier: ^19.0.0
         version: 19.2.8
@@ -185,6 +194,9 @@ importers:
         specifier: ^19.0.0
         version: 19.2.8(react@19.2.8)
     devDependencies:
+      '@tailwindcss/vite':
+        specifier: ^4
+        version: 4.3.3(vite@6.4.3(@types/node@24.13.3)(jiti@2.7.0)(lightningcss@1.32.0)(terser@5.51.2)(tsx@4.23.12))
       '@types/react':
         specifier: ^19.0.0
         version: 19.2.18
@@ -194,6 +206,9 @@ importers:
       '@vitejs/plugin-react':
         specifier: ^4.3.4
         version: 4.7.0(vite@6.4.3(@types/node@24.13.3)(jiti@2.7.0)(lightningcss@1.32.0)(terser@5.51.2)(tsx@4.23.12))
+      tailwindcss:
+        specifier: ^4
+        version: 4.3.3
       typescript:
         specifier: ^5.7.3
         version: 5.9.3

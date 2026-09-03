@@ -1,3 +1,6 @@
+@import "tailwindcss";
+@import "@neo/ui/cartoon.css";
+
 /* ============================================================================
    Neo marketing site — design system
    Brand essence: a compiler. Precision, translation, one source of truth.
