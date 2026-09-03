@@ -6,7 +6,14 @@ import { getProducts } from "./api";
 import { PriceManager } from "./components/PriceManager";
 import { AIComposer } from "./components/AIComposer";
 import { Header } from "./components/Header";
+import { AuthGate } from "./components/AuthGate";
+import { clearToken } from "./auth";
 import "./style.css";
+
+async function handleLogout() {
+  await clearToken();
+  window.location.reload();
+}
 
 function Catalogue() {
   const { data, isLoading, error } = useQuery({ queryKey: ["products"], queryFn: getProducts });
@@ -38,7 +45,7 @@ function App() {
   const [tab, setTab] = useState<"catalogue" | "pricing" | "composer">("catalogue");
   return (
     <div className="min-h-screen bg-[#fff0f5]">
-      <Header />
+      <Header onLogout={handleLogout} />
       <nav className="flex gap-2 border-b-4 border-black bg-white px-3 py-2">
         <button
           onClick={() => setTab("catalogue")}
@@ -83,6 +90,8 @@ function App() {
 
 createRoot(document.getElementById("root")!).render(
   <QueryClientProvider client={queryClient}>
-    <App />
+    <AuthGate>
+      <App />
+    </AuthGate>
   </QueryClientProvider>
 );
