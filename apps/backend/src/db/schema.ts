@@ -91,6 +91,20 @@ export const productGenomeHistory = pgTable('product_genome_history', {
   archivedAt: timestamp('archived_at').defaultNow().notNull(),
 });
 
+export const sellers = pgTable('sellers', {
+  id: varchar('id', { length: 64 }).primaryKey(),
+
+  email: varchar('email', { length: 255 }).notNull().unique(),
+
+  passwordHash: varchar('password_hash', { length: 255 }).notNull(),
+
+  fullName: varchar('full_name', { length: 150 }),
+
+  shopName: varchar('shop_name', { length: 150 }),
+
+  createdAt: timestamp('created_at').defaultNow().notNull(),
+});
+
 export const transactions = pgTable('transactions', {
   id: serial('id').primaryKey(),
   adapterId: varchar('adapter_id', { length: 50 }).notNull().default('internal'),
