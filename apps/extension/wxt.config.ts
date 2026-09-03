@@ -8,7 +8,7 @@ export default defineConfig({
     name: "Project Neo",
     short_name: "Neo",
     description: "AI-powered catalogue automation for Indian marketplace sellers.",
-    permissions: ["sidePanel", "storage"],
+    permissions: ["sidePanel", "storage", "tabs"],
     host_permissions: ["http://localhost:3000/*"],
     side_panel: { default_path: "sidepanel/index.html" },
     action: {},
