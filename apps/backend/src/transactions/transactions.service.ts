@@ -9,6 +9,11 @@ export interface PriceSnapshotEntry {
   previousPrice: string;
 }
 
+export interface GenomeSnapshotEntry {
+  productId: number;
+  previous: { title: string | null; attributes: unknown };
+}
+
 @Injectable()
 export class TransactionsService {
   constructor(private readonly products: ProductsService) {}
@@ -34,6 +39,27 @@ export class TransactionsService {
     let restored = 0;
     for (const entry of snapshot) {
       await this.products.updateProduct(entry.productId, { sellingPrice: entry.previousPrice });
+      restored += 1;
+    }
+    return { restored };
+  }
+
+  async createGenomeTxn(snapshot: GenomeSnapshotEntry[], diff?: unknown) {
+    const rows = await db
+      .insert(transactions)
+      .values({ kind: "genome", snapshot, diff, result: "success" })
+      .returning();
+    return { id: rows[0].id };
+  }
+
+  async rollbackGenomeTxn(id: number) {
+    const txn = await this.getTxn(id);
+    if (!txn) return { restored: 0 };
+    if (txn.kind !== "genome") return { restored: 0 };
+    const snapshot = txn.snapshot as GenomeSnapshotEntry[];
+    let restored = 0;
+    for (const entry of snapshot) {
+      await this.products.updateProduct(entry.productId, entry.previous);
       restored += 1;
     }
     return { restored };

@@ -17,6 +17,12 @@ importers:
 
   apps/backend:
     dependencies:
+      '@neo/adapter':
+        specifier: workspace:^
+        version: link:../../packages/adapter
+      '@neo/adapter-meesho':
+        specifier: workspace:^
+        version: link:../../packages/adapter-meesho
       '@neo/genome':
         specifier: workspace:*
         version: link:../../packages/genome

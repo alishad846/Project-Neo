@@ -24,6 +24,8 @@
     "seed": "ts-node src/db/seed.ts"
   },
   "dependencies": {
+    "@neo/adapter": "workspace:^",
+    "@neo/adapter-meesho": "workspace:^",
     "@neo/genome": "workspace:*",
     "@neo/rules-engine": "workspace:*",
     "@nestjs/axios": "^12.0.0",
@@ -76,6 +78,9 @@
     "transform": {
       "^.+\\.(t|j)s$": "ts-jest"
     },
+    "transformIgnorePatterns": [
+      "node_modules/(?!.*@nestjs/axios)"
+    ],
     "moduleNameMapper": {
       "^(\\.{1,2}/.*)\\.js$": "$1"
     },

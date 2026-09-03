@@ -1,53 +1,86 @@
-import { Injectable } from '@nestjs/common';
+import { BadGatewayException, Injectable, NotFoundException, UnprocessableEntityException } from '@nestjs/common';
 import { HttpService } from '@nestjs/axios';
 import { firstValueFrom } from 'rxjs';
-import { ProductsService } from '../products/products.service'; 
+import { compile, validate } from '@neo/adapter-meesho';
+import type { CompiledListing, ValidationIssue } from '@neo/adapter';
+import type { ProductGenome } from '@neo/genome';
+import { ProductsService } from '../products/products.service';
+import { TransactionsService } from '../transactions/transactions.service';
+
+export interface ExtractResult {
+  attributes: Record<string, unknown>;
+  confidence: 'low' | 'high';
+  source: 'heuristic' | 'model';
+}
+
+export interface PublishResult {
+  txnId: number;
+  listing: CompiledListing;
+  warnings: ValidationIssue[];
+}
 
 @Injectable()
 export class AiService {
+  private readonly extractorUrl = process.env.EXTRACTOR_URL ?? 'http://localhost:8000';
+
   constructor(
     private readonly httpService: HttpService,
-    private readonly productsService: ProductsService
+    private readonly productsService: ProductsService,
+    private readonly transactionsService: TransactionsService,
   ) {}
 
-  async processProductDescription(rawText: string) {
-    const aiServerUrl = 'http://localhost:8000/api/extract'; 
-    
+  async extractAttributes(productId: number, imageBase64: string): Promise<ExtractResult> {
+    const genome = await this.productsService.getProductById(productId);
+    if (!genome) {
+      throw new NotFoundException(`No product with id ${productId}`);
+    }
+
     try {
       const response = await firstValueFrom(
-        this.httpService.post(aiServerUrl, { description: rawText })
+        this.httpService.post<ExtractResult>(`${this.extractorUrl}/api/extract`, {
+          imageBase64,
+          hint: { category: genome.category },
+        }),
       );
       return response.data;
-      
-    } catch (error) {
-      // 1. PERFECT SCHEMA MATCH: camelCase keys, flat structure, and mandatory sellerId included!
-      const mockAiExtraction = {
-        sellerId: "seller_test_123", // Dilan's required field
-        sku: "SKU-TEST-001",
-        title: "Red Cotton Kurti",
-        category: "Kurtis",
-        colour: "Red",
-        fabric: "Cotton",
-        costPrice: "250.00",         // Drizzle translates this to cost_price
-        sellingPrice: "499.00",      // Drizzle translates this to selling_price
-        hsnCode: "6204",             // Drizzle translates this to hsn_code
-        attributes: {}               // Empty object since we flattened the core fields
-      };
-
-      try {
-        // 2. THE CORRECT FUNCTION NAME: Calling createProduct() instead of create()
-        const savedDbRecord = await this.productsService.createProduct(mockAiExtraction);
-        
-        return { 
-          status: "Simulated Success & Saved to DB!",
-          databaseRecord: savedDbRecord
-        };
-      } catch (dbError) {
-        return {
-          status: "Database Save Failed!",
-          errorMessage: dbError instanceof Error ? dbError.message : String(dbError)
-        };
-      }
+    } catch {
+      // Fail safe: if the extraction service is unreachable, surface that
+      // clearly. Never silently write a fabricated product to the catalogue.
+      throw new BadGatewayException('Could not reach the attribute extraction service.');
     }
+  }
+
+  async publish(
+    productId: number,
+    title: string,
+    attributes: Record<string, unknown>,
+  ): Promise<PublishResult> {
+    const current = await this.productsService.getProductById(productId);
+    if (!current) {
+      throw new NotFoundException(`No product with id ${productId}`);
+    }
+
+    const mergedAttributes = { ...((current.attributes as Record<string, unknown>) ?? {}), ...attributes };
+    // Drizzle's select type is structurally compatible with ProductGenome (same
+    // column shapes); cast once here to compile() the draft without persisting it.
+    const draftGenome = { ...current, title, attributes: mergedAttributes } as ProductGenome;
+    const listing = compile(draftGenome, current.category ?? 'uncategorised');
+    const issues = validate(listing);
+    const errors = issues.filter((i) => i.severity === 'error');
+    if (errors.length > 0) {
+      throw new UnprocessableEntityException({ message: 'Listing failed validation', issues });
+    }
+
+    const txn = await this.transactionsService.createGenomeTxn(
+      [{ productId, previous: { title: current.title, attributes: current.attributes } }],
+      { title, attributes: mergedAttributes },
+    );
+    await this.productsService.updateProduct(productId, { title, attributes: mergedAttributes });
+
+    return { txnId: txn.id, listing, warnings: issues.filter((i) => i.severity === 'warning') };
+  }
+
+  async undo(txnId: number) {
+    return this.transactionsService.rollbackGenomeTxn(txnId);
   }
 }

@@ -24,3 +24,35 @@ describe("TransactionsService.rollbackPriceTxn", () => {
     expect(updated).toEqual([{ id: 7, price: "799.00" }]);
   });
 });
+
+describe("TransactionsService.rollbackGenomeTxn", () => {
+  it("restores each snapshot entry's previous title/attributes through ProductsService", async () => {
+    const updated: Array<{ id: number; data: unknown }> = [];
+    const products = {
+      updateProduct: async (id: number, data: unknown) => { updated.push({ id, data }); return { id }; },
+    } as unknown as ProductsService;
+
+    const svc = new TransactionsService(products);
+    (svc as unknown as { getTxn: (id: number) => Promise<unknown> }).getTxn = async () => ({
+      id: 1,
+      kind: 'genome',
+      snapshot: [{ productId: 9, previous: { title: 'Old Title', attributes: { pattern: 'Printed' } } }],
+    });
+
+    const res = await svc.rollbackGenomeTxn(1);
+    expect(res.restored).toBe(1);
+    expect(updated).toEqual([{ id: 9, data: { title: 'Old Title', attributes: { pattern: 'Printed' } } }]);
+  });
+
+  it("ignores a txn of the wrong kind rather than misapplying it", async () => {
+    const products = { updateProduct: async () => ({}) } as unknown as ProductsService;
+    const svc = new TransactionsService(products);
+    (svc as unknown as { getTxn: (id: number) => Promise<unknown> }).getTxn = async () => ({
+      id: 2,
+      kind: 'price',
+      snapshot: [{ productId: 9, previousPrice: '100.00' }],
+    });
+    const res = await svc.rollbackGenomeTxn(2);
+    expect(res.restored).toBe(0);
+  });
+});
