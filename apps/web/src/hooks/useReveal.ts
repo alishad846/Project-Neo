@@ -27,7 +27,17 @@ export function useReveal<T extends HTMLElement>() {
       { threshold: 0.15 },
     );
     observer.observe(node);
-    return () => observer.disconnect();
+
+    // Failsafe: if IntersectionObserver never fires (unsupported browser,
+    // an observer bug, or the element is already visible but the observer
+    // hasn't reported yet), force content visible after a short delay so
+    // it's never stuck hidden/faint.
+    const failsafe = window.setTimeout(() => setVisible(true), 1800);
+
+    return () => {
+      observer.disconnect();
+      window.clearTimeout(failsafe);
+    };
   }, []);
 
   return { ref, visible };
