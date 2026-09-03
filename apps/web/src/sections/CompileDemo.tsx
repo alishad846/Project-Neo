@@ -2,6 +2,7 @@ import { useState } from "react";
 import { ArrowRight } from "lucide-react";
 import { PRODUCTS } from "../data";
 import type { AdapterOutput } from "../data";
+import { useReveal } from "../hooks/useReveal";
 
 const MARKETPLACES: AdapterOutput["marketplace"][] = ["Meesho", "Amazon India", "Flipkart"];
 
@@ -16,10 +17,11 @@ export function CompileDemo() {
 
   const product = PRODUCTS[productIndex];
   const output = product.outputs.find((o) => o.marketplace === marketplace) ?? product.outputs[0];
+  const { ref, visible } = useReveal<HTMLDivElement>();
 
   return (
     <section className="bg-[#fff0f5] py-24 md:py-32">
-      <div className="mx-auto max-w-6xl px-6">
+      <div ref={ref} className={`mx-auto max-w-6xl px-6 reveal ${visible ? "reveal-visible" : ""}`}>
         <h2 className="mb-4 text-center font-loud text-5xl text-black md:text-7xl [-webkit-text-stroke:2px_black]">
           ONE PRODUCT. EVERY MARKETPLACE.
         </h2>
