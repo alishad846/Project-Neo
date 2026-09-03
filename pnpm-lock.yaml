@@ -156,6 +156,9 @@ importers:
       '@neo/genome':
         specifier: workspace:*
         version: link:../../packages/genome
+      '@neo/rules-engine':
+        specifier: workspace:*
+        version: link:../../packages/rules-engine
       '@neo/ui':
         specifier: workspace:*
         version: link:../../packages/ui

@@ -5,6 +5,7 @@ import { queryClient } from "./lib/queryClient";
 import { getProducts } from "./api";
 import { PriceManager } from "./components/PriceManager";
 import { AIComposer } from "./components/AIComposer";
+import { ProfitCalculator } from "./components/ProfitCalculator";
 import { Header } from "./components/Header";
 import { AuthGate } from "./components/AuthGate";
 import { clearToken } from "./auth";
@@ -42,7 +43,7 @@ function Catalogue() {
 }
 
 function App() {
-  const [tab, setTab] = useState<"catalogue" | "pricing" | "composer">("catalogue");
+  const [tab, setTab] = useState<"catalogue" | "pricing" | "composer" | "calculator">("catalogue");
   return (
     <div className="min-h-screen bg-[#fff0f5]">
       <Header onLogout={handleLogout} />
@@ -77,13 +78,24 @@ function App() {
         >
           AI Composer
         </button>
+        <button
+          onClick={() => setTab("calculator")}
+          className={`flex-1 rounded-lg border-2 border-black px-3 py-2 font-cartoon text-xs font-semibold transition-all ${
+            tab === "calculator"
+              ? "bg-[#ffeb3b] shadow-[3px_3px_0px_0px_#000] -translate-y-0.5"
+              : "bg-white"
+          }`}
+        >
+          Calculator
+        </button>
       </nav>
-      {/* All three tabs stay mounted so switching tabs never discards Price Manager's
-          in-progress preview, an applied-but-not-yet-reverted transaction, or the
-          AI Composer's in-progress draft. */}
+      {/* All four tabs stay mounted so switching tabs never discards Price Manager's
+          in-progress preview, an applied-but-not-yet-reverted transaction, the
+          AI Composer's in-progress draft, or the calculator's inputs. */}
       <div style={{ display: tab === "catalogue" ? "block" : "none" }}><Catalogue /></div>
       <div style={{ display: tab === "pricing" ? "block" : "none" }}><PriceManager /></div>
       <div style={{ display: tab === "composer" ? "block" : "none" }}><AIComposer /></div>
+      <div style={{ display: tab === "calculator" ? "block" : "none" }}><ProfitCalculator /></div>
     </div>
   );
 }

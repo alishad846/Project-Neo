@@ -18,6 +18,7 @@
   "dependencies": {
     "@neo/adapter-meesho": "workspace:*",
     "@neo/genome": "workspace:*",
+    "@neo/rules-engine": "workspace:*",
     "@neo/ui": "workspace:*",
     "@tailwindcss/vite": "^4.3.3",
     "@tanstack/react-query": "^5.59.0",
