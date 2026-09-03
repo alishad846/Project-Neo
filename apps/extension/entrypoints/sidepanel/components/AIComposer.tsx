@@ -126,11 +126,16 @@ export function AIComposer() {
     if (!productId) return;
     await run(
       () =>
-        publishListing(Number(productId), title, {
-          ...attrValues,
-          description,
-          keywords: keywords.split(",").map((k) => k.trim()).filter(Boolean),
-        }),
+        publishListing(
+          Number(productId),
+          title,
+          {
+            ...attrValues,
+            description,
+            keywords: keywords.split(",").map((k) => k.trim()).filter(Boolean),
+          },
+          { hsnCode, sellingPrice },
+        ),
       async (r) => {
         setPublishResult(r);
         setFillResult(null);

@@ -11,7 +11,12 @@ export interface PriceSnapshotEntry {
 
 export interface GenomeSnapshotEntry {
   productId: number;
-  previous: { title: string | null; attributes: unknown };
+  previous: {
+    title: string | null;
+    attributes: unknown;
+    hsnCode?: string | null;
+    sellingPrice?: string | null;
+  };
 }
 
 @Injectable()

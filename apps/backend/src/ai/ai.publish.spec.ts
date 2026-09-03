@@ -48,4 +48,54 @@ describe('AiService.publish', () => {
     expect(result.txnId).toBe(7);
     expect(result.listing.fields.title).toBe('New Title');
   });
+
+  it('passes edited hsnCode/sellingPrice to updateProduct and snapshots the prior values', async () => {
+    const updateProduct = jest.fn(async () => ({}));
+    const products = { getProductById: async () => baseGenome, updateProduct } as unknown as ProductsService;
+    const createGenomeTxn = jest.fn(async () => ({ id: 9 }));
+    const transactions = { createGenomeTxn } as unknown as TransactionsService;
+    const svc = new AiService({} as HttpService, products, transactions);
+
+    const result = await svc.publish(1, 'New Title', { description: 'A great kurti.' }, {
+      hsnCode: '6205',
+      sellingPrice: '799.00',
+    });
+
+    expect(createGenomeTxn).toHaveBeenCalledWith(
+      [
+        {
+          productId: 1,
+          previous: {
+            title: 'Old Title',
+            attributes: { pattern: 'Printed' },
+            hsnCode: '6204',
+            sellingPrice: '699.00',
+          },
+        },
+      ],
+      expect.anything(),
+    );
+    expect(updateProduct).toHaveBeenCalledWith(1, {
+      title: 'New Title',
+      attributes: { pattern: 'Printed', description: 'A great kurti.' },
+      hsnCode: '6205',
+      sellingPrice: '799.00',
+    });
+    expect(result.txnId).toBe(9);
+  });
+
+  it('omits hsnCode/sellingPrice from the update when not provided', async () => {
+    const updateProduct = jest.fn(async () => ({}));
+    const products = { getProductById: async () => baseGenome, updateProduct } as unknown as ProductsService;
+    const createGenomeTxn = jest.fn(async () => ({ id: 10 }));
+    const transactions = { createGenomeTxn } as unknown as TransactionsService;
+    const svc = new AiService({} as HttpService, products, transactions);
+
+    await svc.publish(1, 'New Title', { description: 'A great kurti.' });
+
+    expect(updateProduct).toHaveBeenCalledWith(1, {
+      title: 'New Title',
+      attributes: { pattern: 'Printed', description: 'A great kurti.' },
+    });
+  });
 });

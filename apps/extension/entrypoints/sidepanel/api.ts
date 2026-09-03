@@ -98,11 +98,18 @@ export async function publishListing(
   productId: number,
   title: string,
   attributes: Record<string, unknown>,
+  genomeEdits?: { hsnCode?: string; sellingPrice?: string },
 ): Promise<PublishResult> {
   const res = await fetch(`${API_URL}/ai/publish`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ productId, title, attributes }),
+    body: JSON.stringify({
+      productId,
+      title,
+      attributes,
+      hsnCode: genomeEdits?.hsnCode,
+      sellingPrice: genomeEdits?.sellingPrice,
+    }),
   });
   if (!res.ok) throw new Error(`Publish error: ${res.status}`);
   return res.json();

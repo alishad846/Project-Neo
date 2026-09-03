@@ -54,16 +54,26 @@ export class AiService {
     productId: number,
     title: string,
     attributes: Record<string, unknown>,
+    genomeEdits?: { hsnCode?: string; sellingPrice?: string },
   ): Promise<PublishResult> {
     const current = await this.productsService.getProductById(productId);
     if (!current) {
       throw new NotFoundException(`No product with id ${productId}`);
     }
 
+    const hsnCode = genomeEdits?.hsnCode;
+    const sellingPrice = genomeEdits?.sellingPrice;
+
     const mergedAttributes = { ...((current.attributes as Record<string, unknown>) ?? {}), ...attributes };
     // Drizzle's select type is structurally compatible with ProductGenome (same
     // column shapes); cast once here to compile() the draft without persisting it.
-    const draftGenome = { ...current, title, attributes: mergedAttributes } as ProductGenome;
+    const draftGenome = {
+      ...current,
+      title,
+      attributes: mergedAttributes,
+      ...(hsnCode !== undefined ? { hsnCode } : {}),
+      ...(sellingPrice !== undefined ? { sellingPrice } : {}),
+    } as ProductGenome;
     const listing = compile(draftGenome, current.category ?? 'uncategorised');
     const issues = validate(listing);
     const errors = issues.filter((i) => i.severity === 'error');
@@ -71,11 +81,27 @@ export class AiService {
       throw new UnprocessableEntityException({ message: 'Listing failed validation', issues });
     }
 
+    const update = {
+      title,
+      attributes: mergedAttributes,
+      ...(hsnCode !== undefined ? { hsnCode } : {}),
+      ...(sellingPrice !== undefined ? { sellingPrice } : {}),
+    };
     const txn = await this.transactionsService.createGenomeTxn(
-      [{ productId, previous: { title: current.title, attributes: current.attributes } }],
-      { title, attributes: mergedAttributes },
+      [
+        {
+          productId,
+          previous: {
+            title: current.title,
+            attributes: current.attributes,
+            ...(hsnCode !== undefined ? { hsnCode: current.hsnCode } : {}),
+            ...(sellingPrice !== undefined ? { sellingPrice: current.sellingPrice } : {}),
+          },
+        },
+      ],
+      update,
     );
-    await this.productsService.updateProduct(productId, { title, attributes: mergedAttributes });
+    await this.productsService.updateProduct(productId, update);
 
     return { txnId: txn.id, listing, warnings: issues.filter((i) => i.severity === 'warning') };
   }
