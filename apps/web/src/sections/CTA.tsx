@@ -10,7 +10,7 @@ export function CTA() {
         </h2>
         <PopButton text="Get Early Access" color="#b2ff59" icon={Zap} />
       </div>
-      <div className="border-t-4 border-black bg-[#ff90e8] py-3">
+      <div className="overflow-hidden border-t-4 border-black bg-[#ff90e8] py-3">
         <div className="flex animate-marquee whitespace-nowrap font-loud text-2xl tracking-widest text-black">
           <span className="mx-8">💥 ONE GENOME · EVERY MARKETPLACE</span>
           <span className="mx-8">★ FREE · LOCAL-FIRST · REVERSIBLE</span>

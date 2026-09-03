@@ -7,12 +7,17 @@ export function Hero() {
   const { x, y } = useEyeTracking();
 
   useEffect(() => {
+    const reduceMotion = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
     const tl = gsap.timeline();
-    tl.from(".pop-in", { scale: 0, opacity: 0, duration: 0.8, stagger: 0.1, ease: "elastic.out(1, 0.5)" });
-    const gridAnimation = gsap.to(".bg-grid", { backgroundPosition: "100px 100px", duration: 20, repeat: -1, ease: "none" });
+    tl.from(".pop-in", reduceMotion
+      ? { opacity: 0, duration: 0.3 }
+      : { scale: 0, opacity: 0, duration: 0.8, stagger: 0.1, ease: "elastic.out(1, 0.5)" });
+    const gridAnimation = reduceMotion
+      ? null
+      : gsap.to(".bg-grid", { backgroundPosition: "100px 100px", duration: 20, repeat: -1, ease: "none" });
     return () => {
       tl.kill();
-      gridAnimation.kill();
+      gridAnimation?.kill();
     };
   }, []);
 
