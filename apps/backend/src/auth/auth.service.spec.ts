@@ -27,14 +27,6 @@ function mockSelectResult(rows: FakeSeller[]) {
   });
 }
 
-function mockInsertResult(row: Partial<FakeSeller>) {
-  (db.insert as jest.Mock).mockReturnValue({
-    values: jest.fn().mockReturnValue({
-      returning: jest.fn().mockResolvedValue([row]),
-    }),
-  });
-}
-
 describe("AuthService.signup", () => {
   beforeEach(() => {
     jest.clearAllMocks();
