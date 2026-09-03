@@ -35,7 +35,7 @@ export function ProfitCalculator() {
 
   return (
     <div className="p-4">
-      <h2 className="font-loud text-2xl tracking-wide text-black">Profit Calculator</h2>
+      <h2 className="font-accent text-xl tracking-wide text-black">Profit Calculator</h2>
 
       <div className="mt-3 grid gap-2 rounded-xl border-2 border-black bg-white p-3 shadow-[3px_3px_0px_0px_#000]">
         <input

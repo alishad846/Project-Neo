@@ -22,7 +22,7 @@ function Catalogue() {
   if (error) return <p className="p-4 font-cartoon text-sm">Could not reach backend on :3000.</p>;
   return (
     <div className="p-4">
-      <h2 className="font-loud text-2xl tracking-wide text-black">
+      <h2 className="font-accent text-xl tracking-wide text-black">
         Catalogue <span className="text-[#ff90e8]">({data?.length ?? 0})</span>
       </h2>
       <ul className="mt-3 flex flex-col gap-2">

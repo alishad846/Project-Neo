@@ -7,6 +7,26 @@
    legible even if the fonts fail to load. */
 .font-cartoon { font-family: 'Fredoka', system-ui, sans-serif; }
 .font-loud { font-family: 'Bangers', 'Impact', system-ui, sans-serif; }
+
+/* Self-hosted custom faces (bundled under public/fonts/ so they load from
+   the extension's own origin — no remote font-src needed for these two).
+   Whoa Sauce has NO digit/₹ glyphs, so it is used ONLY for the brand
+   wordmark (letters). Everything else — numbers, prices, body copy, table
+   data — stays on Fredoka via .font-body. */
+@font-face {
+  font-family: 'Whoa Sauce';
+  src: url('/fonts/WhoaSauce-Bold.ttf') format('truetype');
+  font-display: swap;
+}
+@font-face {
+  font-family: 'Magic Cookie';
+  src: url('/fonts/MagicCookie.ttf') format('truetype');
+  font-display: swap;
+}
+.font-display { font-family: 'Whoa Sauce', 'Impact', system-ui, sans-serif; }
+.font-accent { font-family: 'Magic Cookie', 'Comic Sans MS', system-ui, sans-serif; }
+.font-body { font-family: 'Fredoka', system-ui, sans-serif; }
+
 .animate-marquee { animation: marquee 10s linear infinite; }
 @keyframes marquee { 0% { transform: translateX(0); } 100% { transform: translateX(-50%); } }
 
