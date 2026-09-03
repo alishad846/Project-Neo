@@ -1,7 +1,5 @@
 import { Star, Zap, Send, Smile, MousePointer2 } from "lucide-react";
 import { useEyeTracking, PopButton, Sticker } from "@neo/ui";
-import gsap from "gsap";
-import { useEffect } from "react";
 
 export function Hero() {
   const { x, y } = useEyeTracking();
@@ -9,31 +7,12 @@ export function Hero() {
   // The entrance fade/slide for ".pop-in" elements is pure CSS (see
   // styles.css) so it never depends on a JS animation library finishing
   // before paint — it also picks up prefers-reduced-motion for free via the
-  // global override. GSAP is reserved here for the decorative, purely
-  // cosmetic background drift, which is safe to skip entirely.
-  useEffect(() => {
-    const reduceMotion = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
-    if (reduceMotion) return;
-
-    // The polka-dot backdrop drifts, very slowly, instead of racing.
-    const gridAnimation = gsap.to(".bg-grid", {
-      backgroundPosition: "40px 40px",
-      duration: 60,
-      repeat: -1,
-      ease: "none",
-    });
-
-    return () => {
-      gridAnimation.kill();
-    };
-  }, []);
-
+  // global override.
   return (
-    <section className="relative w-full overflow-hidden bg-[#fff0f5] py-24 text-black selection:bg-[#ff90e8] md:py-32">
-      <div
-        className="bg-grid absolute inset-0 z-0 opacity-10"
-        style={{ backgroundImage: "radial-gradient(circle, #000 2px, transparent 2.5px)", backgroundSize: "30px 30px" }}
-      />
+    <section
+      className="relative w-full overflow-hidden py-24 text-black selection:bg-[#ff90e8] md:py-32"
+      style={{ backgroundImage: "url(/images/LandingPageBG.jpg)", backgroundSize: "cover", backgroundPosition: "center" }}
+    >
       <Sticker className="left-10 top-16 hidden h-16 w-16 bg-[#00e5ff] rotate-12 md:flex">
         <Zap className="h-8 w-8 fill-yellow-300 stroke-black stroke-[3px]" />
       </Sticker>
@@ -58,8 +37,8 @@ export function Hero() {
             className="pop-in relative z-10 flex flex-wrap items-center justify-center gap-x-4 gap-y-2 font-display text-7xl leading-none text-black md:text-9xl"
             style={{ animationDelay: "0s" }}
           >
-            <span className="text-[#ff90e8] drop-shadow-[3px_3px_0px_rgba(0,0,0,1)] md:drop-shadow-[5px_5px_0px_rgba(0,0,0,1)]">SELL</span>
-            <span className="flex items-center text-[#00e5ff] drop-shadow-[3px_3px_0px_rgba(0,0,0,1)] md:drop-shadow-[5px_5px_0px_rgba(0,0,0,1)]">
+            <span className="display-outline-light">SELL</span>
+            <span className="flex items-center display-outline-light">
               SM
               <span className="mx-1 flex gap-2">
                 <span className="relative inline-flex h-12 w-12 items-center justify-center overflow-hidden rounded-full border-4 border-black bg-white align-middle shadow-[4px_4px_0px_0px_#000] md:h-16 md:w-16">
@@ -96,15 +75,15 @@ export function Hero() {
             />
           </svg>
 
-          <p className="pop-in mt-8 font-accent text-2xl text-black md:text-3xl" style={{ animationDelay: "0.3s" }}>
-            One catalog, every marketplace.
-          </p>
-          <p
-            className="pop-in mx-auto mt-4 max-w-xl font-body text-base text-black/80 md:text-lg"
-            style={{ animationDelay: "0.4s" }}
+          <div
+            className="pop-in mt-8 flex flex-col items-center gap-3 rounded-3xl border-4 border-black bg-white/95 px-6 py-6 shadow-[6px_6px_0px_0px_#000] md:px-10 md:py-8"
+            style={{ animationDelay: "0.3s" }}
           >
-            List once. Neo compiles your products for every store you sell on and fills the forms for you.
-          </p>
+            <p className="font-accent text-2xl text-black md:text-3xl">One catalog, every marketplace.</p>
+            <p className="mx-auto max-w-xl font-body text-base text-black/80 md:text-lg">
+              List once. Neo compiles your products for every store you sell on and fills the forms for you.
+            </p>
+          </div>
         </div>
 
         <div className="pop-in mt-10 flex flex-col gap-6 sm:flex-row" style={{ animationDelay: "0.5s" }}>

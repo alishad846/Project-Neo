@@ -1,6 +1,7 @@
 import { Check, Zap } from "lucide-react";
 import { PopButton } from "@neo/ui";
 import { useReveal } from "../hooks/useReveal";
+import { SectionBg } from "../components/SectionBg";
 
 interface Tier {
   name: string;
@@ -42,7 +43,7 @@ const TIERS: Tier[] = [
 export function Pricing() {
   const { ref, visible } = useReveal<HTMLDivElement>();
   return (
-    <section id="pricing" className="bg-[#fff0f5] py-24 md:py-32">
+    <SectionBg id="pricing" image="/images/Bow.jpg" tone="light" contentClassName="relative z-10">
       <div ref={ref} className={`mx-auto max-w-5xl px-6 reveal ${visible ? "reveal-visible" : ""}`}>
         <h2 className="mb-4 text-center font-loud text-5xl text-black md:text-7xl [-webkit-text-stroke:2px_black]">
           PICK YOUR PLAN.
@@ -89,6 +90,6 @@ export function Pricing() {
           ))}
         </div>
       </div>
-    </section>
+    </SectionBg>
   );
 }

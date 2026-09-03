@@ -2,11 +2,12 @@ import { Check, Undo2 } from "lucide-react";
 import { PopButton } from "@neo/ui";
 import { PRICE_RULES, PRICE_ROWS } from "../data";
 import { useReveal } from "../hooks/useReveal";
+import { SectionBg } from "../components/SectionBg";
 
 export function PriceShowcase() {
   const { ref, visible } = useReveal<HTMLDivElement>();
   return (
-    <section className="bg-[#fff0f5] py-24 md:py-32">
+    <SectionBg grain="pink" tone="light" contentClassName="relative z-10">
       <div ref={ref} className={`mx-auto max-w-6xl px-6 reveal ${visible ? "reveal-visible" : ""}`}>
         <h2 className="mb-4 text-center font-loud text-5xl text-black md:text-7xl [-webkit-text-stroke:2px_black]">
           CHANGE 500 PRICES. UNDO IN ONE CLICK.
@@ -80,6 +81,6 @@ export function PriceShowcase() {
           </div>
         </div>
       </div>
-    </section>
+    </SectionBg>
   );
 }

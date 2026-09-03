@@ -82,6 +82,52 @@ body {
 }
 
 /* ============================================================================
+   GRAIN FILLS — calm, low-opacity textured tints for blank gaps and for
+   sections with dense text/data that must stay legible (no busy comic image
+   behind body copy, tables, or prices). SVG feTurbulence noise, subtle.
+   ========================================================================== */
+.grain-pink,
+.grain-yellow {
+  position: relative;
+  background-repeat: repeat;
+}
+.grain-pink { background-color: #ffd9e8; }
+.grain-yellow { background-color: #ffe680; }
+.grain-pink::before,
+.grain-yellow::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  z-index: 0;
+  opacity: 0.3;
+  mix-blend-mode: multiply;
+  pointer-events: none;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='180' height='180'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.85' numOctaves='2' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");
+}
+
+/* ============================================================================
+   OUTLINED DISPLAY TEXT — white/cream fill with a black outline, for display
+   headings sitting on dark/busy backgrounds (hero magenta, red CTA).
+   Deliberately pure text-shadow, NOT -webkit-text-stroke: a stroke straddles
+   the glyph path and, on a bold display face at large sizes, thickens
+   strokes enough to close up counters (L reads as C, TH blends into a single
+   shape). Layered shadows only add copies around the glyph, so the
+   letterforms stay intact while still reading as a solid comic outline.
+   ========================================================================== */
+.display-outline-light {
+  color: #fffbe8;
+  text-shadow:
+    -3px -3px 0 #000,
+     3px -3px 0 #000,
+    -3px  3px 0 #000,
+     3px  3px 0 #000,
+    -3px  0    0 #000,
+     3px  0    0 #000,
+     0   -3px 0 #000,
+     0    3px 0 #000;
+}
+
+/* ============================================================================
    REDUCED MOTION
    ========================================================================== */
 @media (prefers-reduced-motion: reduce) {
