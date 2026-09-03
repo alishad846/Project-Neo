@@ -1,0 +1,46 @@
+@import "tailwindcss";
+@import "@neo/ui/cartoon.css";
+
+/* ============================================================================
+   Neo marketing site — base reset
+   The cartoon/neo-brutalist system (palette, type, borders, shadows) lives
+   inline via Tailwind utility classes on each section. This file only carries
+   the handful of rules that have to be global: box-sizing, scroll behaviour,
+   selection/focus theming, and the reduced-motion escape hatch.
+   ========================================================================== */
+
+* { box-sizing: border-box; }
+
+html {
+  scroll-behavior: smooth;
+  -webkit-text-size-adjust: 100%;
+  /* Belt-and-suspenders: nothing on the page should ever force horizontal
+     scroll (marquees, rotated cards), but if something regresses, clip it
+     here instead of letting the whole page gain a sideways scrollbar. */
+  overflow-x: hidden;
+}
+
+body {
+  margin: 0;
+  overflow-x: hidden;
+}
+
+::selection { background: #ff90e8; color: #000; }
+
+:focus-visible {
+  outline: 3px solid #000;
+  outline-offset: 3px;
+  border-radius: 2px;
+}
+
+/* ============================================================================
+   REDUCED MOTION
+   ========================================================================== */
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after {
+    animation-duration: 0.001ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.001ms !important;
+    scroll-behavior: auto !important;
+  }
+}

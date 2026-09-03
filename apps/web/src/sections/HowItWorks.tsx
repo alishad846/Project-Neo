@@ -1,0 +1,62 @@
+import { Camera, Sparkles, Send, type LucideIcon } from "lucide-react";
+
+interface Step {
+  icon: LucideIcon;
+  color: string;
+  title: string;
+  body: string;
+  rotate: string;
+}
+
+const STEPS: Step[] = [
+  {
+    icon: Camera,
+    color: "#00e5ff",
+    title: "Snap a photo",
+    body: "Point at any product. Neo's on-device AI reads the whole product — fabric, colour, neck, HSN — no typing.",
+    rotate: "-rotate-2",
+  },
+  {
+    icon: Sparkles,
+    color: "#ff90e8",
+    title: "Neo builds the genome",
+    body: "One canonical record. Edit once, it stays the source of truth for every marketplace.",
+    rotate: "rotate-1",
+  },
+  {
+    icon: Send,
+    color: "#b2ff59",
+    title: "Autofill your listing",
+    body: "Neo fills the Meesho form for you and stops at Submit so you stay in control.",
+    rotate: "-rotate-1",
+  },
+];
+
+export function HowItWorks() {
+  return (
+    <section className="bg-[#fff0f5] py-24 md:py-32">
+      <div className="mx-auto max-w-6xl px-6">
+        <h2 className="mb-16 text-center font-loud text-5xl text-black md:text-7xl [-webkit-text-stroke:2px_black]">
+          SNAP. COMPILE. DONE.
+        </h2>
+        <div className="grid gap-10 md:grid-cols-3">
+          {STEPS.map((step) => (
+            <div
+              key={step.title}
+              className={`${step.rotate} flex flex-col items-center rounded-2xl border-4 border-black bg-white p-8 text-center shadow-[6px_6px_0px_0px_#000] transition-transform hover:-translate-y-1 hover:rotate-0`}
+            >
+              <div
+                className="mb-6 flex h-20 w-20 items-center justify-center rounded-full border-4 border-black shadow-[4px_4px_0px_0px_#000]"
+                style={{ backgroundColor: step.color }}
+              >
+                <step.icon className="h-10 w-10 stroke-[3px] text-black" />
+              </div>
+              <h3 className="mb-3 font-loud text-3xl text-black">{step.title}</h3>
+              <p className="font-cartoon text-base text-black/80">{step.body}</p>
+            </div>
+          ))}
+        </div>
+      </div>
+    </section>
+  );
+}

@@ -24,13 +24,17 @@
     "seed": "ts-node src/db/seed.ts"
   },
   "dependencies": {
+    "@neo/adapter": "workspace:^",
+    "@neo/adapter-meesho": "workspace:^",
     "@neo/genome": "workspace:*",
     "@neo/rules-engine": "workspace:*",
     "@nestjs/axios": "^12.0.0",
     "@nestjs/common": "^11.0.1",
     "@nestjs/core": "^11.0.1",
+    "@nestjs/jwt": "^12.0.1",
     "@nestjs/platform-express": "^11.0.1",
     "axios": "^1.20.0",
+    "bcrypt": "^6.0.0",
     "dotenv": "^17.4.2",
     "drizzle-orm": "^0.45.2",
     "pg": "^8.23.0",
@@ -44,6 +48,7 @@
     "@nestjs/cli": "^11.0.0",
     "@nestjs/schematics": "^11.0.0",
     "@nestjs/testing": "^11.0.1",
+    "@types/bcrypt": "^6.0.0",
     "@types/express": "^5.0.0",
     "@types/jest": "^30.0.0",
     "@types/node": "^24.0.0",
@@ -76,6 +81,9 @@
     "transform": {
       "^.+\\.(t|j)s$": "ts-jest"
     },
+    "transformIgnorePatterns": [
+      "node_modules/(?!.*@nestjs/axios|.*@nestjs/jwt)"
+    ],
     "moduleNameMapper": {
       "^(\\.{1,2}/.*)\\.js$": "$1"
     },

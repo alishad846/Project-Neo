@@ -58,3 +58,65 @@ export async function undoPricing(txnId: number): Promise<{ restored: number }> 
   if (!res.ok) throw new Error(`Undo error: ${res.status}`);
   return res.json();
 }
+
+export interface ExtractResult {
+  attributes: Record<string, unknown>;
+  confidence: "low" | "high";
+  source: "heuristic" | "model";
+}
+
+export interface ValidationIssue {
+  field: string;
+  severity: "error" | "warning";
+  message: string;
+}
+
+export interface CompiledListing {
+  adapterId: string;
+  categoryId: string;
+  genomeVersion: number;
+  fields: Record<string, unknown>;
+}
+
+export interface PublishResult {
+  txnId: number;
+  listing: CompiledListing;
+  warnings: ValidationIssue[];
+}
+
+export async function extractAttributes(productId: number, imageBase64: string): Promise<ExtractResult> {
+  const res = await fetch(`${API_URL}/ai/extract`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ productId, imageBase64 }),
+  });
+  if (!res.ok) throw new Error(`Extract error: ${res.status}`);
+  return res.json();
+}
+
+export async function publishListing(
+  productId: number,
+  title: string,
+  attributes: Record<string, unknown>,
+  genomeEdits?: { hsnCode?: string; sellingPrice?: string },
+): Promise<PublishResult> {
+  const res = await fetch(`${API_URL}/ai/publish`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({
+      productId,
+      title,
+      attributes,
+      hsnCode: genomeEdits?.hsnCode,
+      sellingPrice: genomeEdits?.sellingPrice,
+    }),
+  });
+  if (!res.ok) throw new Error(`Publish error: ${res.status}`);
+  return res.json();
+}
+
+export async function undoPublish(txnId: number): Promise<{ restored: number }> {
+  const res = await fetch(`${API_URL}/ai/undo/${txnId}`, { method: "POST" });
+  if (!res.ok) throw new Error(`Undo error: ${res.status}`);
+  return res.json();
+}

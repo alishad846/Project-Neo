@@ -1,14 +1,51 @@
-import { Controller, Post, Body } from '@nestjs/common';
+import { Body, Controller, Param, ParseIntPipe, Post, UsePipes } from '@nestjs/common';
+import { z } from 'zod';
 import { AiService } from './ai.service';
+import { ZodValidationPipe } from '../common/zod-validation.pipe';
 
-@Controller('api/ai')
+const extractRequestSchema = z.object({
+  productId: z.number().int(),
+  imageBase64: z.string().min(1),
+});
+
+const publishRequestSchema = z.object({
+  productId: z.number().int(),
+  title: z.string().min(1),
+  attributes: z.record(z.unknown()),
+  hsnCode: z.string().optional(),
+  sellingPrice: z.string().optional(),
+});
+
+@Controller('ai')
 export class AiController {
   constructor(private readonly aiService: AiService) {}
 
-  // This creates a POST route at http://localhost:3000/api/ai/extract
   @Post('extract')
-  async extractData(@Body('text') text: string) {
-    // It catches the text you send from Postman and passes it to your engine
-    return this.aiService.processProductDescription(text);
+  @UsePipes(new ZodValidationPipe(extractRequestSchema))
+  extract(@Body() body: { productId: number; imageBase64: string }) {
+    return this.aiService.extractAttributes(body.productId, body.imageBase64);
+  }
+
+  @Post('publish')
+  @UsePipes(new ZodValidationPipe(publishRequestSchema))
+  publish(
+    @Body()
+    body: {
+      productId: number;
+      title: string;
+      attributes: Record<string, unknown>;
+      hsnCode?: string;
+      sellingPrice?: string;
+    },
+  ) {
+    return this.aiService.publish(body.productId, body.title, body.attributes, {
+      hsnCode: body.hsnCode,
+      sellingPrice: body.sellingPrice,
+    });
+  }
+
+  @Post('undo/:txnId')
+  undo(@Param('txnId', ParseIntPipe) txnId: number) {
+    return this.aiService.undo(txnId);
   }
 }
