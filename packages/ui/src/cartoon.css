@@ -1,0 +1,5 @@
+@import url('https://fonts.googleapis.com/css2?family=Fredoka:wght@300;600&family=Bangers&display=swap');
+.font-cartoon { font-family: 'Fredoka', sans-serif; }
+.font-loud { font-family: 'Bangers', cursive; }
+.animate-marquee { animation: marquee 10s linear infinite; }
+@keyframes marquee { 0% { transform: translateX(0); } 100% { transform: translateX(-50%); } }
