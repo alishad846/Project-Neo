@@ -262,6 +262,47 @@
     return "";
   }
 
+function getValueByPath(source, path) {
+  if (!source || !path) {
+    return null;
+  }
+
+  const parts = String(path)
+    .split(".")
+    .filter(Boolean);
+
+  let current = source;
+
+  for (const part of parts) {
+    if (
+      current === null ||
+      current === undefined
+    ) {
+      return null;
+    }
+
+    current = current[part];
+  }
+
+  const value = clean(current);
+
+  return value === "" ? null : value;
+}
+
+function resolveMappedValue(product, mapping) {
+  const genomePath =
+    mapping?.maps_from?.genome_path;
+
+  if (!genomePath) {
+    return null;
+  }
+
+  return getValueByPath(
+    product,
+    genomePath
+  );
+}
+
   function sleep(ms) {
     return new Promise(resolve => setTimeout(resolve, ms));
   }
@@ -2510,11 +2551,25 @@
                   ).toUpperCase()}`
                 : baseSku;
 
-            const row = {
-              product_name:
-                product.product_name,
+            const productNameMapping =
+  window.meeshoFieldMappings?.getByKey?.(
+    "product_name"
+  );
 
-              variation,
+const mappedProductName =
+  productNameMapping
+    ? resolveMappedValue(
+        inputProduct,
+        productNameMapping
+      )
+    : null;
+
+const row = {
+  product_name:
+    mappedProductName ??
+    product.product_name,
+
+  variation,
 
               meesho_price:
                 numericOrBlank(
