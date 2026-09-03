@@ -1,6 +1,6 @@
 import React, { useMemo, useState } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
-import { Sparkles, UploadCloud, Undo2, Wand2 } from "lucide-react";
+import { ExternalLink, Sparkles, UploadCloud, Undo2, Wand2 } from "lucide-react";
 import { PopButton } from "@neo/ui";
 import {
   getProducts,
@@ -176,9 +176,13 @@ export function AIComposer() {
     );
   }
 
+  function openDemoForm() {
+    chromeApi?.tabs?.create?.({ url: "http://localhost:4173/demo" });
+  }
+
   return (
     <div className="p-4">
-      <h2 className="font-loud text-2xl tracking-wide text-black">AI Composer</h2>
+      <h2 className="font-accent text-xl tracking-wide text-black">AI Composer</h2>
 
       <div className="mt-3 grid gap-2 rounded-xl border-2 border-black bg-white p-3 shadow-[3px_3px_0px_0px_#000]">
         <select
@@ -285,28 +289,50 @@ export function AIComposer() {
                 text="Publish"
                 color="#b2ff59"
                 icon={Sparkles}
+                variant="panel"
+                disabled={busy || errors.length > 0}
                 onClick={() => { if (busy || errors.length > 0) return; publish(); }}
               />
             </div>
           ) : (
             <div className="mt-2">
-              <p className="font-cartoon text-xs text-green-700">Published as transaction #{publishResult.txnId}.</p>
+              <p className="font-cartoon text-xs font-semibold text-green-700">
+                Published as transaction #{publishResult.txnId}.
+              </p>
+
+              <div className="mt-2 flex flex-wrap gap-2">
+                <PopButton
+                  text="Open demo form"
+                  color="#fff59d"
+                  icon={ExternalLink}
+                  variant="panel"
+                  onClick={openDemoForm}
+                />
+              </div>
+              <p className="mt-1 font-cartoon text-[11px] text-black/60">
+                Open your Meesho Add-Product page, or the Neo demo form above, in a tab — then click Autofill.
+              </p>
+
               <div className="mt-2 flex flex-wrap gap-2">
                 <PopButton
                   text="Autofill Meesho"
                   color="#ff8a65"
                   icon={Wand2}
+                  variant="panel"
+                  disabled={busy}
                   onClick={() => { if (busy) return; autofill(); }}
                 />
                 <PopButton
                   text="Previous"
                   color="#00e5ff"
                   icon={Undo2}
+                  variant="panel"
+                  disabled={busy}
                   onClick={() => { if (busy) return; undo(); }}
                 />
               </div>
               {fillResult && (
-                <p className={`mt-2 font-cartoon text-xs ${fillResult.ok ? "text-green-700" : "text-red-600"}`}>
+                <p className={`mt-2 font-cartoon text-xs font-semibold ${fillResult.ok ? "text-green-700" : "text-red-600"}`}>
                   {fillResult.ok
                     ? `Filled: ${fillResult.filled?.join(", ") || "none"}.${
                         fillResult.missing?.length ? ` Missing: ${fillResult.missing.join(", ")}.` : ""
