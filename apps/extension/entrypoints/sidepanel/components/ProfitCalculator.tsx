@@ -1,13 +1,14 @@
 import React, { useMemo, useState } from "react";
+import { resolveRuleSet } from "@neo/rules-engine";
 import { calcProfit } from "../lib/calcProfit";
 
 const money = (n: number) => `₹${n.toFixed(2)}`;
 
-const CATEGORY_OPTIONS = [
-  { value: "Women > Kurtis", label: "Women > Kurtis" },
-  { value: "Women > Sarees", label: "Women > Sarees" },
-  { value: "*", label: "Other" },
-];
+// Derived from the effective-dated RuleSet so options can't drift from the rules.
+const CATEGORY_OPTIONS = resolveRuleSet(new Date()).categories.map((c) => ({
+  value: c.category,
+  label: c.category === "*" ? "Other" : c.category,
+}));
 
 const inputClass = "rounded-lg border-2 border-black px-2 py-1.5 font-cartoon text-xs";
 
@@ -18,7 +19,7 @@ export function ProfitCalculator() {
   const [category, setCategory] = useState("*");
   const [returnRatePercent, setReturnRatePercent] = useState<number | "">("");
 
-  const result = useMemo(
+  const outcome = useMemo(
     () =>
       calcProfit({
         sellingPrice: sellingPrice === "" ? NaN : Number(sellingPrice),
@@ -29,6 +30,8 @@ export function ProfitCalculator() {
       }),
     [sellingPrice, costPrice, weightKg, category, returnRatePercent]
   );
+  const result = outcome.ok ? outcome.result : null;
+  const returnRateInvalid = !outcome.ok && outcome.error.kind === "return-rate-too-high";
 
   return (
     <div className="p-4">
@@ -75,7 +78,9 @@ export function ProfitCalculator() {
 
       {result == null ? (
         <p className="mt-3 font-cartoon text-xs text-black/60">
-          Enter a selling price, cost price, and weight to see profit.
+          {returnRateInvalid
+            ? "Return rate must be under 95%."
+            : "Enter a selling price, cost price, and weight to see profit."}
         </p>
       ) : (
         <div className="mt-3 rounded-xl border-2 border-black bg-white p-3 shadow-[3px_3px_0px_0px_#000]">
