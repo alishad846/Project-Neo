@@ -4,20 +4,28 @@ import { QueryClientProvider, useQuery } from "@tanstack/react-query";
 import { queryClient } from "./lib/queryClient";
 import { getProducts } from "./api";
 import { PriceManager } from "./components/PriceManager";
+import { Header } from "./components/Header";
 import "./style.css";
 
 function Catalogue() {
   const { data, isLoading, error } = useQuery({ queryKey: ["products"], queryFn: getProducts });
-  if (isLoading) return <p style={{ padding: 16 }}>Loading catalogue…</p>;
-  if (error) return <p style={{ padding: 16 }}>Could not reach backend on :3000.</p>;
+  if (isLoading) return <p className="p-4 font-cartoon text-sm">Loading catalogue…</p>;
+  if (error) return <p className="p-4 font-cartoon text-sm">Could not reach backend on :3000.</p>;
   return (
-    <div style={{ padding: 16 }}>
-      <h1 style={{ fontSize: 18, fontWeight: 600 }}>Catalogue ({data?.length ?? 0})</h1>
-      <ul style={{ listStyle: "none", padding: 0 }}>
+    <div className="p-4">
+      <h2 className="font-loud text-2xl tracking-wide text-black">
+        Catalogue <span className="text-[#ff90e8]">({data?.length ?? 0})</span>
+      </h2>
+      <ul className="mt-3 flex flex-col gap-2">
         {data?.map((p) => (
-          <li key={p.id} style={{ padding: "8px 0", borderBottom: "1px solid #eee" }}>
-            <strong>{p.title ?? p.sku}</strong>
-            <div style={{ fontSize: 12, color: "#666" }}>{p.category} · {p.colour} · ₹{p.sellingPrice}</div>
+          <li
+            key={p.id}
+            className="rounded-xl border-2 border-black bg-white px-3 py-2 shadow-[3px_3px_0px_0px_#000]"
+          >
+            <strong className="font-cartoon text-sm">{p.title ?? p.sku}</strong>
+            <div className="mt-1 font-cartoon text-xs text-black/60">
+              {p.category} · {p.colour} · ₹{p.sellingPrice}
+            </div>
           </li>
         ))}
       </ul>
@@ -28,10 +36,29 @@ function Catalogue() {
 function App() {
   const [tab, setTab] = useState<"catalogue" | "pricing">("catalogue");
   return (
-    <div>
-      <nav style={{ display: "flex", borderBottom: "1px solid #ddd" }}>
-        <button onClick={() => setTab("catalogue")} style={{ flex: 1, padding: 10, fontWeight: tab === "catalogue" ? 700 : 400 }}>Catalogue</button>
-        <button onClick={() => setTab("pricing")} style={{ flex: 1, padding: 10, fontWeight: tab === "pricing" ? 700 : 400 }}>Price Manager</button>
+    <div className="min-h-screen bg-[#fff0f5]">
+      <Header />
+      <nav className="flex gap-2 border-b-4 border-black bg-white px-3 py-2">
+        <button
+          onClick={() => setTab("catalogue")}
+          className={`flex-1 rounded-lg border-2 border-black px-3 py-2 font-cartoon text-xs font-semibold transition-all ${
+            tab === "catalogue"
+              ? "bg-[#00e5ff] shadow-[3px_3px_0px_0px_#000] -translate-y-0.5"
+              : "bg-white"
+          }`}
+        >
+          Catalogue
+        </button>
+        <button
+          onClick={() => setTab("pricing")}
+          className={`flex-1 rounded-lg border-2 border-black px-3 py-2 font-cartoon text-xs font-semibold transition-all ${
+            tab === "pricing"
+              ? "bg-[#b2ff59] shadow-[3px_3px_0px_0px_#000] -translate-y-0.5"
+              : "bg-white"
+          }`}
+        >
+          Price Manager
+        </button>
       </nav>
       {/* Both tabs stay mounted so switching tabs never discards Price Manager's
           in-progress preview or an applied-but-not-yet-reverted transaction. */}

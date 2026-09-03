@@ -144,12 +144,21 @@ importers:
       '@neo/genome':
         specifier: workspace:*
         version: link:../../packages/genome
+      '@neo/ui':
+        specifier: workspace:*
+        version: link:../../packages/ui
       '@tailwindcss/vite':
         specifier: ^4.3.3
         version: 4.3.3(vite@6.4.3(@types/node@24.13.3)(jiti@2.7.0)(lightningcss@1.32.0)(terser@5.51.2)(tsx@4.23.12))
       '@tanstack/react-query':
         specifier: ^5.59.0
         version: 5.102.8(react@19.2.8)
+      gsap:
+        specifier: ^3.12.0
+        version: 3.15.0
+      lucide-react:
+        specifier: ^0.400.0
+        version: 0.400.0(react@19.2.8)
       react:
         specifier: ^19.2.8
         version: 19.2.8
