@@ -27,16 +27,5 @@
     <input id="sellingPrice" />
     <button id="submit" type="button" style="margin-top:16px;">Submit</button>
     <div id="status">Filled by Project Neo ✓</div>
-    <script>
-      chrome.runtime.onMessage.addListener((message) => {
-        if (message?.type !== "neo:fill-meesho-fixture") return;
-        var fields = message.fields || {};
-        document.getElementById("title").value = fields.title || "";
-        document.getElementById("description").value = fields.description || "";
-        document.getElementById("hsnCode").value = fields.hsnCode || "";
-        document.getElementById("sellingPrice").value = fields.sellingPrice || "";
-        document.getElementById("status").classList.add("filled");
-      });
-    </script>
   </body>
 </html>

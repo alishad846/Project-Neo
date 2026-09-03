@@ -1,6 +1,6 @@
 import React, { useMemo, useState } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
-import { Sparkles, UploadCloud, Undo2 } from "lucide-react";
+import { Sparkles, UploadCloud, Undo2, Wand2 } from "lucide-react";
 import { PopButton } from "@neo/ui";
 import {
   getProducts,
@@ -12,6 +12,7 @@ import {
 } from "../api";
 import { compile, validate } from "@neo/adapter-meesho";
 import type { ProductGenome } from "@neo/genome";
+import { sendFill, type FillResult } from "../fill";
 
 const chromeApi = (globalThis as { chrome?: any }).chrome;
 
@@ -27,14 +28,6 @@ function fileToBase64(file: File): Promise<string> {
   });
 }
 
-async function waitForTabComplete(tabId: number, maxAttempts = 20): Promise<void> {
-  for (let i = 0; i < maxAttempts; i++) {
-    const tab = await chromeApi.tabs.get(tabId);
-    if (tab.status === "complete") return;
-    await new Promise((r) => setTimeout(r, 150));
-  }
-}
-
 const inputClass =
   "rounded-lg border-2 border-black px-2 py-1.5 font-cartoon text-xs";
 
@@ -48,10 +41,13 @@ export function AIComposer() {
   const [title, setTitle] = useState("");
   const [description, setDescription] = useState("");
   const [keywords, setKeywords] = useState("");
+  const [hsnCode, setHsnCode] = useState("");
+  const [sellingPrice, setSellingPrice] = useState("");
   const [attrValues, setAttrValues] = useState<Record<string, string>>({});
   const [publishResult, setPublishResult] = useState<PublishResult | null>(null);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [fillResult, setFillResult] = useState<FillResult | null>(null);
 
   const product = useMemo(
     () => products?.find((p) => p.id === productId) ?? null,
@@ -65,8 +61,11 @@ export function AIComposer() {
     setTitle(p?.title ?? "");
     setDescription(typeof existing.description === "string" ? existing.description : "");
     setKeywords(Array.isArray(existing.keywords) ? (existing.keywords as string[]).join(", ") : "");
+    setHsnCode(p?.hsnCode ?? "");
+    setSellingPrice(p?.sellingPrice ?? "");
     setExtracted(null);
     setPublishResult(null);
+    setFillResult(null);
     setAttrValues({});
   }
 
@@ -107,6 +106,8 @@ export function AIComposer() {
     const draft: ProductGenome = {
       ...product,
       title,
+      hsnCode,
+      sellingPrice,
       attributes: {
         ...((product.attributes as Record<string, unknown> | null) ?? {}),
         ...attrValues,
@@ -116,7 +117,7 @@ export function AIComposer() {
     };
     const listing = compile(draft, product.category ?? "uncategorised");
     return { listing, issues: validate(listing) };
-  }, [product, title, description, keywords, attrValues]);
+  }, [product, title, description, keywords, hsnCode, sellingPrice, attrValues]);
 
   const errors = preview?.issues.filter((i) => i.severity === "error") ?? [];
   const warnings = preview?.issues.filter((i) => i.severity === "warning") ?? [];
@@ -132,12 +133,9 @@ export function AIComposer() {
         }),
       async (r) => {
         setPublishResult(r);
+        setFillResult(null);
         if (chromeApi?.tabs) {
-          const tab = await chromeApi.tabs.create({ url: chromeApi.runtime.getURL("meesho-fixture/index.html") });
-          if (tab.id != null) {
-            await waitForTabComplete(tab.id);
-            await chromeApi.tabs.sendMessage(tab.id, { type: "neo:fill-meesho-fixture", fields: r.listing.fields });
-          }
+          await chromeApi.tabs.create({ url: chromeApi.runtime.getURL("meesho-fixture/index.html") });
         }
         queryClient.invalidateQueries({ queryKey: ["products"] });
       },
@@ -150,8 +148,26 @@ export function AIComposer() {
       () => undoPublish(publishResult.txnId),
       () => {
         setPublishResult(null);
+        setFillResult(null);
         queryClient.invalidateQueries({ queryKey: ["products"] });
       },
+    );
+  }
+
+  async function autofill() {
+    if (!preview) return;
+    await run(
+      () =>
+        sendFill(
+          {
+            title: preview.listing.fields.title as string,
+            description: preview.listing.fields.description as string,
+            hsnCode: preview.listing.fields.hsnCode as string,
+            sellingPrice: preview.listing.fields.sellingPrice as string,
+          },
+          "fixture",
+        ),
+      (r) => setFillResult(r),
     );
   }
 
@@ -219,6 +235,14 @@ export function AIComposer() {
             Keywords (comma-separated)
             <input className={`${inputClass} mt-1 w-full`} value={keywords} onChange={(e) => setKeywords(e.target.value)} />
           </label>
+          <label className="font-cartoon text-xs font-semibold">
+            HSN code
+            <input className={`${inputClass} mt-1 w-full`} value={hsnCode} onChange={(e) => setHsnCode(e.target.value)} />
+          </label>
+          <label className="font-cartoon text-xs font-semibold">
+            Selling price
+            <input className={`${inputClass} mt-1 w-full`} value={sellingPrice} onChange={(e) => setSellingPrice(e.target.value)} />
+          </label>
 
           {Object.keys(attrValues).length > 0 && (
             <div className="grid gap-2">
@@ -262,7 +286,13 @@ export function AIComposer() {
           ) : (
             <div className="mt-2">
               <p className="font-cartoon text-xs text-green-700">Published as transaction #{publishResult.txnId}.</p>
-              <div className="mt-2">
+              <div className="mt-2 flex flex-wrap gap-2">
+                <PopButton
+                  text="Autofill Meesho"
+                  color="#ff8a65"
+                  icon={Wand2}
+                  onClick={() => { if (busy) return; autofill(); }}
+                />
                 <PopButton
                   text="Previous"
                   color="#00e5ff"
@@ -270,6 +300,15 @@ export function AIComposer() {
                   onClick={() => { if (busy) return; undo(); }}
                 />
               </div>
+              {fillResult && (
+                <p className={`mt-2 font-cartoon text-xs ${fillResult.ok ? "text-green-700" : "text-red-600"}`}>
+                  {fillResult.ok
+                    ? `Filled: ${fillResult.filled?.join(", ") || "none"}.${
+                        fillResult.missing?.length ? ` Missing: ${fillResult.missing.join(", ")}.` : ""
+                      }`
+                    : `Autofill failed: ${fillResult.error ?? "unknown error"}`}
+                </p>
+              )}
             </div>
           )}
         </div>
