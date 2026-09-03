@@ -30,6 +30,14 @@ services:
     image: ollama/ollama:latest
     ports: ["11434:11434"]
     volumes: ["neo_ollama:/root/.ollama"]
+    # GPU acceleration (NVIDIA). Falls back to CPU automatically if no GPU/driver.
+    deploy:
+      resources:
+        reservations:
+          devices:
+            - driver: nvidia
+              count: all
+              capabilities: [gpu]
 
   extractor:
     build:
