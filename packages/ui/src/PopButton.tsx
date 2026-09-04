@@ -2,12 +2,13 @@ import type { LucideIcon } from "lucide-react";
 
 type PopButtonVariant = "site" | "panel";
 
-// Cartoon "pop" comes from the offset drop-shadow, NOT a heavy outline: square
-// corners + a thin 1px border + a hard offset ink shadow read as a comic
-// sticker. No thick black outline. Shadow colour is a warm ink, not pure black.
+// Square comic sticker: thin 1px border + a hard offset ink shadow. On hover the
+// button translates INTO its shadow (down+right by exactly the shadow offset) and
+// the shadow collapses to zero — so it reads as the button being pressed down
+// under pressure. Corners are squared globally by the .site-canvas square rule.
 const VARIANT_CLASSES: Record<PopButtonVariant, string> = {
-    site: "rounded-md border border-black/40 px-8 py-4 shadow-[6px_6px_0px_0px_rgba(26,22,15,0.9)] hover:-translate-y-1 hover:shadow-[9px_9px_0px_0px_rgba(26,22,15,0.9)] active:translate-x-1 active:translate-y-1 active:shadow-[0px_0px_0px_0px_rgba(26,22,15,0.9)]",
-    panel: "rounded-md border border-black/40 px-4 py-2 shadow-[3px_3px_0px_0px_rgba(26,22,15,0.9)] hover:-translate-y-1 hover:shadow-[5px_5px_0px_0px_rgba(26,22,15,0.9)] active:translate-x-1 active:translate-y-1 active:shadow-[0px_0px_0px_0px_rgba(26,22,15,0.9)]",
+    site: "border border-black/40 px-8 py-4 shadow-[6px_6px_0px_0px_rgba(26,22,15,0.9)] hover:translate-x-[6px] hover:translate-y-[6px] hover:shadow-[0px_0px_0px_0px_rgba(26,22,15,0.9)] active:translate-x-[6px] active:translate-y-[6px] active:shadow-[0px_0px_0px_0px_rgba(26,22,15,0.9)]",
+    panel: "border border-black/40 px-4 py-2 shadow-[3px_3px_0px_0px_rgba(26,22,15,0.9)] hover:translate-x-[3px] hover:translate-y-[3px] hover:shadow-[0px_0px_0px_0px_rgba(26,22,15,0.9)] active:translate-x-[3px] active:translate-y-[3px] active:shadow-[0px_0px_0px_0px_rgba(26,22,15,0.9)]",
 };
 
 const VARIANT_TEXT_CLASSES: Record<PopButtonVariant, string> = {

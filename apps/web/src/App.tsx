@@ -1,11 +1,12 @@
-import type { ReactElement } from "react";
-import { Routes, Route, Outlet } from "react-router-dom";
+import { useEffect, type ReactElement } from "react";
+import { Routes, Route, Outlet, useLocation } from "react-router-dom";
 import { Nav } from "./components/Nav";
 import { Footer } from "./components/Footer";
 import { CookieBanner } from "./components/CookieBanner";
 import { MobileCta } from "./components/MobileCta";
 import { Seo } from "./components/Seo";
 import { Landing } from "./pages/Landing";
+import { Login } from "./pages/Login";
 import { ToolsIndex } from "./pages/tools/ToolsIndex";
 import { ProfitCalculator } from "./pages/tools/ProfitCalculator";
 import { GstCalculator } from "./pages/tools/GstCalculator";
@@ -20,11 +21,46 @@ import { NotFound } from "./pages/NotFound";
 // Shared chrome (nav, footer, cookie banner) wraps every normal route via
 // <Outlet/>. The 404 route sits OUTSIDE this layout so it can render full-bleed
 // with its own self-contained nav and no site footer.
+// Scroll behaviour on navigation. Two cases:
+//  - With a #hash (e.g. /#pricing from the nav): smooth-scroll that section into
+//    view, retrying briefly because scroll-reveal sections can still be settling
+//    their height on first paint.
+//  - Without a hash (a real page change): instead of the browser's instant jump,
+//    keep the current scroll position while the new page swaps in, then smoothly
+//    animate back up to the top — so navigating reads as a glide-to-top, not a cut.
+function ScrollToHash() {
+  const { hash, pathname } = useLocation();
+  useEffect(() => {
+    if (hash) {
+      const id = decodeURIComponent(hash.slice(1));
+      let tries = 0;
+      const tick = () => {
+        const el = document.getElementById(id);
+        if (el) {
+          el.scrollIntoView({ behavior: "smooth", block: "start" });
+        } else if (tries++ < 10) {
+          setTimeout(tick, 60);
+        }
+      };
+      tick();
+      return;
+    }
+    // Real page change: React Router keeps the old scroll position, so the new
+    // page mounts already scrolled down (clamped to its own height). Defer a
+    // frame so it has painted, then smoothly glide up to the top — the "scroll
+    // back to the top" transition, always ending at 0.
+    const raf = requestAnimationFrame(() => window.scrollTo({ top: 0, behavior: "smooth" }));
+    return () => cancelAnimationFrame(raf);
+  }, [hash, pathname]);
+  return null;
+}
+
 function SiteLayout() {
   return (
     <div className="site-canvas min-h-screen text-black font-cartoon">
       {/* Immersive edge vignette — pointer-events:none overlay, see styles.css */}
       <div className="site-vignette" aria-hidden="true" />
+      <ScrollToHash />
       <Nav />
       <Outlet />
       <Footer />
@@ -59,6 +95,14 @@ export function App() {
             "Neo turns one canonical Product Genome into a Meesho-, Amazon-, and Flipkart-ready listing. Reversible, dry-run-first, built for Indian e-commerce sellers.",
             <Landing />,
           )}
+        />
+        <Route
+          path="/login"
+          element={page("/login", "Log in — Neo", "Log in to your Neo account to compose, price, and autofill your listings.", <Login initialMode="login" />)}
+        />
+        <Route
+          path="/signup"
+          element={page("/signup", "Sign up — Neo", "Create your Neo account — one login for the website and the extension.", <Login initialMode="signup" />)}
         />
         {/* V3 */}
         <Route

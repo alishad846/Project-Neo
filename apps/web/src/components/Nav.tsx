@@ -58,14 +58,20 @@ export function Nav() {
           ))}
         </nav>
 
-        <div className="flex items-center gap-3">
+        <div className="flex items-center gap-4">
+          <Link
+            to="/login"
+            className="hidden font-accent text-lg text-black transition-transform hover:-translate-y-0.5 md:inline-block"
+          >
+            Log in
+          </Link>
           <div className="hidden md:block">
             <PopButton
-              text="Get started free"
+              text="Get started"
               color="#b2ff59"
               icon={Zap}
               variant="panel"
-              onClick={() => navigate("/thank-you")}
+              onClick={() => navigate("/signup")}
             />
           </div>
           {/* Mobile hamburger */}
@@ -109,15 +115,22 @@ export function Nav() {
                   {link.label}
                 </Link>
               ))}
+              <Link
+                to="/login"
+                onClick={() => setMenuOpen(false)}
+                className="border border-black/40 bg-white px-4 py-3 font-accent text-lg text-black shadow-[3px_3px_0px_0px_rgba(26,22,15,0.9)] transition-transform active:translate-x-0.5 active:translate-y-0.5 active:shadow-none"
+              >
+                Log in
+              </Link>
             </nav>
             <div className="mt-auto">
               <PopButton
-                text="Get started free"
+                text="Get started"
                 color="#b2ff59"
                 icon={Zap}
                 onClick={() => {
                   setMenuOpen(false);
-                  navigate("/thank-you");
+                  navigate("/signup");
                 }}
               />
             </div>

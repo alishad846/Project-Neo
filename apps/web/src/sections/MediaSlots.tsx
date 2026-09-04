@@ -21,7 +21,7 @@ export function MediaSlots() {
     <SectionBg id="demo" tone="light" className="comic-cream" contentClassName="relative z-10">
       <div
         ref={ref}
-        className={`mx-auto grid max-w-6xl items-center gap-10 px-6 md:grid-cols-2 md:gap-14 reveal ${
+        className={`mx-auto grid max-w-7xl items-center gap-10 px-6 md:grid-cols-[320px_1fr] md:gap-12 reveal ${
           visible ? "reveal-visible" : ""
         }`}
       >
@@ -55,10 +55,10 @@ export function MediaSlots() {
           </Link>
         </div>
 
-        {/* RIGHT — autoplaying, looping demo (no manual controls) */}
-        <div className="rotate-1 rounded-lg border border-black/40 bg-white p-3 shadow-[10px_10px_0px_0px_rgba(26,22,15,0.9)]">
+        {/* RIGHT — large autoplaying, looping demo (no manual controls) */}
+        <div className="border border-black/40 bg-white p-2 shadow-[12px_12px_0px_0px_rgba(26,22,15,0.9)] md:p-3">
           <video
-            className="aspect-video w-full rounded-md border border-black/30 bg-black"
+            className="aspect-video w-full border border-black/30 bg-black"
             src="/media/neo-demo.mp4"
             autoPlay
             loop

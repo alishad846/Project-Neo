@@ -11,6 +11,11 @@
   src: url("/fonts/MagicCookie.ttf") format("truetype");
   font-display: swap;
 }
+@font-face {
+  font-family: "Hogfish";
+  src: url("/fonts/Hogfish.otf") format("opentype");
+  font-display: swap;
+}
 
 /* ============================================================================
    Neo marketing site — base reset
@@ -94,11 +99,21 @@ body {
    ========================================================================== */
 .font-loud { font-family: "Magic Cookie", system-ui, sans-serif; }
 .font-display { font-family: "Whoa Sauce", "Impact", system-ui, sans-serif; }
+/* Hogfish is the site's default body/small-text/number face. */
 .font-cartoon,
 .font-body,
 .font-accent {
-  font-family: system-ui, -apple-system, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+  font-family: "Hogfish", system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
 }
+
+/* ============================================================================
+   HARSH SQUARE — brand direction: nothing is rounded; every box is a sharp
+   square with the offset comic shadow. One scoped rule zeroes every radius
+   inside the marketing canvas (the 404 route lives outside .site-canvas and
+   keeps its own rounded design). Opt back into a circle with .keep-round —
+   used only for the googly eyes in the hero wordmark.
+   ========================================================================== */
+.site-canvas *:not(.keep-round) { border-radius: 0 !important; }
 
 /* Comic heading depth WITHOUT the counter-closing text-stroke that hurt
    readability. A tight offset ink shadow reads as hand-inked at any size. */

@@ -17,8 +17,8 @@ export function ThankYou() {
           You&rsquo;re in!
         </h1>
         <p className="mt-4 font-cartoon text-lg text-black/80">
-          Neo is free — no card, no trial clock. Next step: install the Neo extension, sign in, and let
-          it fill your first listing for you — you always review and confirm before anything goes live.
+          You&rsquo;re on the launch offer — Neo Pro for ₹999. Next step: install the Neo extension, sign in,
+          and let it fill your first listing for you — you always review and confirm before anything goes live.
         </p>
 
         <div className="mt-8 flex flex-col items-center gap-4">

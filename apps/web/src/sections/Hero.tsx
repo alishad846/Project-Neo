@@ -44,15 +44,15 @@ export function Hero() {
             <span className="flex items-center">
               SM
               <span className="mx-1 flex gap-2">
-                <span className="relative inline-flex h-6 w-6 items-center justify-center overflow-hidden rounded-full border-2 border-black bg-white align-middle shadow-[3px_3px_0px_0px_#000] sm:h-12 sm:w-12 md:h-16 md:w-16">
+                <span className="keep-round relative inline-flex h-6 w-6 items-center justify-center overflow-hidden rounded-full border-2 border-black bg-white align-middle shadow-[3px_3px_0px_0px_#000] sm:h-12 sm:w-12 md:h-16 md:w-16">
                   <span
-                    className="absolute h-3.5 w-3.5 rounded-full bg-black sm:h-5 sm:w-5 md:h-7 md:w-7"
+                    className="keep-round absolute h-3.5 w-3.5 rounded-full bg-black sm:h-5 sm:w-5 md:h-7 md:w-7"
                     style={{ transform: `translate(${x}px, ${y}px)` }}
                   />
                 </span>
-                <span className="relative inline-flex h-6 w-6 items-center justify-center overflow-hidden rounded-full border-2 border-black bg-white align-middle shadow-[3px_3px_0px_0px_#000] sm:h-12 sm:w-12 md:h-16 md:w-16">
+                <span className="keep-round relative inline-flex h-6 w-6 items-center justify-center overflow-hidden rounded-full border-2 border-black bg-white align-middle shadow-[3px_3px_0px_0px_#000] sm:h-12 sm:w-12 md:h-16 md:w-16">
                   <span
-                    className="absolute h-3.5 w-3.5 rounded-full bg-black sm:h-5 sm:w-5 md:h-7 md:w-7"
+                    className="keep-round absolute h-3.5 w-3.5 rounded-full bg-black sm:h-5 sm:w-5 md:h-7 md:w-7"
                     style={{ transform: `translate(${x}px, ${y}px)` }}
                   />
                 </span>
@@ -92,21 +92,25 @@ export function Hero() {
         </div>
 
         <div className="pop-in mt-10 flex flex-col gap-6 sm:flex-row" style={{ animationDelay: "0.5s" }}>
-          <PopButton text="Get started free" color="#b2ff59" icon={Zap} onClick={() => navigate("/thank-you")} />
+          <PopButton text="Get started" color="#b2ff59" icon={Zap} onClick={() => navigate("/signup")} />
           <PopButton text="Free seller tools" color="#ffffff" icon={Send} onClick={() => navigate("/tools")} />
         </div>
       </div>
 
       <div className="relative mt-16 w-full border-y-2 border-black/70 bg-[#ff90e8] py-3">
-        <div className="flex animate-marquee whitespace-nowrap font-loud text-2xl tracking-wide text-white [text-shadow:_1.5px_1.5px_0_rgba(26,22,15,0.5)]">
-          <span className="mx-8">SNAP · EXTRACT · AUTOFILL</span>
-          <span className="mx-8">ONE CATALOG, EVERY MARKETPLACE</span>
-          <span className="mx-8">SNAP · EXTRACT · AUTOFILL</span>
-          <span className="mx-8">ONE CATALOG, EVERY MARKETPLACE</span>
-          <span className="mx-8">SNAP · EXTRACT · AUTOFILL</span>
-          <span className="mx-8">ONE CATALOG, EVERY MARKETPLACE</span>
-          <span className="mx-8">SNAP · EXTRACT · AUTOFILL</span>
-          <span className="mx-8">ONE CATALOG, EVERY MARKETPLACE</span>
+        <div className="flex animate-marquee whitespace-nowrap font-loud text-2xl tracking-wide">
+          {Array.from({ length: 8 }).map((_, i) => (
+            <span
+              key={i}
+              className={`mx-8 ${
+                i % 2 === 0
+                  ? "text-black"
+                  : "text-[#ffdc00] [text-shadow:_1.5px_1.5px_0_rgba(26,22,15,0.75)]"
+              }`}
+            >
+              {i % 2 === 0 ? "SNAP · EXTRACT · AUTOFILL" : "ONE CATALOG, EVERY MARKETPLACE"}
+            </span>
+          ))}
         </div>
       </div>
     </section>
