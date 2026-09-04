@@ -3,11 +3,11 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>Neo — the compiler for your catalogue</title>
-    <meta
-      name="description"
-      content="Neo turns one canonical Product Genome into a Meesho-, Amazon-, and Flipkart-ready listing. A compiler for catalogue work — reversible, dry-run-first, built for Indian e-commerce sellers."
-    />
+    <!-- Per-route <title> and <meta name="description"> are rendered by <Seo>
+         (React 19 hoists them into <head>). They are intentionally NOT set here:
+         a static copy would produce duplicate title/description tags alongside
+         the React-rendered ones. Every route — including "/" — renders <Seo>, so
+         there is always exactly one of each once the app mounts. -->
     <meta name="theme-color" content="#fff0f5" />
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
