@@ -43,14 +43,17 @@ function labelFromName(name: string): string {
 }
 
 // ---------------------------------------------------------------------------
-// Autofill overlay UX (Neo pink). Each field glows as it fills and gets a
-// "✓ filled" badge; a floating "STOP AUTOFILL" button lets the seller halt.
-// Namespaced `neo-af-` so it can't collide with the host page.
+// Autofill overlay UX (Neo pink). As each field fills, a confetti "pop" appears
+// just above it, then fades as the next field fills — one at a time, in sequence.
+// Fields themselves are NOT highlighted. A floating "STOP AUTOFILL" button lets
+// the seller halt. All namespaced `neo-af-` so it can't collide with the host.
 // ---------------------------------------------------------------------------
 const STYLE_ID = "neo-af-styles";
 const STOP_BTN_ID = "neo-af-stop";
-const BADGE_CLASS = "neo-af-badge";
-const HIGHLIGHT_CLASS = "neo-af-highlight";
+const POP_CLASS = "neo-af-pop";
+
+// Confetti colours (Neo palette).
+const CONFETTI_COLORS = ["#ff90e8", "#b2ff59", "#00e5ff", "#ffeb3b", "#a06bff", "#ff8a65"];
 
 // Set true by the STOP AUTOFILL button; the fill loop checks it between fields.
 let stopRequested = false;
@@ -60,20 +63,24 @@ function injectStyles() {
   const style = document.createElement("style");
   style.id = STYLE_ID;
   style.textContent = `
-    .${HIGHLIGHT_CLASS} {
-      outline: 3px solid #ff90e8 !important;
-      outline-offset: 2px !important;
-      box-shadow: 0 0 0 4px rgba(255,144,232,0.35), 0 0 14px 2px rgba(255,144,232,0.7) !important;
-      border-radius: 8px !important;
-      transition: box-shadow 0.2s ease, outline-color 0.2s ease !important;
+    .${POP_CLASS} {
+      position: fixed; z-index: 2147483646; transform: translateX(-50%);
+      pointer-events: none; will-change: transform, opacity;
     }
-    .${BADGE_CLASS} {
-      position: absolute; z-index: 2147483646; display: inline-flex; align-items: center; gap: 4px;
-      padding: 2px 8px; font: 600 12px/1.4 -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+    .${POP_CLASS} .neo-af-pill {
+      display: inline-flex; align-items: center; gap: 6px; white-space: nowrap;
+      padding: 4px 12px; font: 700 13px/1.2 -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
       color: #000; background: #ff90e8; border: 2px solid #000; border-radius: 9999px;
-      box-shadow: 2px 2px 0 0 #000; pointer-events: none; animation: neo-af-pop 0.18s ease-out;
+      box-shadow: 2px 2px 0 0 #000;
+      animation: neo-pop-in 0.28s cubic-bezier(.34,1.56,.64,1) forwards, neo-pop-out 0.35s ease-in 0.85s forwards;
     }
-    @keyframes neo-af-pop { from { transform: scale(0.7); opacity: 0; } to { transform: scale(1); opacity: 1; } }
+    .${POP_CLASS} .neo-af-confetti {
+      position: absolute; left: 50%; top: 50%; width: 8px; height: 8px; border-radius: 2px;
+      animation: neo-confetti 0.9s ease-out forwards;
+    }
+    @keyframes neo-pop-in { from { opacity: 0; transform: scale(0.6) translateY(8px); } to { opacity: 1; transform: scale(1) translateY(0); } }
+    @keyframes neo-pop-out { to { opacity: 0; transform: translateY(-12px) scale(0.95); } }
+    @keyframes neo-confetti { from { opacity: 1; transform: translate(0,0) rotate(0deg); } to { opacity: 0; transform: translate(var(--dx), var(--dy)) rotate(var(--r)); } }
     #${STOP_BTN_ID} {
       position: fixed; top: 16px; left: 50%; transform: translateX(-50%); z-index: 2147483647;
       display: inline-flex; align-items: center; gap: 8px; padding: 10px 22px;
@@ -85,8 +92,7 @@ function injectStyles() {
     #${STOP_BTN_ID}:active { transform: translateX(-50%) translateY(1px); box-shadow: 1px 1px 0 0 #000; }
     #${STOP_BTN_ID} .neo-af-stopdot { width: 12px; height: 12px; background: #000; border-radius: 2px; }
     @media (prefers-reduced-motion: reduce) {
-      .${BADGE_CLASS} { animation: none; }
-      .${HIGHLIGHT_CLASS} { transition: none !important; }
+      .${POP_CLASS} .neo-af-pill, .${POP_CLASS} .neo-af-confetti { animation-duration: 0.001ms !important; }
     }
   `;
   document.head.appendChild(style);
@@ -110,18 +116,43 @@ function removeStopButton() {
 }
 
 function clearOverlays() {
-  document.querySelectorAll(`.${BADGE_CLASS}`).forEach((n) => n.remove());
-  document.querySelectorAll(`.${HIGHLIGHT_CLASS}`).forEach((n) => n.classList.remove(HIGHLIGHT_CLASS));
+  document.querySelectorAll(`.${POP_CLASS}`).forEach((n) => n.remove());
+  // Remove any stray highlight from earlier builds.
+  document.querySelectorAll(".neo-af-highlight").forEach((n) => n.classList.remove("neo-af-highlight"));
 }
 
-function addBadge(el: Element, label: string) {
+// Show a one-shot confetti pop just above `el`, then let it fade. Only one pop
+// exists at a time (the previous is cleared first), so they read as a sequence.
+// Positioned `fixed` from the field's viewport rect — the field is scrolled into
+// view before this runs, and the pop is short-lived, so it never drifts.
+function popConfetti(el: Element, label: string) {
+  clearOverlays();
   const rect = el.getBoundingClientRect();
-  const badge = document.createElement("div");
-  badge.className = BADGE_CLASS;
-  badge.textContent = `✓ ${label} filled`;
-  badge.style.top = `${rect.bottom + window.scrollY + 4}px`;
-  badge.style.left = `${rect.left + window.scrollX}px`;
-  document.body.appendChild(badge);
+  const pop = document.createElement("div");
+  pop.className = POP_CLASS;
+  pop.style.left = `${rect.left + rect.width / 2}px`;
+  pop.style.top = `${Math.max(8, rect.top - 14)}px`;
+
+  const pill = document.createElement("div");
+  pill.className = "neo-af-pill";
+  pill.textContent = `🎉 ${label}`;
+  pop.appendChild(pill);
+
+  // A small confetti burst radiating from the pill.
+  for (let i = 0; i < 8; i++) {
+    const piece = document.createElement("span");
+    piece.className = "neo-af-confetti";
+    piece.style.background = CONFETTI_COLORS[i % CONFETTI_COLORS.length] ?? "#ff90e8";
+    const angle = (Math.PI * 2 * i) / 8 + Math.random() * 0.5;
+    const dist = 26 + Math.random() * 22;
+    piece.style.setProperty("--dx", `${Math.cos(angle) * dist}px`);
+    piece.style.setProperty("--dy", `${Math.sin(angle) * dist - 10}px`);
+    piece.style.setProperty("--r", `${Math.round((Math.random() - 0.5) * 540)}deg`);
+    pop.appendChild(piece);
+  }
+
+  document.body.appendChild(pop);
+  window.setTimeout(() => pop.remove(), 1300);
 }
 
 function setNativeValue(el: HTMLInputElement | HTMLTextAreaElement, value: string) {
@@ -226,8 +257,7 @@ async function fillByName(fields: Record<string, string>): Promise<FillResponse>
     }
 
     el.scrollIntoView({ behavior: "smooth", block: "center" });
-    await sleep(200);
-    el.classList.add(HIGHLIGHT_CLASS);
+    await sleep(220);
 
     let ok = true;
     if (el instanceof HTMLInputElement && isDropdown(el)) {
@@ -238,13 +268,14 @@ async function fillByName(fields: Record<string, string>): Promise<FillResponse>
     }
 
     if (ok) {
-      addBadge(el, labelFromName(name));
+      popConfetti(el, `${labelFromName(name)} filled`);
       filled.push(name);
+      // Let the pop play before moving on, so the pops read as a sequence.
+      await sleep(750);
     } else {
       // Element found but no matching option — surface it so the seller knows.
       missing.push(name);
     }
-    await sleep(550);
   }
 
   removeStopButton();
@@ -288,13 +319,12 @@ async function fillForm(map: MeeshoSelectorMap, vals: FillValues): Promise<FillR
       continue;
     }
     el.scrollIntoView({ behavior: "smooth", block: "center" });
-    await sleep(200);
-    el.classList.add(HIGHLIGHT_CLASS);
+    await sleep(220);
     el.focus();
     setNativeValue(el, vals[key]);
-    addBadge(el, FIELD_LABELS[key]);
+    popConfetti(el, `${FIELD_LABELS[key]} filled`);
     filled.push(key);
-    await sleep(650);
+    await sleep(750);
   }
 
   let submitFocused = false;
