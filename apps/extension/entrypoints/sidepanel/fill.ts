@@ -63,22 +63,42 @@ export async function sendFill(
       return { ok: false, error: NO_RECEIVER_HINT };
     }
 
-    const result = await new Promise<FillResult>((resolve) => {
-      chrome.tabs.sendMessage(
-        tabId,
-        { type: "NEO_FILL", config: configId, values, ...(fields ? { fields } : {}) },
-        (response: FillResult | undefined) => {
+    const message = { type: "NEO_FILL", config: configId, values, ...(fields ? { fields } : {}) };
+
+    const trySend = () =>
+      new Promise<FillResult | null>((resolve) => {
+        chrome.tabs.sendMessage(tabId, message, (response: FillResult | undefined) => {
+          // Reading lastError swallows the "no receiver" console error.
           const lastError = chrome.runtime?.lastError;
           if (lastError || !response) {
-            resolve({ ok: false, error: NO_RECEIVER_HINT });
+            resolve(null);
             return;
           }
           resolve(response);
-        },
-      );
-    });
+        });
+      });
 
-    return result;
+    // First attempt: talk to the declarative content script if it's there.
+    let result = await trySend();
+    if (result) return result;
+
+    // No receiver — the tab was open before the extension loaded. Inject the
+    // content script programmatically, then retry once.
+    if (chrome.scripting?.executeScript) {
+      try {
+        await chrome.scripting.executeScript({
+          target: { tabId },
+          files: ["content-scripts/content.js"],
+        });
+        await new Promise((r) => setTimeout(r, 300));
+        result = await trySend();
+        if (result) return result;
+      } catch {
+        // fall through to the hint below
+      }
+    }
+
+    return { ok: false, error: NO_RECEIVER_HINT };
   } catch (err) {
     return { ok: false, error: err instanceof Error ? err.message : String(err) };
   }

@@ -8,17 +8,13 @@ export default defineConfig({
     name: "Project Neo",
     short_name: "Neo",
     description: "AI-powered catalogue automation for Indian marketplace sellers.",
-    permissions: ["sidePanel", "storage", "tabs", "activeTab"],
-    // The live Meesho Add-Product page is targeted via the `live` selector
-    // config (see @neo/adapter-meesho) + the meesho.com host permission below.
-    // The localhost/127.0.0.1 entries let the fixture be demoed when served
-    // over http for local, account-safe testing.
-    host_permissions: [
-      "http://localhost:3000/*",
-      "*://*.meesho.com/*",
-      "http://localhost/*",
-      "http://127.0.0.1/*",
-    ],
+    // `scripting` lets us inject the filler into an already-open Meesho tab if
+    // the declarative content script wasn't present yet (extension loaded after
+    // the tab), so Autofill "just works" without a manual refresh.
+    permissions: ["sidePanel", "storage", "tabs", "activeTab", "scripting"],
+    // localhost:3000 = backend API. meesho.com = the live Add-Product page the
+    // content script fills.
+    host_permissions: ["http://localhost:3000/*", "*://*.meesho.com/*"],
     side_panel: { default_path: "sidepanel/index.html" },
     action: {},
     content_security_policy: {
