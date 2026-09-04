@@ -72,11 +72,11 @@ function injectStyles() {
       padding: 4px 12px; font: 700 13px/1.2 -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
       color: #000; background: #ff90e8; border: 2px solid #000; border-radius: 9999px;
       box-shadow: 2px 2px 0 0 #000;
-      animation: neo-pop-in 0.28s cubic-bezier(.34,1.56,.64,1) forwards, neo-pop-out 0.35s ease-in 0.85s forwards;
+      animation: neo-pop-in 0.16s cubic-bezier(.34,1.56,.64,1) forwards, neo-pop-out 0.22s ease-in 0.42s forwards;
     }
     .${POP_CLASS} .neo-af-confetti {
-      position: absolute; left: 50%; top: 50%; width: 8px; height: 8px; border-radius: 2px;
-      animation: neo-confetti 0.9s ease-out forwards;
+      position: absolute; left: 50%; top: 50%; width: 7px; height: 7px; border-radius: 2px;
+      animation: neo-confetti 0.6s ease-out forwards;
     }
     @keyframes neo-pop-in { from { opacity: 0; transform: scale(0.6) translateY(8px); } to { opacity: 1; transform: scale(1) translateY(0); } }
     @keyframes neo-pop-out { to { opacity: 0; transform: translateY(-12px) scale(0.95); } }
@@ -152,7 +152,7 @@ function popConfetti(el: Element, label: string) {
   }
 
   document.body.appendChild(pop);
-  window.setTimeout(() => pop.remove(), 1300);
+  window.setTimeout(() => pop.remove(), 750);
 }
 
 function setNativeValue(el: HTMLInputElement | HTMLTextAreaElement, value: string) {
@@ -180,48 +180,76 @@ function isDropdown(el: HTMLInputElement): boolean {
   );
 }
 
-// Open a MUI-style dropdown and click the option whose visible text best matches
-// `value` (case-insensitive; exact match preferred, else contains). Returns true
-// if an option was chosen. Best-effort — the live listbox markup is the source
-// of truth for valid values, so we only ever pick an option Meesho offers.
-async function fillDropdown(el: HTMLInputElement, value: string): Promise<boolean> {
-  el.scrollIntoView({ behavior: "smooth", block: "center" });
-  el.focus();
-  el.click();
-  await sleep(300);
+const OPTION_SELECTOR = '[role="option"], li.MuiMenuItem-root, li.MuiAutocomplete-option';
+const OPEN_POPOVER_SELECTOR = '[role="listbox"], .MuiAutocomplete-popper, .MuiPopover-root, .MuiMenu-root';
 
-  const wanted = value.trim().toLowerCase();
-  const options = Array.from(
-    document.querySelectorAll('[role="option"], li.MuiMenuItem-root, li.MuiAutocomplete-option'),
-  ).filter((o) => (o as HTMLElement).offsetParent !== null);
-
-  // Some dropdowns render a search box in the popover; type to narrow if present.
-  const search = document.querySelector<HTMLInputElement>(
-    '.MuiAutocomplete-popper input, [role="listbox"] input:not([readonly])',
+function visibleOptions(): HTMLElement[] {
+  return Array.from(document.querySelectorAll<HTMLElement>(OPTION_SELECTOR)).filter(
+    (o) => o.offsetParent !== null,
   );
-  if (search) {
-    setNativeValue(search, value);
-    await sleep(300);
+}
+
+// Reliably close any open MUI popover/menu. MUI listens for Escape to close and
+// UNLOCK body scroll — clicking away is unreliable and can leave the scroll lock
+// in place (the "whole site is frozen" bug). Sends Escape until nothing is open.
+async function closeOpenPopovers() {
+  for (let i = 0; i < 4; i++) {
+    if (!document.querySelector(OPEN_POPOVER_SELECTOR)) return;
+    const active = (document.activeElement as HTMLElement) ?? document.body;
+    for (const target of [active, document.body]) {
+      target.dispatchEvent(
+        new KeyboardEvent("keydown", { key: "Escape", code: "Escape", keyCode: 27, which: 27, bubbles: true }),
+      );
+    }
+    await sleep(120);
   }
+  // Last resort: MUI backdrop click.
+  const backdrop = document.querySelector<HTMLElement>(".MuiBackdrop-root");
+  backdrop?.click();
+  await sleep(80);
+}
 
-  const pool = Array.from(
-    document.querySelectorAll('[role="option"], li.MuiMenuItem-root, li.MuiAutocomplete-option'),
-  ).filter((o) => (o as HTMLElement).offsetParent !== null);
-  const candidates = pool.length ? pool : options;
+// Open a MUI-style dropdown and click the option whose visible text best matches
+// `value`. ALWAYS closes the popover afterwards (success or fail) so it can never
+// be left open blocking the page. Overwrites any existing selection.
+async function fillDropdown(el: HTMLInputElement, value: string): Promise<boolean> {
+  const wanted = value.trim().toLowerCase();
+  try {
+    el.focus();
+    el.click();
 
-  const exact = candidates.find((o) => (o.textContent ?? "").trim().toLowerCase() === wanted);
-  const partial = candidates.find((o) => (o.textContent ?? "").trim().toLowerCase().includes(wanted));
-  const choice = (exact ?? partial) as HTMLElement | undefined;
+    // Poll for the options to render (portals can be slow); type into a search
+    // box if the dropdown has one.
+    let options: HTMLElement[] = [];
+    for (let i = 0; i < 8 && options.length === 0; i++) {
+      await sleep(140);
+      options = visibleOptions();
+    }
+    const search = document.querySelector<HTMLInputElement>(
+      '.MuiAutocomplete-popper input, [role="listbox"] input:not([readonly])',
+    );
+    if (search) {
+      setNativeValue(search, value);
+      await sleep(280);
+      options = visibleOptions();
+    }
 
-  if (choice) {
-    choice.click();
-    await sleep(150);
-    return true;
+    const norm = (o: HTMLElement) => (o.textContent ?? "").trim().toLowerCase();
+    const exact = options.find((o) => norm(o) === wanted);
+    const partial = options.find((o) => norm(o).includes(wanted) || (wanted.length > 3 && wanted.includes(norm(o))));
+    const choice = exact ?? partial;
+
+    if (choice) {
+      choice.click();
+      await sleep(120);
+      await closeOpenPopovers();
+      return true;
+    }
+    return false;
+  } finally {
+    // Whatever happened, never leave a dropdown open.
+    await closeOpenPopovers();
   }
-
-  // No match — close the popover so it doesn't block the next field.
-  document.body.click();
-  return false;
 }
 
 /**
@@ -256,8 +284,11 @@ async function fillByName(fields: Record<string, string>): Promise<FillResponse>
       continue;
     }
 
-    el.scrollIntoView({ behavior: "smooth", block: "center" });
-    await sleep(220);
+    // Clear the previous pop BEFORE scrolling so it never lingers on-screen
+    // while the page moves to the next field.
+    clearOverlays();
+    el.scrollIntoView({ behavior: "auto", block: "center" });
+    await sleep(120);
 
     let ok = true;
     if (el instanceof HTMLInputElement && isDropdown(el)) {
@@ -270,14 +301,15 @@ async function fillByName(fields: Record<string, string>): Promise<FillResponse>
     if (ok) {
       popConfetti(el, `${labelFromName(name)} filled`);
       filled.push(name);
-      // Let the pop play before moving on, so the pops read as a sequence.
-      await sleep(750);
+      await sleep(360);
     } else {
       // Element found but no matching option — surface it so the seller knows.
       missing.push(name);
     }
   }
 
+  clearOverlays();
+  await closeOpenPopovers();
   removeStopButton();
   return { ok: true, filled, missing, skipped, submitFocused: false, stopped };
 }
