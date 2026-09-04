@@ -11,71 +11,122 @@ export default defineContentScript({
           message?.type
         );
 
-        if (
-          message?.type !==
-          "PROJECT_NEO_GENERATE_MEESHO_BULK"
-        ) {
-          return;
-        }
-
         const requestId = crypto.randomUUID();
 
-        const handler = (event: MessageEvent) => {
-          if (
-            event.source !== window ||
-            event.data?.source !==
-              "PROJECT_NEO_MEESHO_MAIN" ||
-            event.data?.type !==
-              "PROJECT_NEO_BULK_RESULT" ||
-            event.data?.requestId !== requestId
-          ) {
-            return;
-          }
+        if (
+          message?.type ===
+          "PROJECT_NEO_GENERATE_MEESHO_BULK"
+        ) {
+          const handler = (event: MessageEvent) => {
+            if (
+              event.source !== window ||
+              event.data?.source !==
+                "PROJECT_NEO_MEESHO_MAIN" ||
+              event.data?.type !==
+                "PROJECT_NEO_BULK_RESULT" ||
+              event.data?.requestId !== requestId
+            ) {
+              return;
+            }
 
-          console.log(
-            "[PROJECT NEO CONTENT] MAIN result received:",
-            requestId
-          );
+            console.log(
+              "[PROJECT NEO CONTENT] MAIN bulk result received:",
+              requestId
+            );
 
-          window.removeEventListener(
+            window.removeEventListener(
+              "message",
+              handler
+            );
+
+            sendResponse(event.data.result);
+          };
+
+          window.addEventListener(
             "message",
             handler
           );
 
-          sendResponse(event.data.result);
-        };
+          window.postMessage(
+            {
+              source:
+                "PROJECT_NEO_EXTENSION",
 
-        window.addEventListener(
-          "message",
-          handler
-        );
+              type:
+                "PROJECT_NEO_GENERATE_MEESHO_BULK",
 
-        window.postMessage(
-          {
-            source:
-              "PROJECT_NEO_EXTENSION",
+              requestId,
 
-            type:
-              "PROJECT_NEO_GENERATE_MEESHO_BULK",
+              templateBase64:
+                message.templateBase64,
 
-            requestId,
+              templateName:
+                message.templateName,
 
-            templateBase64:
-              message.templateBase64,
+              templateType:
+                message.templateType,
 
-            templateName:
-              message.templateName,
+              products:
+                message.products,
+            },
+            "*"
+          );
 
-            templateType:
-              message.templateType,
+          return true;
+        }
 
-            products:
-              message.products,
-          },
-          "*"
-        );
+        if (
+          message?.type ===
+          "PROJECT_NEO_AUTOFILL_MEESHO"
+        ) {
+          const handler = (event: MessageEvent) => {
+            if (
+              event.source !== window ||
+              event.data?.source !==
+                "PROJECT_NEO_MEESHO_MAIN" ||
+              event.data?.type !==
+                "PROJECT_NEO_AUTOFILL_RESULT" ||
+              event.data?.requestId !== requestId
+            ) {
+              return;
+            }
 
-        return true;
+            console.log(
+              "[PROJECT NEO CONTENT] MAIN autofill result received:",
+              requestId
+            );
+
+            window.removeEventListener(
+              "message",
+              handler
+            );
+
+            sendResponse(event.data.result);
+          };
+
+          window.addEventListener(
+            "message",
+            handler
+          );
+
+          window.postMessage(
+            {
+              source:
+                "PROJECT_NEO_EXTENSION",
+
+              type:
+                "PROJECT_NEO_AUTOFILL_MEESHO",
+
+              requestId,
+
+              product:
+                message.product,
+            },
+            "*"
+          );
+
+          return true;
+        }
       }
     );
 

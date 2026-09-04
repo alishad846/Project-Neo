@@ -38,9 +38,102 @@ export default defineUnlistedScript(() => {
       if (
         event.source !== window ||
         event.data?.source !==
-          "PROJECT_NEO_EXTENSION" ||
+          "PROJECT_NEO_EXTENSION"
+      ) {
+        return;
+      }
+
+      if (
+        event.data?.type ===
+        "PROJECT_NEO_AUTOFILL_MEESHO"
+      ) {
+        const {
+          requestId,
+          product,
+        } = event.data;
+
+        console.log(
+          "[PROJECT NEO] Autofill request received:",
+          requestId
+        );
+
+        try {
+          const autofillApi =
+            (window as any).meeshoAutofill;
+
+          if (
+            !autofillApi ||
+            typeof autofillApi.autofillProductGenome !==
+              "function"
+          ) {
+            throw new Error(
+              "Meesho autofill API is unavailable."
+            );
+          }
+
+          if (
+            !product ||
+            typeof product !== "object"
+          ) {
+            throw new Error(
+              "Product Genome data is required."
+            );
+          }
+
+          const result =
+            await autofillApi.autofillProductGenome(
+              product
+            );
+
+          window.postMessage(
+            {
+              source:
+                "PROJECT_NEO_MEESHO_MAIN",
+
+              type:
+                "PROJECT_NEO_AUTOFILL_RESULT",
+
+              requestId,
+
+              result,
+            },
+            "*"
+          );
+        } catch (error) {
+          console.error(
+            "[PROJECT NEO] Autofill failed:",
+            error
+          );
+
+          window.postMessage(
+            {
+              source:
+                "PROJECT_NEO_MEESHO_MAIN",
+
+              type:
+                "PROJECT_NEO_AUTOFILL_RESULT",
+
+              requestId,
+
+              result: {
+                success: false,
+
+                error:
+                  error instanceof Error
+                    ? error.message
+                    : String(error),
+              },
+            },
+            "*"
+          );
+        }
+
+        return;
+      }
+
+      if (
         event.data?.type !==
-          "PROJECT_NEO_GENERATE_MEESHO_BULK"
+        "PROJECT_NEO_GENERATE_MEESHO_BULK"
       ) {
         return;
       }
