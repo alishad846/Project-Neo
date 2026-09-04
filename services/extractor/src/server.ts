@@ -17,7 +17,18 @@ const OLLAMA_MODEL = process.env.OLLAMA_MODEL ?? "moondream";
 // the model path never actually completed before falling back to heuristic.
 const TIMEOUT_MS = Number(process.env.OLLAMA_TIMEOUT_MS ?? 45000);
 
-async function tryModelExtract(imageBase64: string): Promise<ExtractResult | null> {
+function buildPrompt(hint?: ExtractHint): string {
+  const cat = hint?.category ? ` This is a "${hint.category}".` : "";
+  // Ask for one factual sentence and name the exact attributes we parse. The
+  // "if plain, say solid" nudge reduces small-model hallucination of patterns.
+  return (
+    `Look at this clothing product photo and describe it factually in one sentence.${cat} ` +
+    "State its main colour, fabric, pattern (if it has no print or design, say 'solid'), " +
+    "neckline, and sleeve length. Only describe what you can clearly see."
+  );
+}
+
+async function tryModelExtract(imageBase64: string, hint?: ExtractHint): Promise<ExtractResult | null> {
   try {
     const controller = new AbortController();
     const timeout = setTimeout(() => controller.abort(), TIMEOUT_MS);
@@ -26,9 +37,7 @@ async function tryModelExtract(imageBase64: string): Promise<ExtractResult | nul
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
         model: OLLAMA_MODEL,
-        prompt:
-          "Describe this clothing item: its neckline, sleeve length, pattern, occasion, " +
-          "fabric and colour. Be specific.",
+        prompt: buildPrompt(hint),
         images: [imageBase64],
         stream: false,
       }),
@@ -67,7 +76,7 @@ app.post("/api/extract", async (req, res) => {
     return;
   }
 
-  const modelResult = await tryModelExtract(imageBase64);
+  const modelResult = await tryModelExtract(imageBase64, hint);
   res.json(modelResult ?? extractHeuristic(hint ?? {}));
 });
 

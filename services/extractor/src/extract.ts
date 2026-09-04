@@ -5,6 +5,8 @@ export interface ExtractHint {
 }
 
 export interface ExtractedAttributes {
+  color?: string;
+  fabric?: string;
   pattern?: string;
   occasion?: string;
   neckType?: string;
@@ -40,6 +42,8 @@ export function extractHeuristic(hint: ExtractHint): ExtractResult {
 
 const modelAttributesSchema = z
   .object({
+    color: z.string(),
+    fabric: z.string(),
     neckType: z.string(),
     sleeveLength: z.string(),
     pattern: z.string(),
@@ -48,6 +52,52 @@ const modelAttributesSchema = z
     blousePiece: z.boolean(),
   })
   .partial();
+
+// Colours Meesho commonly offers. Ordered so compound names ("Navy Blue",
+// "Olive Green") are matched before their single-word parts. First match in the
+// model's prose wins — small vision models usually lead with the main colour.
+const COLOR_PATTERNS: Array<[RegExp, string]> = [
+  [/navy\s*blue/, "Navy Blue"],
+  [/olive\s*green|olive/, "Olive Green"],
+  [/sky\s*blue|light\s*blue/, "Light Blue"],
+  [/dark\s*green/, "Dark Green"],
+  [/maroon/, "Maroon"],
+  [/\bred\b/, "Red"],
+  [/\bpink\b/, "Pink"],
+  [/\borange\b/, "Orange"],
+  [/\byellow\b/, "Yellow"],
+  [/mustard/, "Mustard"],
+  [/\bgreen\b/, "Green"],
+  [/\bteal\b/, "Teal"],
+  [/\bblue\b/, "Blue"],
+  [/\bpurple\b|violet/, "Purple"],
+  [/\bblack\b/, "Black"],
+  [/\bwhite\b/, "White"],
+  [/\bgr[ae]y\b/, "Grey"],
+  [/\bbrown\b/, "Brown"],
+  [/beige/, "Beige"],
+  [/cream|off.?white/, "Cream"],
+  [/\bgold\b/, "Gold"],
+  [/\bsilver\b/, "Silver"],
+  [/multi.?colou?r/, "Multicolor"],
+];
+
+const FABRIC_PATTERNS: Array<[RegExp, string]> = [
+  [/cotton\s*blend/, "Cotton Blend"],
+  [/\bcotton\b/, "Cotton"],
+  [/polyester/, "Polyester"],
+  [/\bsilk\b/, "Silk"],
+  [/\bwool(len)?\b/, "Wool"],
+  [/denim/, "Denim"],
+  [/\blinen\b/, "Linen"],
+  [/rayon/, "Rayon"],
+  [/viscose/, "Viscose"],
+  [/georgette/, "Georgette"],
+  [/chiffon/, "Chiffon"],
+  [/velvet/, "Velvet"],
+  [/\bnylon\b/, "Nylon"],
+  [/\bnet\b/, "Net"],
+];
 
 // A real vision model's text response may wrap JSON in prose or code fences.
 // If we can't confidently extract and validate a JSON object shaped like
@@ -125,6 +175,26 @@ export function parseModelDescription(text: string): ExtractedAttributes | null 
   const sareeLengthMatch = lower.match(/(\d(?:\.\d)?)\s*m(?:etre)?s?\b/);
   if (sareeLengthMatch) {
     attributes.sareeLength = `${sareeLengthMatch[1]} metres`;
+  }
+
+  // Colour and fabric are only attached as SUPPORTING attributes once we've
+  // confirmed this is actually a garment (at least one structural attribute
+  // above was found). On their own, colour/fabric words appear in non-clothing
+  // images too (e.g. "a green puzzle piece"), so emitting them alone would risk
+  // fabricating an attribute — the fail-safe forbids that.
+  if (Object.keys(attributes).length > 0) {
+    for (const [re, label] of COLOR_PATTERNS) {
+      if (re.test(lower)) {
+        attributes.color = label;
+        break;
+      }
+    }
+    for (const [re, label] of FABRIC_PATTERNS) {
+      if (re.test(lower)) {
+        attributes.fabric = label;
+        break;
+      }
+    }
   }
 
   return Object.keys(attributes).length > 0 ? attributes : null;

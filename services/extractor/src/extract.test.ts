@@ -70,6 +70,24 @@ describe("parseModelDescription", () => {
     expect(parseModelDescription("a plain green puzzle piece on a black background")).toBeNull();
   });
 
+  it("attaches colour and fabric when a garment is confirmed by a structural attribute", () => {
+    expect(
+      parseModelDescription("A solid red cotton t-shirt with a round neck and half sleeves")
+    ).toEqual({
+      neckType: "Round Neck",
+      sleeveLength: "Half Sleeve",
+      pattern: "Solid",
+      color: "Red",
+      fabric: "Cotton",
+    });
+  });
+
+  it("does not emit colour/fabric alone without a structural garment attribute", () => {
+    // "a red cotton swatch" has colour + fabric words but no garment structure —
+    // suppressed to avoid fabricating an attribute from a non-garment image.
+    expect(parseModelDescription("a red cotton swatch on a table")).toBeNull();
+  });
+
   it("maps v-neck variants", () => {
     expect(parseModelDescription("This top has a v-neck design")).toEqual({ neckType: "V-Neck" });
   });
