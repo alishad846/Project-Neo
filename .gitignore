@@ -9,3 +9,6 @@ dist/
 .superpowers/
 docs/superpowers/
 docs/PROJECT_BRIEF.md
+
+# Captured Meesho panel DOM (input artifact, contains seller panel identifiers)
+meesho-form.html

@@ -12,6 +12,10 @@ export interface FillResult {
   error?: string;
   filled?: string[];
   missing?: string[];
+  /** Fields not present on this step (empty selector) — skipped silently. */
+  skipped?: string[];
+  /** True if the seller pressed STOP AUTOFILL mid-run. */
+  stopped?: boolean;
   submitFocused?: boolean;
 }
 

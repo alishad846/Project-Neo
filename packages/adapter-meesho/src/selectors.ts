@@ -8,6 +8,10 @@ export interface MeeshoSelectorMap {
 
 export type MeeshoConfigId = "fixture" | "live";
 
+// A selector map is DATA, not code (brief §5.3): the content script's fill
+// sequence is fixed; only these targets vary per environment. An empty string
+// means "this field is not present on this step" and is skipped silently by the
+// filler (vs. a real selector that fails to match, which is reported missing).
 export const SELECTOR_CONFIGS: Record<MeeshoConfigId, MeeshoSelectorMap> = {
   fixture: {
     title: "#title",
@@ -16,14 +20,20 @@ export const SELECTOR_CONFIGS: Record<MeeshoConfigId, MeeshoSelectorMap> = {
     sellingPrice: "#sellingPrice",
     submit: "#submit",
   },
-  // LIVE: placeholder selectors — replaced with real ones when the user supplies
-  // the logged-in Meesho Add-Product page DOM. This is intentional external-input
-  // data (documented scaffold), NOT an unfinished code path.
+  // LIVE — real selectors from the Meesho Supplier Panel "Add Product" (single
+  // catalog) step 1. Meesho is a React + MUI app with randomized Emotion class
+  // names, so we target the STABLE `name` attributes on the text fields.
+  //   Product Name        -> textarea[name="product_name"]
+  //   Product Description -> textarea[name="comment"]
+  // HSN, selling price, and the attribute dropdowns live on LATER wizard steps
+  // (Basic/Additional Details), not on step 1 — left "" until those steps' DOM
+  // is captured. Step 1's "Next" button has no stable id, so submit-focus is
+  // skipped ("") and the seller advances the wizard themselves.
   live: {
-    title: "TODO_LIVE_title_selector",
-    description: "TODO_LIVE_description_selector",
-    hsnCode: "TODO_LIVE_hsn_selector",
-    sellingPrice: "TODO_LIVE_price_selector",
-    submit: "TODO_LIVE_submit_selector",
+    title: 'textarea[name="product_name"]',
+    description: 'textarea[name="comment"]',
+    hsnCode: "",
+    sellingPrice: "",
+    submit: "",
   },
 };

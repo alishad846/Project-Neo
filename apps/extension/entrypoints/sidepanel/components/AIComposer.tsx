@@ -10,7 +10,7 @@ import {
   type ExtractResult,
   type PublishResult,
 } from "../api";
-import { compile, validate } from "@neo/adapter-meesho";
+import { compile, validate, type MeeshoConfigId } from "@neo/adapter-meesho";
 import type { ProductGenome } from "@neo/genome";
 import { sendFill, type FillResult } from "../fill";
 
@@ -48,6 +48,9 @@ export function AIComposer() {
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [fillResult, setFillResult] = useState<FillResult | null>(null);
+  // Where Autofill targets: the safe local demo form, or the seller's real
+  // Meesho Add-Product page. Defaults to the demo.
+  const [target, setTarget] = useState<MeeshoConfigId>("fixture");
 
   const product = useMemo(
     () => products?.find((p) => p.id === productId) ?? null,
@@ -170,7 +173,7 @@ export function AIComposer() {
             hsnCode: preview.listing.fields.hsnCode as string,
             sellingPrice: preview.listing.fields.sellingPrice as string,
           },
-          "fixture",
+          target,
         ),
       (r) => setFillResult(r),
     );
@@ -310,8 +313,21 @@ export function AIComposer() {
                 />
               </div>
               <p className="mt-1 font-cartoon text-[11px] text-black/60">
-                Open your Meesho Add-Product page, or the Neo demo form above, in a tab — then click Autofill.
+                Open your Meesho Add-Product page, or the Neo demo form above, in a tab — then pick a
+                target and click Autofill. A pink “STOP AUTOFILL” button lets you halt anytime.
               </p>
+
+              <label className="mt-2 flex items-center gap-2 font-cartoon text-xs font-semibold">
+                Fill into:
+                <select
+                  className={inputClass}
+                  value={target}
+                  onChange={(e) => setTarget(e.target.value as MeeshoConfigId)}
+                >
+                  <option value="fixture">Neo demo form</option>
+                  <option value="live">My Meesho (Add Product)</option>
+                </select>
+              </label>
 
               <div className="mt-2 flex flex-wrap gap-2">
                 <PopButton
@@ -334,8 +350,10 @@ export function AIComposer() {
               {fillResult && (
                 <p className={`mt-2 font-cartoon text-xs font-semibold ${fillResult.ok ? "text-green-700" : "text-red-600"}`}>
                   {fillResult.ok
-                    ? `Filled: ${fillResult.filled?.join(", ") || "none"}.${
+                    ? `${fillResult.stopped ? "Stopped — " : ""}Filled: ${fillResult.filled?.join(", ") || "none"}.${
                         fillResult.missing?.length ? ` Missing: ${fillResult.missing.join(", ")}.` : ""
+                      }${
+                        fillResult.skipped?.length ? ` Not on this step: ${fillResult.skipped.join(", ")}.` : ""
                       }`
                     : `Autofill failed: ${fillResult.error ?? "unknown error"}`}
                 </p>
