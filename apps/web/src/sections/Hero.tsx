@@ -11,10 +11,8 @@ export function Hero() {
   // before paint — it also picks up prefers-reduced-motion for free via the
   // global override.
   return (
-    <section
-      className="relative w-full overflow-hidden py-24 text-black selection:bg-[#ff90e8] md:py-32"
-      style={{ backgroundImage: "url(/images/LandingPageBG.jpg)", backgroundSize: "cover", backgroundPosition: "center" }}
-    >
+    <section className="relative w-full overflow-hidden py-24 text-black selection:bg-[#ff90e8] md:py-32">
+
       <Sticker className="left-10 top-16 hidden h-16 w-16 bg-[#00e5ff] rotate-12 md:flex">
         <Zap className="h-8 w-8 fill-yellow-300 stroke-black stroke-[3px]" />
       </Sticker>
@@ -36,14 +34,14 @@ export function Hero() {
       <div className="relative z-10 flex w-full flex-col items-center justify-center px-6">
         <div className="relative flex w-full max-w-2xl flex-col items-center leading-none text-center">
           <h1
-            className="pop-in relative z-10 flex max-w-full flex-wrap items-center justify-center gap-x-3 gap-y-1 font-display text-3xl leading-none text-black sm:gap-x-5 sm:text-7xl md:text-9xl"
+            className="pop-in heading-pop-pink relative z-10 flex max-w-full flex-wrap items-center justify-center gap-x-3 gap-y-1 font-display text-3xl leading-none text-black sm:gap-x-5 sm:text-7xl md:text-9xl"
             // Whoa Sauce is a heavy, connected display face — a little
             // letter-spacing stops the glyphs melting into each other so the
             // wordmark stays readable while keeping its cartoon character.
             style={{ animationDelay: "0s", letterSpacing: "0.04em" }}
           >
-            <span className="display-outline-light">SELL</span>
-            <span className="flex items-center display-outline-light">
+            <span>SELL</span>
+            <span className="flex items-center">
               SM
               <span className="mx-1 flex gap-2">
                 <span className="relative inline-flex h-6 w-6 items-center justify-center overflow-hidden rounded-full border-2 border-black bg-white align-middle shadow-[3px_3px_0px_0px_#000] sm:h-12 sm:w-12 md:h-16 md:w-16">
@@ -99,8 +97,8 @@ export function Hero() {
         </div>
       </div>
 
-      <div className="relative mt-16 w-full border-y-4 border-black bg-[#ff90e8] py-3">
-        <div className="flex animate-marquee whitespace-nowrap font-accent text-xl tracking-wide text-black">
+      <div className="relative mt-16 w-full border-y-2 border-black/70 bg-[#ff90e8] py-3">
+        <div className="flex animate-marquee whitespace-nowrap font-loud text-2xl tracking-wide text-white [text-shadow:_1.5px_1.5px_0_rgba(26,22,15,0.5)]">
           <span className="mx-8">SNAP · EXTRACT · AUTOFILL</span>
           <span className="mx-8">ONE CATALOG, EVERY MARKETPLACE</span>
           <span className="mx-8">SNAP · EXTRACT · AUTOFILL</span>

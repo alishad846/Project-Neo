@@ -1,44 +1,70 @@
 import { Link } from "react-router-dom";
-import { ArrowRight } from "lucide-react";
+import { Camera, Sparkles, Send, ArrowRight, type LucideIcon } from "lucide-react";
 import { useReveal } from "../hooks/useReveal";
 import { SectionBg } from "../components/SectionBg";
+
+interface Beat {
+  icon: LucideIcon;
+  text: string;
+}
+
+// Left-column narration for what the demo video is showing, step by step.
+const BEATS: Beat[] = [
+  { icon: Camera, text: "Snap the product photo — Neo reads fabric, colour, neck, HSN on-device." },
+  { icon: Sparkles, text: "It compiles one clean genome and drafts the title, description & attributes." },
+  { icon: Send, text: "Neo fills the whole Meesho form for you and stops at Submit — you stay in control." },
+];
 
 export function MediaSlots() {
   const { ref, visible } = useReveal<HTMLDivElement>();
   return (
     <SectionBg id="demo" tone="light" className="comic-cream" contentClassName="relative z-10">
-      <div ref={ref} className={`mx-auto max-w-6xl px-6 reveal ${visible ? "reveal-visible" : ""}`}>
-        <h2 className="mb-4 text-center font-loud text-4xl text-black heading-pop sm:text-5xl md:text-7xl">
-          SEE IT IN ACTION.
-        </h2>
-        <p className="mx-auto mb-14 max-w-2xl text-center font-cartoon text-lg text-black/70">
-          Watch Neo read a product and fill a whole Meesho listing — hands off the keyboard.
-        </p>
+      <div
+        ref={ref}
+        className={`mx-auto grid max-w-6xl items-center gap-10 px-6 md:grid-cols-2 md:gap-14 reveal ${
+          visible ? "reveal-visible" : ""
+        }`}
+      >
+        {/* LEFT — heading + what's happening */}
+        <div>
+          <h2 className="mb-4 font-loud text-4xl text-black heading-pop sm:text-5xl md:text-6xl">
+            SEE IT IN ACTION.
+          </h2>
+          <p className="mb-8 max-w-md font-body text-lg text-black/70">
+            One product photo becomes a finished marketplace listing — hands off the keyboard. Here&rsquo;s
+            exactly what Neo does in the clip:
+          </p>
 
-        <div className="mx-auto max-w-4xl">
-          {/* Real product demo. Muted + playsInline so it can autoplay on mobile;
-              loop keeps the loop tidy; controls let the seller scrub. */}
-          <div className="-rotate-1 rounded-2xl border-2 border-black/70 bg-white p-3 shadow-[10px_10px_0px_0px_rgba(26,22,15,0.9)]">
-            <video
-              className="aspect-video w-full rounded-xl border border-black/40 bg-black"
-              src="/media/neo-demo.mp4"
-              controls
-              playsInline
-              muted
-              loop
-              preload="metadata"
-            />
-          </div>
-        </div>
+          <ul className="mb-8 flex flex-col gap-4">
+            {BEATS.map((beat) => (
+              <li key={beat.text} className="flex items-start gap-3">
+                <span className="mt-0.5 flex h-9 w-9 shrink-0 items-center justify-center rounded-md border border-black/40 bg-[#ffc93c] shadow-[3px_3px_0px_0px_rgba(26,22,15,0.85)]">
+                  <beat.icon className="h-4 w-4 stroke-[3px] text-black" />
+                </span>
+                <span className="font-body text-base text-black/80">{beat.text}</span>
+              </li>
+            ))}
+          </ul>
 
-        <div className="mt-12 flex flex-col items-center justify-center gap-4 sm:flex-row">
           <Link
             to="/tools"
-            className="group inline-flex items-center gap-2 rounded-xl border border-black/70 bg-[#ff90e8] px-7 py-4 font-loud text-xl text-black shadow-[6px_6px_0px_0px_rgba(26,22,15,0.9)] transition-transform hover:-translate-y-1"
+            className="group inline-flex items-center gap-2 rounded-md border border-black/40 bg-[#ff90e8] px-6 py-3 font-body text-base font-bold text-black shadow-[5px_5px_0px_0px_rgba(26,22,15,0.9)] transition-transform hover:-translate-y-1"
           >
             Try our free tools
             <ArrowRight className="h-5 w-5 stroke-[3px] transition-transform group-hover:translate-x-1" />
           </Link>
+        </div>
+
+        {/* RIGHT — autoplaying, looping demo (no manual controls) */}
+        <div className="rotate-1 rounded-lg border border-black/40 bg-white p-3 shadow-[10px_10px_0px_0px_rgba(26,22,15,0.9)]">
+          <video
+            className="aspect-video w-full rounded-md border border-black/30 bg-black"
+            src="/media/neo-demo.mp4"
+            autoPlay
+            loop
+            muted
+            playsInline
+          />
         </div>
       </div>
     </SectionBg>

@@ -35,7 +35,7 @@ export function CompileDemo() {
             <button
               key={p.genome.id}
               onClick={() => setProductIndex(i)}
-              className={`rounded-full border-2 border-black/70 px-5 py-2 font-loud text-lg shadow-[3px_3px_0px_0px_rgba(26,22,15,0.85)] transition-transform hover:-translate-y-0.5 ${
+              className={`rounded-md border border-black/40 px-5 py-2 font-body text-sm font-bold shadow-[3px_3px_0px_0px_rgba(26,22,15,0.85)] transition-transform hover:-translate-y-0.5 ${
                 i === productIndex ? "bg-[#ffc93c]" : "bg-white"
               }`}
             >
@@ -74,7 +74,7 @@ export function CompileDemo() {
                 <button
                   key={m}
                   onClick={() => setMarketplace(m)}
-                  className={`rounded-lg border-2 border-black/70 px-4 py-2 font-loud text-base shadow-[2px_2px_0px_0px_rgba(26,22,15,0.85)] transition-transform hover:-translate-y-0.5 ${
+                  className={`rounded-md border border-black/40 px-4 py-2 font-body text-sm font-bold shadow-[2px_2px_0px_0px_rgba(26,22,15,0.85)] transition-transform hover:-translate-y-0.5 ${
                     m === marketplace ? "bg-[#00e5ff]" : "bg-[#fff7fb]"
                   }`}
                 >

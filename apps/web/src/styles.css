@@ -58,7 +58,6 @@ body {
    like a framed comic panel rather than a flat white sheet.
    ========================================================================== */
 .site-canvas {
-  position: relative;
   background-color: var(--neo-cream);
   background-image:
     linear-gradient(var(--neo-grid) 1px, transparent 1px),
@@ -66,34 +65,40 @@ body {
   background-size: 34px 34px;
 }
 
-/* Fixed vignette overlay: dark shadows hugging the left/right edges so the
-   content feels lit from the centre. pointer-events:none so it never blocks
-   clicks; sits above the canvas grid but below all content. */
-.site-canvas::before {
-  content: "";
+/* Immersive SIDE-SHADOW vignette rendered as a standalone fixed overlay (NOT a
+   ::before on the canvas). This is deliberate: a previous version forced
+   `position: relative` on every direct child of .site-canvas to sit them above
+   a ::before overlay, which silently overrode `position: fixed` on the cookie
+   banner + mobile CTA and dropped them into normal flow below the footer.
+   As its own pointer-events:none element at z-30 it frames the page without
+   touching any child's positioning, and sits below the fixed chrome (nav z-50,
+   cookie banner z-60, mobile menu z-70) so those are never dimmed. */
+.site-vignette {
   position: fixed;
   inset: 0;
-  z-index: 0;
+  z-index: 30;
   pointer-events: none;
   box-shadow:
     inset 70px 0 90px -55px rgba(0, 0, 0, 0.35),
     inset -70px 0 90px -55px rgba(0, 0, 0, 0.35);
 }
-/* Everything after the overlay must sit above it. */
-.site-canvas > * { position: relative; z-index: 1; }
 
 /* ============================================================================
-   WEB FONT ROLES — brand direction: Magic Cookie is the workhorse (~80% of
-   the site: headings, copy, buttons, nav). Whoa Sauce is reserved for a few
-   eye-catching signature moments (~20%) via .font-display. These override the
-   shared @neo/ui/cartoon.css mappings for the marketing site only, so the
-   extension's own type is untouched.
+   WEB FONT ROLES — Magic Cookie only reads well at large title sizes, so it is
+   reserved for TITLES (.font-loud → section + card headings). Whoa Sauce
+   (.font-display) is for the few oversized signature moments (hero wordmark,
+   ALWAYS FREE, final CTA) — letters only, it has NO digit/₹ glyphs. Everything
+   else — body copy, labels, buttons, nav, and crucially all small text and
+   NUMBERS — uses a plain, high-contrast system font so it stays crisp and
+   legible. Overrides the shared @neo/ui/cartoon.css mapping for the site only.
    ========================================================================== */
+.font-loud { font-family: "Magic Cookie", system-ui, sans-serif; }
+.font-display { font-family: "Whoa Sauce", "Impact", system-ui, sans-serif; }
 .font-cartoon,
 .font-body,
-.font-loud,
-.font-accent { font-family: "Magic Cookie", system-ui, sans-serif; }
-.font-display { font-family: "Whoa Sauce", "Impact", system-ui, sans-serif; }
+.font-accent {
+  font-family: system-ui, -apple-system, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+}
 
 /* Comic heading depth WITHOUT the counter-closing text-stroke that hurt
    readability. A tight offset ink shadow reads as hand-inked at any size. */

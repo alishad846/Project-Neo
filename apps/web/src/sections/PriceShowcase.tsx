@@ -20,7 +20,7 @@ export function PriceShowcase() {
           {PRICE_RULES.map((rule, i) => (
             <span
               key={rule}
-              className={`rounded-full border-4 border-black px-5 py-2 font-cartoon text-sm font-bold ${
+              className={`rounded-md border border-black/40 px-5 py-2 font-body text-sm font-bold shadow-[3px_3px_0px_0px_rgba(26,22,15,0.85)] ${
                 i === 0 ? "-rotate-1 bg-[#b2ff59]" : "rotate-1 bg-white"
               }`}
             >

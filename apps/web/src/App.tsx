@@ -23,6 +23,8 @@ import { NotFound } from "./pages/NotFound";
 function SiteLayout() {
   return (
     <div className="site-canvas min-h-screen text-black font-cartoon">
+      {/* Immersive edge vignette — pointer-events:none overlay, see styles.css */}
+      <div className="site-vignette" aria-hidden="true" />
       <Nav />
       <Outlet />
       <Footer />

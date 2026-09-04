@@ -43,7 +43,7 @@ export function CookieBanner() {
     <div
       role="dialog"
       aria-label="Cookie consent"
-      className="fixed inset-x-3 bottom-28 z-[60] mx-auto max-w-3xl rounded-2xl border-4 border-black bg-[#fff0f5] p-5 shadow-[8px_8px_0px_0px_#000] md:inset-x-0 md:bottom-3 md:p-6"
+      className="fixed inset-x-3 bottom-28 z-[60] mx-auto max-w-3xl rounded-lg border border-black/40 bg-[#fff0f5] p-5 shadow-[8px_8px_0px_0px_rgba(26,22,15,0.9)] md:inset-x-0 md:bottom-3 md:p-6"
     >
       <div className="flex flex-col items-start gap-4 md:flex-row md:items-center md:justify-between">
         <div className="flex items-start gap-3">
@@ -62,7 +62,7 @@ export function CookieBanner() {
         <div className="flex shrink-0 items-center gap-3">
           <button
             onClick={() => record("declined")}
-            className="rounded-xl border-2 border-black bg-white px-4 py-2 font-body text-sm font-semibold text-black shadow-[3px_3px_0px_0px_#000] transition-all hover:-translate-y-0.5 active:translate-x-0.5 active:translate-y-0.5 active:shadow-none"
+            className="rounded-md border border-black/40 bg-white px-4 py-2 font-body text-sm font-semibold text-black shadow-[3px_3px_0px_0px_rgba(26,22,15,0.9)] transition-all hover:-translate-y-0.5 active:translate-x-0.5 active:translate-y-0.5 active:shadow-none"
           >
             Decline
           </button>

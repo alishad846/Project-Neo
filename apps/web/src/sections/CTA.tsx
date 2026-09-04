@@ -23,8 +23,8 @@ export function CTA() {
           <PopButton text="Browse free tools" color="#ffffff" icon={ArrowRight} onClick={() => navigate("/tools")} />
         </div>
       </div>
-      <div className="overflow-hidden border-t-4 border-black bg-[#ff90e8] py-3">
-        <div className="flex animate-marquee whitespace-nowrap font-accent text-xl tracking-wide text-black">
+      <div className="overflow-hidden border-t-2 border-black/70 bg-[#ff90e8] py-3">
+        <div className="flex animate-marquee whitespace-nowrap font-loud text-2xl tracking-wide text-white [text-shadow:_1.5px_1.5px_0_rgba(26,22,15,0.5)]">
           <span className="mx-8">ONE CATALOG · EVERY MARKETPLACE</span>
           <span className="mx-8">DRY-RUN · REVERSIBLE · YOURS</span>
           <span className="mx-8">ONE CATALOG · EVERY MARKETPLACE</span>

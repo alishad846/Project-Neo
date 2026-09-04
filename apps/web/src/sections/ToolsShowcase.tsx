@@ -95,7 +95,7 @@ export function ToolsShowcase() {
               </div>
               <h3 className="font-loud text-2xl text-black">{tool.title}</h3>
               <p className="mt-2 flex-1 font-cartoon text-sm text-black/70">{tool.blurb}</p>
-              <span className="mt-4 inline-flex items-center gap-1 font-loud text-base text-black group-hover:text-[#ff2fb0]">
+              <span className="mt-4 inline-flex items-center gap-1 font-body text-sm font-bold text-black group-hover:text-[#ff2fb0]">
                 Try it free
                 <ArrowRight className="h-4 w-4 stroke-[3px] transition-transform group-hover:translate-x-1" />
               </span>
@@ -106,7 +106,7 @@ export function ToolsShowcase() {
         <div className="mt-12 flex justify-center">
           <Link
             to="/tools"
-            className="inline-flex items-center gap-2 rounded-xl border border-black/70 bg-[#ffc93c] px-7 py-4 font-loud text-xl text-black shadow-[6px_6px_0px_0px_rgba(26,22,15,0.9)] transition-transform hover:-translate-y-1"
+            className="inline-flex items-center gap-2 rounded-md border border-black/40 bg-[#ffc93c] px-7 py-4 font-body text-lg font-bold text-black shadow-[6px_6px_0px_0px_rgba(26,22,15,0.9)] transition-transform hover:-translate-y-1"
           >
             See all free tools
             <ArrowRight className="h-5 w-5 stroke-[3px]" />
