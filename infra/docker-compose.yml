@@ -57,9 +57,14 @@ services:
     depends_on:
       postgres:
         condition: service_healthy
+      extractor:
+        condition: service_started
     environment:
       DATABASE_URL: postgres://neo:neo@postgres:5432/neo
       REDIS_URL: redis://redis:6379
+      # Reach the extractor by its compose service name — inside the backend
+      # container "localhost" is the container itself, not the extractor.
+      EXTRACTOR_URL: http://extractor:8000
       PORT: 3000
     ports: ["3000:3000"]
 
