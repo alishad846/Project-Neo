@@ -37,11 +37,13 @@ export function CookieBanner() {
 
   if (!visible) return null;
 
+  // On mobile the banner sits above the sticky trial bar (bottom-28); on md+
+  // there is no trial bar so it returns to bottom-3.
   return (
     <div
       role="dialog"
       aria-label="Cookie consent"
-      className="fixed inset-x-3 bottom-3 z-[60] mx-auto max-w-3xl rounded-2xl border-4 border-black bg-[#fff0f5] p-5 shadow-[8px_8px_0px_0px_#000] md:inset-x-0 md:p-6"
+      className="fixed inset-x-3 bottom-28 z-[60] mx-auto max-w-3xl rounded-2xl border-4 border-black bg-[#fff0f5] p-5 shadow-[8px_8px_0px_0px_#000] md:inset-x-0 md:bottom-3 md:p-6"
     >
       <div className="flex flex-col items-start gap-4 md:flex-row md:items-center md:justify-between">
         <div className="flex items-start gap-3">

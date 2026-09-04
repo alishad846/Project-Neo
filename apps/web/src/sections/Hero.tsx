@@ -1,8 +1,10 @@
 import { Star, Zap, Send, Smile, MousePointer2 } from "lucide-react";
+import { useNavigate } from "react-router-dom";
 import { useEyeTracking, PopButton, Sticker } from "@neo/ui";
 
 export function Hero() {
   const { x, y } = useEyeTracking();
+  const navigate = useNavigate();
 
   // The entrance fade/slide for ".pop-in" elements is pure CSS (see
   // styles.css) so it never depends on a JS animation library finishing
@@ -87,8 +89,13 @@ export function Hero() {
         </div>
 
         <div className="pop-in mt-10 flex flex-col gap-6 sm:flex-row" style={{ animationDelay: "0.5s" }}>
-          <PopButton text="Start 7-day trial" color="#b2ff59" icon={Zap} />
-          <PopButton text="See how it works" color="#ffffff" icon={Send} />
+          <PopButton text="Start 7-day trial" color="#b2ff59" icon={Zap} onClick={() => navigate("/thank-you")} />
+          <PopButton
+            text="See how it works"
+            color="#ffffff"
+            icon={Send}
+            onClick={() => document.getElementById("how")?.scrollIntoView({ behavior: "smooth" })}
+          />
         </div>
       </div>
 

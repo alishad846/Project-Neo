@@ -26,7 +26,7 @@ const SOCIALS = [
 
 export function Footer() {
   return (
-    <footer className="border-t-4 border-black bg-black text-white">
+    <footer id="site-footer" className="border-t-4 border-black bg-black text-white">
       <div className="mx-auto grid max-w-6xl gap-10 px-6 py-14 md:grid-cols-4">
         {/* Brand + pitch */}
         <div className="md:col-span-1">

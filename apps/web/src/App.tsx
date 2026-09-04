@@ -3,6 +3,7 @@ import { Routes, Route, Outlet } from "react-router-dom";
 import { Nav } from "./components/Nav";
 import { Footer } from "./components/Footer";
 import { CookieBanner } from "./components/CookieBanner";
+import { MobileCta } from "./components/MobileCta";
 import { Seo } from "./components/Seo";
 import { Landing } from "./pages/Landing";
 import { Demo } from "./pages/Demo";
@@ -26,6 +27,7 @@ function SiteLayout() {
       <Nav />
       <Outlet />
       <Footer />
+      <MobileCta />
       <CookieBanner />
     </div>
   );
