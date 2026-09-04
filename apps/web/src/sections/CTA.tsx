@@ -1,9 +1,11 @@
 import { Zap } from "lucide-react";
+import { useNavigate } from "react-router-dom";
 import { PopButton } from "@neo/ui";
 import { useReveal } from "../hooks/useReveal";
 
 export function CTA() {
   const { ref, visible } = useReveal<HTMLDivElement>();
+  const navigate = useNavigate();
   return (
     <section
       className="relative w-full overflow-hidden pt-24 text-white md:pt-32"
@@ -19,7 +21,7 @@ export function CTA() {
         <p className="mb-10 max-w-xl font-body text-lg text-white" style={{ textShadow: "1px 1px 0 #000, -1px -1px 0 #000, 1px -1px 0 #000, -1px 1px 0 #000" }}>
           One catalog, every marketplace you sell on. Start your 7-day trial today.
         </p>
-        <PopButton text="Start 7-day trial" color="#b2ff59" icon={Zap} />
+        <PopButton text="Start 7-day trial" color="#b2ff59" icon={Zap} onClick={() => navigate("/thank-you")} />
       </div>
       <div className="overflow-hidden border-t-4 border-black bg-[#ff90e8] py-3">
         <div className="flex animate-marquee whitespace-nowrap font-accent text-xl tracking-wide text-black">

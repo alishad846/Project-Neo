@@ -1,8 +1,9 @@
-import { Link } from "react-router-dom";
+import { Link, useNavigate } from "react-router-dom";
 import { Zap } from "lucide-react";
 import { PopButton } from "@neo/ui";
 
 export function Nav() {
+  const navigate = useNavigate();
   return (
     <header className="sticky top-0 z-50 border-b-4 border-black bg-[#fff0f5]/95 backdrop-blur">
       <div className="mx-auto flex max-w-6xl items-center justify-between px-6 py-3">
@@ -21,7 +22,7 @@ export function Nav() {
             Tools
           </Link>
         </nav>
-        <PopButton text="Start 7-day trial" color="#b2ff59" icon={Zap} variant="panel" />
+        <PopButton text="Start 7-day trial" color="#b2ff59" icon={Zap} variant="panel" onClick={() => navigate("/thank-you")} />
       </div>
     </header>
   );

@@ -1,4 +1,5 @@
 import { Check, Zap } from "lucide-react";
+import { useNavigate } from "react-router-dom";
 import { PopButton } from "@neo/ui";
 import { useReveal } from "../hooks/useReveal";
 import { SectionBg } from "../components/SectionBg";
@@ -42,6 +43,7 @@ const TIERS: Tier[] = [
 
 export function Pricing() {
   const { ref, visible } = useReveal<HTMLDivElement>();
+  const navigate = useNavigate();
   return (
     <SectionBg id="pricing" image="/images/Bow.jpg" tone="light" contentClassName="relative z-10">
       <div ref={ref} className={`mx-auto max-w-5xl px-6 reveal ${visible ? "reveal-visible" : ""}`}>
@@ -85,7 +87,7 @@ export function Pricing() {
                   </li>
                 ))}
               </ul>
-              <PopButton text="Start 7-day trial" color={tier.highlight ? "#ffffff" : "#b2ff59"} icon={Zap} />
+              <PopButton text="Start 7-day trial" color={tier.highlight ? "#ffffff" : "#b2ff59"} icon={Zap} onClick={() => navigate("/thank-you")} />
             </div>
           ))}
         </div>
