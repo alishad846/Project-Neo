@@ -37,12 +37,37 @@ function toMeeshoName(key: string): string {
   return ATTR_ALIASES[norm] ?? key.toLowerCase().replace(/\s+/g, "_");
 }
 
+// Downscale the photo to a sane size before sending. moondream doesn't need a
+// full-res phone photo, and a smaller payload avoids request-size limits (413)
+// and speeds up inference. Falls back to the raw file if canvas isn't available.
+const MAX_DIM = 1024;
+
 function fileToBase64(file: File): Promise<string> {
   return new Promise((resolve, reject) => {
     const reader = new FileReader();
     reader.onload = () => {
-      const result = reader.result as string;
-      resolve(result.split(",")[1] ?? result);
+      const dataUrl = reader.result as string;
+      const img = new Image();
+      img.onload = () => {
+        try {
+          const scale = Math.min(1, MAX_DIM / Math.max(img.width, img.height));
+          const w = Math.round(img.width * scale);
+          const h = Math.round(img.height * scale);
+          const canvas = document.createElement("canvas");
+          canvas.width = w;
+          canvas.height = h;
+          const ctx = canvas.getContext("2d");
+          if (!ctx) throw new Error("no canvas ctx");
+          ctx.drawImage(img, 0, 0, w, h);
+          const out = canvas.toDataURL("image/jpeg", 0.85);
+          resolve(out.split(",")[1] ?? out);
+        } catch {
+          // Fall back to the original bytes.
+          resolve(dataUrl.split(",")[1] ?? dataUrl);
+        }
+      };
+      img.onerror = () => resolve(dataUrl.split(",")[1] ?? dataUrl);
+      img.src = dataUrl;
     };
     reader.onerror = () => reject(reader.error);
     reader.readAsDataURL(file);
