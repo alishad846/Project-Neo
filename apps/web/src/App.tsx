@@ -1,5 +1,5 @@
 import type { ReactElement } from "react";
-import { Routes, Route } from "react-router-dom";
+import { Routes, Route, Outlet } from "react-router-dom";
 import { Nav } from "./components/Nav";
 import { Footer } from "./components/Footer";
 import { CookieBanner } from "./components/CookieBanner";
@@ -15,6 +15,21 @@ import { Privacy } from "./pages/Privacy";
 import { Terms } from "./pages/Terms";
 import { Contact } from "./pages/Contact";
 import { ThankYou } from "./pages/ThankYou";
+import { NotFound } from "./pages/NotFound";
+
+// Shared chrome (nav, footer, cookie banner) wraps every normal route via
+// <Outlet/>. The 404 route sits OUTSIDE this layout so it can render full-bleed
+// with its own self-contained nav and no site footer.
+function SiteLayout() {
+  return (
+    <div className="bg-[#fff0f5] text-black font-cartoon">
+      <Nav />
+      <Outlet />
+      <Footer />
+      <CookieBanner />
+    </div>
+  );
+}
 
 // Wrap a page with its per-route document metadata. React 19 hoists the <title>
 // and <meta> that <Seo> renders into <head>, so keeping the SEO copy here means
@@ -31,9 +46,8 @@ function page(path: string, title: string, description: string, element: ReactEl
 
 export function App() {
   return (
-    <div className="bg-[#fff0f5] text-black font-cartoon">
-      <Nav />
-      <Routes>
+    <Routes>
+      <Route element={<SiteLayout />}>
         <Route
           path="/"
           element={page(
@@ -115,9 +129,9 @@ export function App() {
           path="/thank-you"
           element={page("/thank-you", "You're In — Neo", "Your Neo trial is ready. Here's what to do next.", <ThankYou />)}
         />
-      </Routes>
-      <Footer />
-      <CookieBanner />
-    </div>
+      </Route>
+      {/* V11 — full-bleed 404, outside SiteLayout (own nav, no site footer). */}
+      <Route path="*" element={<NotFound />} />
+    </Routes>
   );
 }
