@@ -1,6 +1,22 @@
 @import "tailwindcss";
 @import "@neo/ui/cartoon.css";
 
+@font-face {
+  font-family: "Whoa Sauce";
+  src: url("/fonts/WhoaSauce-Bold.ttf") format("truetype");
+  font-display: swap;
+}
+@font-face {
+  font-family: "Magic Cookie";
+  src: url("/fonts/MagicCookie.ttf") format("truetype");
+  font-display: swap;
+}
+@font-face {
+  font-family: "Hogfish";
+  src: url("/fonts/Hogfish.otf") format("opentype");
+  font-display: swap;
+}
+
 /* ============================================================================
    Neo marketing site — base reset
    The cartoon/neo-brutalist system (palette, type, borders, shadows) lives
@@ -10,6 +26,21 @@
    ========================================================================== */
 
 * { box-sizing: border-box; }
+
+/* ============================================================================
+   NEO DESIGN TOKENS
+   Palette weighting (per brand direction): ~50% warm off-white canvas,
+   ~30% bright yellow, ~20% pink — cartoonish, hand-inked, immersive.
+   ========================================================================== */
+:root {
+  --neo-cream: #faf3e6;   /* warm off-white — the dominant canvas */
+  --neo-pink: #ff90e8;    /* signature pink accent */
+  --neo-pink-soft: #ffd9ec;
+  --neo-yellow: #ffc93c;  /* bright comic yellow */
+  --neo-yellow-soft: #ffe680;
+  --neo-ink: #1a1a1a;     /* warm near-black — never pure #000 */
+  --neo-grid: rgba(26, 22, 15, 0.05);
+}
 
 html {
   scroll-behavior: smooth;
@@ -23,6 +54,74 @@ html {
 body {
   margin: 0;
   overflow-x: hidden;
+  color: var(--neo-ink);
+}
+
+/* ============================================================================
+   SITE CANVAS — warm off-white with faint hand-inked GRID LINES behind
+   everything, plus a soft immersive SIDE-SHADOW vignette so the page feels
+   like a framed comic panel rather than a flat white sheet.
+   ========================================================================== */
+.site-canvas {
+  background-color: var(--neo-cream);
+  background-image:
+    linear-gradient(var(--neo-grid) 1px, transparent 1px),
+    linear-gradient(90deg, var(--neo-grid) 1px, transparent 1px);
+  background-size: 34px 34px;
+}
+
+/* Immersive SIDE-SHADOW vignette rendered as a standalone fixed overlay (NOT a
+   ::before on the canvas). This is deliberate: a previous version forced
+   `position: relative` on every direct child of .site-canvas to sit them above
+   a ::before overlay, which silently overrode `position: fixed` on the cookie
+   banner + mobile CTA and dropped them into normal flow below the footer.
+   As its own pointer-events:none element at z-30 it frames the page without
+   touching any child's positioning, and sits below the fixed chrome (nav z-50,
+   cookie banner z-60, mobile menu z-70) so those are never dimmed. */
+.site-vignette {
+  position: fixed;
+  inset: 0;
+  z-index: 30;
+  pointer-events: none;
+  box-shadow:
+    inset 70px 0 90px -55px rgba(0, 0, 0, 0.35),
+    inset -70px 0 90px -55px rgba(0, 0, 0, 0.35);
+}
+
+/* ============================================================================
+   WEB FONT ROLES — Magic Cookie only reads well at large title sizes, so it is
+   reserved for TITLES (.font-loud → section + card headings). Whoa Sauce
+   (.font-display) is for the few oversized signature moments (hero wordmark,
+   ALWAYS FREE, final CTA) — letters only, it has NO digit/₹ glyphs. Everything
+   else — body copy, labels, buttons, nav, and crucially all small text and
+   NUMBERS — uses a plain, high-contrast system font so it stays crisp and
+   legible. Overrides the shared @neo/ui/cartoon.css mapping for the site only.
+   ========================================================================== */
+.font-loud { font-family: "Magic Cookie", system-ui, sans-serif; }
+.font-display { font-family: "Whoa Sauce", "Impact", system-ui, sans-serif; }
+/* Hogfish is the site's default body/small-text/number face. */
+.font-cartoon,
+.font-body,
+.font-accent {
+  font-family: "Hogfish", system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+}
+
+/* ============================================================================
+   HARSH SQUARE — brand direction: nothing is rounded; every box is a sharp
+   square with the offset comic shadow. One scoped rule zeroes every radius
+   inside the marketing canvas (the 404 route lives outside .site-canvas and
+   keeps its own rounded design). Opt back into a circle with .keep-round —
+   used only for the googly eyes in the hero wordmark.
+   ========================================================================== */
+.site-canvas *:not(.keep-round) { border-radius: 0 !important; }
+
+/* Comic heading depth WITHOUT the counter-closing text-stroke that hurt
+   readability. A tight offset ink shadow reads as hand-inked at any size. */
+.heading-pop {
+  text-shadow: 3px 3px 0 rgba(26, 22, 15, 0.18);
+}
+.heading-pop-pink {
+  text-shadow: 3px 3px 0 var(--neo-pink);
 }
 
 ::selection { background: #ff90e8; color: #000; }
@@ -31,6 +130,144 @@ body {
   outline: 3px solid #000;
   outline-offset: 3px;
   border-radius: 2px;
+}
+
+/* ============================================================================
+   HERO ENTRANCE — subtle fade + slight slide, pure CSS so it never depends on
+   a JS animation library finishing before paint. Stagger is applied per
+   element via an inline animation-delay. Respects prefers-reduced-motion via
+   the global override below (animation-duration collapses to ~0).
+   ========================================================================== */
+@keyframes pop-in-fade {
+  from { opacity: 0; transform: translateY(16px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+.pop-in {
+  opacity: 0;
+  animation: pop-in-fade 0.6s ease-out forwards;
+}
+
+/* ============================================================================
+   SCROLL REVEAL — subtle fade + slight slide, used by useReveal()
+   ========================================================================== */
+.reveal {
+  opacity: 0;
+  transform: translateY(16px);
+  transition: opacity 0.5s ease-out, transform 0.5s ease-out;
+}
+.reveal-visible {
+  opacity: 1;
+  transform: translateY(0);
+}
+
+/* A hand-drawn-feeling squiggle underline. Sits under a word as a subtle
+   sketchy accent — not a bounce, just a wobble baked into the path. */
+.scribble-underline {
+  display: block;
+  width: 100%;
+  height: 14px;
+  margin-top: -6px;
+}
+
+/* ============================================================================
+   GRAIN FILLS — calm, low-opacity textured tints for blank gaps and for
+   sections with dense text/data that must stay legible (no busy comic image
+   behind body copy, tables, or prices). SVG feTurbulence noise, subtle.
+   ========================================================================== */
+.grain-pink,
+.grain-yellow {
+  position: relative;
+  background-repeat: repeat;
+}
+.grain-pink { background-color: #ffd9e8; }
+.grain-yellow { background-color: #ffe680; }
+
+/* ============================================================================
+   CARTOON SECTION BACKGROUNDS — replace the old photographic section images
+   with hand-inked flat-colour panels: brand colour + faint grid + a soft
+   inner side/bottom shadow so each band reads as a lit comic panel with depth.
+   ========================================================================== */
+.comic-panel {
+  position: relative;
+}
+.comic-panel::after {
+  /* Inner edge shadow for immersive depth (top + sides), non-blocking. */
+  content: "";
+  position: absolute;
+  inset: 0;
+  z-index: 0;
+  pointer-events: none;
+  box-shadow:
+    inset 0 22px 40px -30px rgba(0, 0, 0, 0.45),
+    inset 60px 0 70px -55px rgba(0, 0, 0, 0.30),
+    inset -60px 0 70px -55px rgba(0, 0, 0, 0.30);
+}
+.comic-yellow {
+  background-color: var(--neo-yellow);
+  background-image:
+    linear-gradient(rgba(26, 22, 15, 0.06) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(26, 22, 15, 0.06) 1px, transparent 1px);
+  background-size: 34px 34px;
+}
+.comic-pink {
+  background-color: var(--neo-pink);
+  background-image:
+    linear-gradient(rgba(26, 22, 15, 0.08) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(26, 22, 15, 0.08) 1px, transparent 1px);
+  background-size: 34px 34px;
+}
+.comic-cream {
+  background-color: var(--neo-cream);
+  background-image:
+    linear-gradient(var(--neo-grid) 1px, transparent 1px),
+    linear-gradient(90deg, var(--neo-grid) 1px, transparent 1px);
+  background-size: 34px 34px;
+}
+
+/* A soft gradient lip at the very top of a section, fading FROM the previous
+   band's colour into transparent, so colour changes don't jar the eye. Pair
+   with extra top padding to give the section room to breathe. */
+.section-fade-top::before {
+  content: "";
+  position: absolute;
+  inset: 0 0 auto 0;
+  height: 140px;
+  z-index: 0;
+  pointer-events: none;
+  background: linear-gradient(var(--neo-cream), transparent);
+}
+.grain-pink::before,
+.grain-yellow::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  z-index: 0;
+  opacity: 0.3;
+  mix-blend-mode: multiply;
+  pointer-events: none;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='180' height='180'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.85' numOctaves='2' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");
+}
+
+/* ============================================================================
+   OUTLINED DISPLAY TEXT — white/cream fill with a black outline, for display
+   headings sitting on dark/busy backgrounds (hero magenta, red CTA).
+   Deliberately pure text-shadow, NOT -webkit-text-stroke: a stroke straddles
+   the glyph path and, on a bold display face at large sizes, thickens
+   strokes enough to close up counters (L reads as C, TH blends into a single
+   shape). Layered shadows only add copies around the glyph, so the
+   letterforms stay intact while still reading as a solid comic outline.
+   ========================================================================== */
+.display-outline-light {
+  color: #fffbe8;
+  text-shadow:
+    -3px -3px 0 #000,
+     3px -3px 0 #000,
+    -3px  3px 0 #000,
+     3px  3px 0 #000,
+    -3px  0    0 #000,
+     3px  0    0 #000,
+     0   -3px 0 #000,
+     0    3px 0 #000;
 }
 
 /* ============================================================================

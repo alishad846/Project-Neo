@@ -166,4 +166,9 @@ export const PRICE_ROWS: PriceRow[] = [
   { sku: "TOP-003", name: "Cotton Crop Top", oldPrice: 349, newPrice: 314, margin: 22, breakeven: true },
   { sku: "DRESS-011", name: "Floral Midi Dress", oldPrice: 899, newPrice: 809, margin: 31, breakeven: true },
   { sku: "LEG-002", name: "Ankle-Length Leggings", oldPrice: 299, newPrice: 269, margin: 8, breakeven: false },
+  { sku: "SAREE-014", name: "Banarasi Art Silk Saree", oldPrice: 1499, newPrice: 1349, margin: 30, breakeven: true },
+  { sku: "KURTI-032", name: "Anarkali Flared Kurti", oldPrice: 1199, newPrice: 1079, margin: 33, breakeven: true },
+  { sku: "DUP-021", name: "Chiffon Printed Dupatta", oldPrice: 399, newPrice: 359, margin: 26, breakeven: true },
+  { sku: "TOP-018", name: "Ribbed Knit Tank Top", oldPrice: 299, newPrice: 269, margin: 18, breakeven: true },
+  { sku: "NGT-004", name: "Cotton Nightwear Set", oldPrice: 649, newPrice: 584, margin: 7, breakeven: false },
 ];

@@ -2,6 +2,8 @@ import { useState } from "react";
 import { ArrowRight } from "lucide-react";
 import { PRODUCTS } from "../data";
 import type { AdapterOutput } from "../data";
+import { useReveal } from "../hooks/useReveal";
+import { SectionBg } from "../components/SectionBg";
 
 const MARKETPLACES: AdapterOutput["marketplace"][] = ["Meesho", "Amazon India", "Flipkart"];
 
@@ -16,11 +18,12 @@ export function CompileDemo() {
 
   const product = PRODUCTS[productIndex];
   const output = product.outputs.find((o) => o.marketplace === marketplace) ?? product.outputs[0];
+  const { ref, visible } = useReveal<HTMLDivElement>();
 
   return (
-    <section className="bg-[#fff0f5] py-24 md:py-32">
-      <div className="mx-auto max-w-6xl px-6">
-        <h2 className="mb-4 text-center font-loud text-5xl text-black md:text-7xl [-webkit-text-stroke:2px_black]">
+    <SectionBg tone="light" className="comic-cream" contentClassName="relative z-10">
+      <div ref={ref} className={`mx-auto max-w-6xl px-6 reveal ${visible ? "reveal-visible" : ""}`}>
+        <h2 className="mb-4 text-center font-loud text-3xl text-black heading-pop sm:text-5xl md:text-7xl">
           ONE PRODUCT. EVERY MARKETPLACE.
         </h2>
         <p className="mx-auto mb-14 max-w-2xl text-center font-cartoon text-lg text-black/80">
@@ -32,8 +35,8 @@ export function CompileDemo() {
             <button
               key={p.genome.id}
               onClick={() => setProductIndex(i)}
-              className={`rounded-full border-4 border-black px-5 py-2 font-loud text-lg transition-transform hover:-translate-y-0.5 ${
-                i === productIndex ? "bg-[#ffeb3b]" : "bg-white"
+              className={`rounded-md border border-black/40 px-5 py-2 font-body text-sm font-bold shadow-[3px_3px_0px_0px_rgba(26,22,15,0.85)] transition-transform hover:-translate-y-0.5 ${
+                i === productIndex ? "bg-[#ffc93c]" : "bg-white"
               }`}
             >
               {SHORT_NAMES[p.genome.id] ?? p.genome.name}
@@ -71,8 +74,8 @@ export function CompileDemo() {
                 <button
                   key={m}
                   onClick={() => setMarketplace(m)}
-                  className={`rounded-lg border-4 border-black px-4 py-2 font-loud text-base transition-transform hover:-translate-y-0.5 ${
-                    m === marketplace ? "bg-[#00e5ff]" : "bg-[#fff0f5]"
+                  className={`rounded-md border border-black/40 px-4 py-2 font-body text-sm font-bold shadow-[2px_2px_0px_0px_rgba(26,22,15,0.85)] transition-transform hover:-translate-y-0.5 ${
+                    m === marketplace ? "bg-[#00e5ff]" : "bg-[#fff7fb]"
                   }`}
                 >
                   {m}
@@ -96,6 +99,6 @@ export function CompileDemo() {
           </div>
         </div>
       </div>
-    </section>
+    </SectionBg>
   );
 }

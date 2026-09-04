@@ -1,0 +1,12 @@
+# Neo — robots.txt
+# Allow all crawlers across the marketing site and free tools.
+# /thank-you is a post-signup confirmation page, not a landing page, so it's
+# excluded from indexing (and from the sitemap).
+# Base URL is a placeholder until the real domain is known — update the Sitemap
+# line at deploy time (see .superpowers/sdd/progress.md "OPEN QUESTIONS").
+
+User-agent: *
+Allow: /
+Disallow: /thank-you
+
+Sitemap: https://neo.example/sitemap.xml

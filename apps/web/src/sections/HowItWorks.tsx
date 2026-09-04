@@ -1,4 +1,6 @@
 import { Camera, Sparkles, Send, type LucideIcon } from "lucide-react";
+import { useReveal } from "../hooks/useReveal";
+import { SectionBg } from "../components/SectionBg";
 
 interface Step {
   icon: LucideIcon;
@@ -27,16 +29,22 @@ const STEPS: Step[] = [
     icon: Send,
     color: "#b2ff59",
     title: "Autofill your listing",
-    body: "Neo fills the Meesho form for you and stops at Submit so you stay in control.",
+    body: "Neo fills the marketplace's form for you and stops at Submit so you stay in control.",
     rotate: "-rotate-1",
   },
 ];
 
 export function HowItWorks() {
+  const { ref, visible } = useReveal<HTMLDivElement>();
   return (
-    <section className="bg-[#fff0f5] py-24 md:py-32">
-      <div className="mx-auto max-w-6xl px-6">
-        <h2 className="mb-16 text-center font-loud text-5xl text-black md:text-7xl [-webkit-text-stroke:2px_black]">
+    <SectionBg
+      id="how"
+      tone="light"
+      className="comic-panel comic-yellow section-fade-top mt-12 rounded-t-[2.5rem] md:mt-20"
+      contentClassName="relative z-10"
+    >
+      <div ref={ref} className={`mx-auto max-w-6xl px-6 reveal ${visible ? "reveal-visible" : ""}`}>
+        <h2 className="mb-16 text-center font-loud text-4xl text-black heading-pop sm:text-6xl md:text-8xl">
           SNAP. COMPILE. DONE.
         </h2>
         <div className="grid gap-10 md:grid-cols-3">
@@ -57,6 +65,6 @@ export function HowItWorks() {
           ))}
         </div>
       </div>
-    </section>
+    </SectionBg>
   );
 }

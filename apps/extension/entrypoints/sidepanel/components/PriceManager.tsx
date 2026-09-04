@@ -39,7 +39,7 @@ export function PriceManager() {
 
   return (
     <div className="p-4">
-      <h2 className="font-loud text-2xl tracking-wide text-black">Price Manager</h2>
+      <h2 className="font-accent text-xl tracking-wide text-black">Price Manager</h2>
 
       <div className="mt-3 grid gap-2 rounded-xl border-2 border-black bg-white p-3 shadow-[3px_3px_0px_0px_#000]">
         <select
@@ -121,17 +121,21 @@ export function PriceManager() {
                 text="Apply"
                 color="#b2ff59"
                 icon={Check}
+                variant="panel"
+                disabled={busy || !previewedRule}
                 onClick={() => { if (busy || !previewedRule) return; run(() => applyPricing(previewedRule), (r) => setTxnId(r.txnId)); }}
               />
             </div>
           ) : (
             <div className="mt-3">
-              <p className="font-cartoon text-xs text-green-700">Applied as transaction #{txnId}.</p>
+              <p className="font-cartoon text-xs font-semibold text-green-700">Applied as transaction #{txnId}.</p>
               <div className="mt-2">
                 <PopButton
                   text="Previous"
                   color="#00e5ff"
                   icon={Undo2}
+                  variant="panel"
+                  disabled={busy}
                   onClick={() => { if (busy) return; run(() => undoPricing(txnId), () => invalidatePreview()); }}
                 />
               </div>

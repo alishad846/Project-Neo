@@ -2,6 +2,14 @@
    so the build doesn't warn about @import ordering inside bundled CSS. */
 .font-cartoon { font-family: 'Fredoka', sans-serif; }
 .font-loud { font-family: 'Bangers', cursive; }
+
+/* Font roles for the calmer iteration. The apps declare the matching
+   @font-face rules (pointing at their own /fonts/*.ttf); this file only
+   names the classes. .font-display has no digit/₹ glyphs -- letters only. */
+.font-display { font-family: 'Whoa Sauce', 'Impact', system-ui, sans-serif; }
+.font-accent { font-family: 'Magic Cookie', 'Comic Sans MS', system-ui, sans-serif; }
+.font-body { font-family: 'Fredoka', system-ui, sans-serif; }
+
 .animate-marquee { animation: marquee 10s linear infinite; }
 @keyframes marquee { 0% { transform: translateX(0); } 100% { transform: translateX(-50%); } }
 

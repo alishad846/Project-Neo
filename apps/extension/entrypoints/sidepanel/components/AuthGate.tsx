@@ -66,7 +66,7 @@ export function AuthGate({ children }: { children: React.ReactNode }) {
   return (
     <div className="flex min-h-screen items-center justify-center bg-[#fff0f5] p-4">
       <div className="w-full max-w-[320px] rounded-2xl border-4 border-black bg-white p-4 shadow-[8px_8px_0px_0px_#000]">
-        <h1 className="font-loud text-2xl tracking-wide text-black [-webkit-text-stroke:1px_black] drop-shadow-[2px_2px_0px_rgba(0,0,0,1)]">
+        <h1 className="font-display text-xl tracking-wide text-black drop-shadow-[1px_1px_0px_rgba(0,0,0,1)]">
           WELCOME TO NEO
         </h1>
         <p className="mt-1 font-cartoon text-xs text-black/60">
@@ -155,6 +155,8 @@ export function AuthGate({ children }: { children: React.ReactNode }) {
               text={busy ? "…" : mode === "login" ? "Log in" : "Create account"}
               color={mode === "login" ? "#00e5ff" : "#b2ff59"}
               icon={mode === "login" ? LogIn : UserPlus}
+              variant="panel"
+              disabled={busy}
               onClick={() => { if (!busy) handleSubmit(); }}
             />
           </div>

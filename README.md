@@ -4,6 +4,9 @@ Neo is a browser extension (Chrome/Edge, Manifest V3) plus a small backend that
 automates catalogue work for Indian e-commerce sellers. It starts with **Meesho**
 and is built to expand to **Amazon India** and **Flipkart**.
 
+> **New here / setting up?** Read [`docs/HANDOFF.md`](docs/HANDOFF.md) — it lists every
+> feature, how the pieces fit, and step-by-step setup to run the whole stack locally.
+
 A seller with a few hundred SKUs loses 25–38 hours a week to work that creates
 nothing new: retyping the same fields into listing forms, reacting to competitor
 prices by gut feel, cropping shipping labels, fixing rejected listings, and chasing
