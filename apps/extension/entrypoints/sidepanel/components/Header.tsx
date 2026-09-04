@@ -7,7 +7,7 @@ export function Header({ onLogout }: { onLogout?: () => void }) {
         </h1>
         <div className="flex items-center gap-2">
           <span className="rounded-full border-2 border-black bg-[#ffeb3b] px-2 py-1 font-body text-[10px] font-semibold">
-            Catalogue compiler
+            Meesho autofill
           </span>
           {onLogout && (
             <button

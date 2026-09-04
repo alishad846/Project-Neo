@@ -3,8 +3,13 @@ import { z } from 'zod';
 import { AiService } from './ai.service';
 import { ZodValidationPipe } from '../common/zod-validation.pipe';
 
+// Image-first extraction: `imageBase64` is required. Either pass a `productId`
+// (legacy: uses that product's category as the moondream hint) or an optional
+// `category` string hint directly. The production extension uses the latter so
+// autofill isn't tied to a seeded catalogue product.
 const extractRequestSchema = z.object({
-  productId: z.number().int(),
+  productId: z.number().int().optional(),
+  category: z.string().optional(),
   imageBase64: z.string().min(1),
 });
 
@@ -22,8 +27,11 @@ export class AiController {
 
   @Post('extract')
   @UsePipes(new ZodValidationPipe(extractRequestSchema))
-  extract(@Body() body: { productId: number; imageBase64: string }) {
-    return this.aiService.extractAttributes(body.productId, body.imageBase64);
+  extract(@Body() body: { productId?: number; category?: string; imageBase64: string }) {
+    if (typeof body.productId === 'number') {
+      return this.aiService.extractAttributes(body.productId, body.imageBase64);
+    }
+    return this.aiService.extractFromImage(body.imageBase64, body.category);
   }
 
   @Post('publish')

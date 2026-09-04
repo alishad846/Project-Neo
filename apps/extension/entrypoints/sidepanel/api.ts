@@ -84,11 +84,13 @@ export interface PublishResult {
   warnings: ValidationIssue[];
 }
 
-export async function extractAttributes(productId: number, imageBase64: string): Promise<ExtractResult> {
+// Image-first extraction (production): just the photo + an optional category
+// hint (the Meesho category the seller is listing under). No seeded product.
+export async function extractFromImage(imageBase64: string, category?: string): Promise<ExtractResult> {
   const res = await fetch(`${API_URL}/ai/extract`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ productId, imageBase64 }),
+    body: JSON.stringify(category ? { imageBase64, category } : { imageBase64 }),
   });
   if (!res.ok) throw new Error(`Extract error: ${res.status}`);
   return res.json();

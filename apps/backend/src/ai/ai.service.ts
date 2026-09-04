@@ -34,12 +34,22 @@ export class AiService {
     if (!genome) {
       throw new NotFoundException(`No product with id ${productId}`);
     }
+    return this.callExtractor(imageBase64, genome.category ?? undefined);
+  }
 
+  // Image-first extraction used by the production extension: no seeded product
+  // needed, just the photo and an optional category hint (the Meesho category
+  // the seller is listing under, which sharpens moondream's prompt).
+  async extractFromImage(imageBase64: string, category?: string): Promise<ExtractResult> {
+    return this.callExtractor(imageBase64, category);
+  }
+
+  private async callExtractor(imageBase64: string, category?: string): Promise<ExtractResult> {
     try {
       const response = await firstValueFrom(
         this.httpService.post<ExtractResult>(`${this.extractorUrl}/api/extract`, {
           imageBase64,
-          hint: { category: genome.category },
+          hint: category ? { category } : {},
         }),
       );
       return response.data;

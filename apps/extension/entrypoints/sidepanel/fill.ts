@@ -20,9 +20,9 @@ export interface FillResult {
 }
 
 const NO_RECEIVER_HINT =
-  "Open your Meesho Add-Product page — or the Neo demo form at localhost:4173/demo — in a tab, then click Autofill.";
+  "Open your Meesho Add-Product page in a tab, then click Autofill.";
 
-const TARGET_URL_PATTERN = /^https?:\/\/([^/]*\.)?(meesho\.com|localhost|127\.0\.0\.1)(:\d+)?\//i;
+const TARGET_URL_PATTERN = /^https?:\/\/([^/]*\.)?meesho\.com\//i;
 
 /**
  * Sends a fill request to the declarative content script (see
@@ -37,6 +37,10 @@ const TARGET_URL_PATTERN = /^https?:\/\/([^/]*\.)?(meesho\.com|localhost|127\.0\
 export async function sendFill(
   values: FillValues,
   configId: MeeshoConfigId,
+  // Live Meesho: a map of Meesho field `name` -> value, filled generically by
+  // the content script (category-agnostic). When omitted, the content script
+  // uses the fixed fixture selector map instead.
+  fields?: Record<string, string>,
 ): Promise<FillResult> {
   const chrome = (globalThis as { chrome?: any }).chrome;
 
@@ -62,7 +66,7 @@ export async function sendFill(
     const result = await new Promise<FillResult>((resolve) => {
       chrome.tabs.sendMessage(
         tabId,
-        { type: "NEO_FILL", config: configId, values },
+        { type: "NEO_FILL", config: configId, values, ...(fields ? { fields } : {}) },
         (response: FillResult | undefined) => {
           const lastError = chrome.runtime?.lastError;
           if (lastError || !response) {
