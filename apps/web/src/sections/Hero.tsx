@@ -36,8 +36,11 @@ export function Hero() {
       <div className="relative z-10 flex w-full flex-col items-center justify-center px-6">
         <div className="relative flex flex-col items-center leading-none text-center">
           <h1
-            className="pop-in relative z-10 flex flex-wrap items-center justify-center gap-x-4 gap-y-2 font-display text-7xl leading-none text-black md:text-9xl"
-            style={{ animationDelay: "0s" }}
+            className="pop-in relative z-10 flex flex-wrap items-center justify-center gap-x-5 gap-y-2 font-display text-7xl leading-none text-black md:text-9xl"
+            // Whoa Sauce is a heavy, connected display face — a little
+            // letter-spacing stops the glyphs melting into each other so the
+            // wordmark stays readable while keeping its cartoon character.
+            style={{ animationDelay: "0s", letterSpacing: "0.06em" }}
           >
             <span className="display-outline-light">SELL</span>
             <span className="flex items-center display-outline-light">
