@@ -1,7 +1,9 @@
 import type { ReactNode } from "react";
 
 interface SectionBgProps {
-  /** Path to a background image (served from /public), e.g. "/images/Bow.jpg". */
+  /** Path to a background image (served from /public), e.g.
+   * "/images/LandingPageBG.jpg". Most sections now use cartoon CSS panels
+   * (comic-yellow / comic-pink / comic-cream) instead of a photographic image. */
   image?: string;
   /** Default text color for content in this section: "light" = black text
    * (bright/light backgrounds), "dark" = white text (busy/dark backgrounds). */

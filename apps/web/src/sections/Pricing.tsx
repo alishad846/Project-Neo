@@ -1,95 +1,64 @@
-import { Check, Zap } from "lucide-react";
+import { Check, Zap, Sparkles } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import { PopButton } from "@neo/ui";
 import { useReveal } from "../hooks/useReveal";
 import { SectionBg } from "../components/SectionBg";
 
-interface Tier {
-  name: string;
-  price: string;
-  cadence: string;
-  tagline: string;
-  features: string[];
-  highlight?: boolean;
-}
-
-const TIERS: Tier[] = [
-  {
-    name: "PRO",
-    price: "₹499",
-    cadence: "/mo",
-    tagline: "For a single store, done right.",
-    features: [
-      "One connected store",
-      "AI compose + autofill",
-      "Bulk price manager",
-      "Breakeven calculators",
-    ],
-  },
-  {
-    name: "BUSINESS",
-    price: "₹999",
-    cadence: "/mo",
-    tagline: "For sellers running more than one storefront.",
-    features: [
-      "Everything in Pro",
-      "Multi-store, one catalog",
-      "Priority support",
-      "Bulk operations at scale",
-    ],
-    highlight: true,
-  },
+// Everything Neo does is free — no tiers, no premium, no card. This section
+// replaces the old Pro/Business pricing table with one loud "always free"
+// statement plus the full feature list, so sellers see there's no paywall.
+const FEATURES = [
+  "AI compose + one-click autofill",
+  "One catalog, every marketplace",
+  "Bulk price manager with dry-run + undo",
+  "Profit & breakeven calculators",
+  "GST calculator + label PDF tools",
+  "Runs in your browser — nothing to install to try",
 ];
 
 export function Pricing() {
   const { ref, visible } = useReveal<HTMLDivElement>();
   const navigate = useNavigate();
   return (
-    <SectionBg id="pricing" image="/images/Bow.jpg" tone="light" contentClassName="relative z-10">
-      <div ref={ref} className={`mx-auto max-w-5xl px-6 reveal ${visible ? "reveal-visible" : ""}`}>
-        <h2 className="mb-4 text-center font-loud text-5xl text-black md:text-7xl [-webkit-text-stroke:2px_black]">
-          PICK YOUR PLAN.
+    <SectionBg id="pricing" tone="light" className="comic-cream" contentClassName="relative z-10">
+      <div ref={ref} className={`mx-auto max-w-4xl px-6 reveal ${visible ? "reveal-visible" : ""}`}>
+        <span className="mx-auto mb-5 flex w-fit items-center gap-2 rounded-full border-2 border-black/70 bg-[#b2ff59] px-4 py-1.5 font-loud text-lg text-black shadow-[3px_3px_0px_0px_rgba(26,22,15,0.85)]">
+          <Sparkles className="h-4 w-4 stroke-[3px]" />
+          No premium. No catch.
+        </span>
+        <h2 className="mb-4 text-center font-display text-5xl text-black heading-pop-pink sm:text-6xl md:text-8xl" style={{ letterSpacing: "0.02em" }}>
+          ALWAYS FREE.
         </h2>
-        <p className="mx-auto mb-3 max-w-2xl text-center font-body text-lg text-black/80">
-          7 days free to try. Then keep going for a plan that fits.
-        </p>
-        <p className="mx-auto mb-14 max-w-md text-center font-body text-xs italic text-black/50">
-          Launch pricing — final numbers TBD.
+        <p className="mx-auto mb-12 max-w-2xl text-center font-cartoon text-xl text-black/75">
+          Every tool, every marketplace, every feature — free forever. We don't hide the good stuff behind a
+          paywall. Sign up and use the lot.
         </p>
 
-        <div className="grid gap-8 md:grid-cols-2">
-          {TIERS.map((tier) => (
-            <div
-              key={tier.name}
-              className={`relative flex flex-col rounded-2xl border-4 border-black p-8 shadow-[8px_8px_0px_0px_#000] ${
-                tier.highlight ? "bg-[#ffeb3b]" : "bg-white"
-              }`}
-            >
-              {tier.highlight && (
-                <span className="absolute -top-4 left-8 rounded-full border-2 border-black bg-[#ff90e8] px-3 py-1 font-accent text-sm">
-                  Most popular
+        <div className="relative rounded-2xl border-2 border-black/70 bg-white p-8 shadow-[10px_10px_0px_0px_rgba(26,22,15,0.9)] md:p-10">
+          <div className="mb-8 flex flex-col items-center text-center">
+            {/* Magic Cookie (font-cartoon), NOT font-display: the Whoa Sauce
+                display face has no digit glyphs (renders a watermark for "0"). */}
+            <p className="font-cartoon text-7xl font-bold text-[#ff2fb0] drop-shadow-[3px_3px_0px_rgba(26,22,15,0.25)] md:text-8xl">
+              ₹0
+            </p>
+            <p className="mt-1 font-cartoon text-lg text-black/60">forever — for every seller</p>
+          </div>
+
+          <ul className="mx-auto mb-10 grid max-w-2xl gap-4 sm:grid-cols-2">
+            {FEATURES.map((feature) => (
+              <li key={feature} className="flex items-start gap-3 font-cartoon text-base text-black">
+                <span className="mt-0.5 flex h-6 w-6 shrink-0 items-center justify-center rounded-full border-2 border-black/70 bg-[#ffc93c]">
+                  <Check className="h-3.5 w-3.5 stroke-[4px] text-black" />
                 </span>
-              )}
-              <h3 className="mb-1 font-display text-4xl text-black drop-shadow-[2px_2px_0px_rgba(255,144,232,1)]">
-                {tier.name}
-              </h3>
-              <p className="mb-4 font-body text-sm text-black/70">{tier.tagline}</p>
-              <p className="mb-6 font-body text-4xl font-bold text-black">
-                {/* TODO: replace with real price */}
-                {tier.price}
-                <span className="font-body text-base font-normal text-black/60">{tier.cadence}</span>
-              </p>
-              <ul className="mb-8 flex flex-1 flex-col gap-3">
-                {tier.features.map((feature) => (
-                  <li key={feature} className="flex items-center gap-2 font-body text-sm text-black">
-                    <Check className="h-4 w-4 shrink-0 stroke-[3px]" />
-                    {feature}
-                  </li>
-                ))}
-              </ul>
-              <PopButton text="Start 7-day trial" color={tier.highlight ? "#ffffff" : "#b2ff59"} icon={Zap} onClick={() => navigate("/thank-you")} />
-            </div>
-          ))}
+                {feature}
+              </li>
+            ))}
+          </ul>
+
+          <div className="flex flex-col items-center justify-center gap-4 sm:flex-row">
+            <PopButton text="Get started free" color="#b2ff59" icon={Zap} onClick={() => navigate("/thank-you")} />
+            <PopButton text="Open free tools" color="#ff90e8" icon={Sparkles} onClick={() => navigate("/tools")} />
+          </div>
         </div>
       </div>
     </SectionBg>

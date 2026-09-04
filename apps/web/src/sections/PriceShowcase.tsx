@@ -7,9 +7,9 @@ import { SectionBg } from "../components/SectionBg";
 export function PriceShowcase() {
   const { ref, visible } = useReveal<HTMLDivElement>();
   return (
-    <SectionBg grain="pink" tone="light" contentClassName="relative z-10">
+    <SectionBg tone="light" className="comic-cream" contentClassName="relative z-10">
       <div ref={ref} className={`mx-auto max-w-6xl px-6 reveal ${visible ? "reveal-visible" : ""}`}>
-        <h2 className="mb-4 text-center font-loud text-5xl text-black md:text-7xl [-webkit-text-stroke:2px_black]">
+        <h2 className="mb-4 text-center font-loud text-3xl text-black heading-pop sm:text-5xl md:text-7xl">
           CHANGE 500 PRICES. UNDO IN ONE CLICK.
         </h2>
         <p className="mx-auto mb-12 max-w-2xl text-center font-cartoon text-lg text-black/80">

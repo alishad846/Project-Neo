@@ -9,7 +9,6 @@ const NAV_LINKS = [
   { label: "How it works", to: "/#how" },
   { label: "Pricing", to: "/#pricing" },
   { label: "Free tools", to: "/tools" },
-  { label: "Demo form", to: "/demo" },
 ];
 
 const LEGAL_LINKS = [

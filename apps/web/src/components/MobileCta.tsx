@@ -32,7 +32,7 @@ export function MobileCta() {
         onClick={() => navigate("/thank-you")}
         className="flex w-full items-center justify-center gap-2 rounded-xl border-2 border-black bg-[#b2ff59] px-4 py-3 font-body font-bold text-black shadow-[3px_3px_0px_0px_#000] active:translate-x-0.5 active:translate-y-0.5 active:shadow-none"
       >
-        Start 7-day trial
+        Get started free
         <Zap className="h-5 w-5 stroke-[3px]" />
       </button>
     </div>

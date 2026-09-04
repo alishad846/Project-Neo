@@ -1,34 +1,44 @@
+import { Link } from "react-router-dom";
+import { ArrowRight } from "lucide-react";
 import { useReveal } from "../hooks/useReveal";
 import { SectionBg } from "../components/SectionBg";
 
 export function MediaSlots() {
   const { ref, visible } = useReveal<HTMLDivElement>();
   return (
-    <SectionBg grain="yellow" tone="light" contentClassName="relative z-10">
+    <SectionBg id="demo" tone="light" className="comic-cream" contentClassName="relative z-10">
       <div ref={ref} className={`mx-auto max-w-6xl px-6 reveal ${visible ? "reveal-visible" : ""}`}>
-        <h2 className="mb-14 text-center font-loud text-5xl text-black md:text-7xl [-webkit-text-stroke:2px_black]">
+        <h2 className="mb-4 text-center font-loud text-4xl text-black heading-pop sm:text-5xl md:text-7xl">
           SEE IT IN ACTION.
         </h2>
-        <div className="flex flex-col items-center gap-12 md:flex-row md:items-start md:justify-center">
-          {/* TODO: replace with real demo video */}
-          <div
-            data-media-slot="hero-video"
-            className="-rotate-1 flex aspect-video w-full max-w-xl items-center justify-center rounded-2xl border-4 border-black bg-white p-3 shadow-[8px_8px_0px_0px_#000] md:w-2/3"
-          >
-            <div className="flex h-full w-full items-center justify-center rounded-xl border-4 border-dashed border-black/40 bg-[#fff0f5]">
-              <span className="font-loud text-2xl text-black/50">▶ your demo video here</span>
-            </div>
-          </div>
+        <p className="mx-auto mb-14 max-w-2xl text-center font-cartoon text-lg text-black/70">
+          Watch Neo read a product and fill a whole Meesho listing — hands off the keyboard.
+        </p>
 
-          {/* TODO: replace with real product/extension screenshot */}
-          <div
-            data-media-slot="extension-screenshot"
-            className="rotate-1 flex aspect-[4/3] w-full max-w-sm items-center justify-center rounded-2xl border-4 border-black bg-white p-3 shadow-[8px_8px_0px_0px_#000] md:w-1/3"
-          >
-            <div className="flex h-full w-full items-center justify-center rounded-xl border-4 border-dashed border-black/40 bg-[#fff0f5]">
-              <span className="font-loud text-xl text-black/50">📷 your screenshot here</span>
-            </div>
+        <div className="mx-auto max-w-4xl">
+          {/* Real product demo. Muted + playsInline so it can autoplay on mobile;
+              loop keeps the loop tidy; controls let the seller scrub. */}
+          <div className="-rotate-1 rounded-2xl border-2 border-black/70 bg-white p-3 shadow-[10px_10px_0px_0px_rgba(26,22,15,0.9)]">
+            <video
+              className="aspect-video w-full rounded-xl border border-black/40 bg-black"
+              src="/media/neo-demo.mp4"
+              controls
+              playsInline
+              muted
+              loop
+              preload="metadata"
+            />
           </div>
+        </div>
+
+        <div className="mt-12 flex flex-col items-center justify-center gap-4 sm:flex-row">
+          <Link
+            to="/tools"
+            className="group inline-flex items-center gap-2 rounded-xl border border-black/70 bg-[#ff90e8] px-7 py-4 font-loud text-xl text-black shadow-[6px_6px_0px_0px_rgba(26,22,15,0.9)] transition-transform hover:-translate-y-1"
+          >
+            Try our free tools
+            <ArrowRight className="h-5 w-5 stroke-[3px] transition-transform group-hover:translate-x-1" />
+          </Link>
         </div>
       </div>
     </SectionBg>

@@ -21,9 +21,9 @@ export function CompileDemo() {
   const { ref, visible } = useReveal<HTMLDivElement>();
 
   return (
-    <SectionBg grain="pink" tone="light" contentClassName="relative z-10">
+    <SectionBg tone="light" className="comic-cream" contentClassName="relative z-10">
       <div ref={ref} className={`mx-auto max-w-6xl px-6 reveal ${visible ? "reveal-visible" : ""}`}>
-        <h2 className="mb-4 text-center font-loud text-5xl text-black md:text-7xl [-webkit-text-stroke:2px_black]">
+        <h2 className="mb-4 text-center font-loud text-3xl text-black heading-pop sm:text-5xl md:text-7xl">
           ONE PRODUCT. EVERY MARKETPLACE.
         </h2>
         <p className="mx-auto mb-14 max-w-2xl text-center font-cartoon text-lg text-black/80">
@@ -35,8 +35,8 @@ export function CompileDemo() {
             <button
               key={p.genome.id}
               onClick={() => setProductIndex(i)}
-              className={`rounded-full border-4 border-black px-5 py-2 font-loud text-lg transition-transform hover:-translate-y-0.5 ${
-                i === productIndex ? "bg-[#ffeb3b]" : "bg-white"
+              className={`rounded-full border-2 border-black/70 px-5 py-2 font-loud text-lg shadow-[3px_3px_0px_0px_rgba(26,22,15,0.85)] transition-transform hover:-translate-y-0.5 ${
+                i === productIndex ? "bg-[#ffc93c]" : "bg-white"
               }`}
             >
               {SHORT_NAMES[p.genome.id] ?? p.genome.name}
@@ -74,8 +74,8 @@ export function CompileDemo() {
                 <button
                   key={m}
                   onClick={() => setMarketplace(m)}
-                  className={`rounded-lg border-4 border-black px-4 py-2 font-loud text-base transition-transform hover:-translate-y-0.5 ${
-                    m === marketplace ? "bg-[#00e5ff]" : "bg-[#fff0f5]"
+                  className={`rounded-lg border-2 border-black/70 px-4 py-2 font-loud text-base shadow-[2px_2px_0px_0px_rgba(26,22,15,0.85)] transition-transform hover:-translate-y-0.5 ${
+                    m === marketplace ? "bg-[#00e5ff]" : "bg-[#fff7fb]"
                   }`}
                 >
                   {m}

@@ -37,9 +37,14 @@ const STEPS: Step[] = [
 export function HowItWorks() {
   const { ref, visible } = useReveal<HTMLDivElement>();
   return (
-    <SectionBg id="how" image="/images/YellowSection.jpg" tone="light" contentClassName="relative z-10">
+    <SectionBg
+      id="how"
+      tone="light"
+      className="comic-panel comic-yellow section-fade-top mt-12 rounded-t-[2.5rem] md:mt-20"
+      contentClassName="relative z-10"
+    >
       <div ref={ref} className={`mx-auto max-w-6xl px-6 reveal ${visible ? "reveal-visible" : ""}`}>
-        <h2 className="mb-16 text-center font-loud text-5xl text-black md:text-7xl [-webkit-text-stroke:2px_black]">
+        <h2 className="mb-16 text-center font-loud text-4xl text-black heading-pop sm:text-6xl md:text-8xl">
           SNAP. COMPILE. DONE.
         </h2>
         <div className="grid gap-10 md:grid-cols-3">

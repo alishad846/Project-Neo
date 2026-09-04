@@ -61,7 +61,7 @@ export function Nav() {
         <div className="flex items-center gap-3">
           <div className="hidden md:block">
             <PopButton
-              text="Start 7-day trial"
+              text="Get started free"
               color="#b2ff59"
               icon={Zap}
               variant="panel"
@@ -112,7 +112,7 @@ export function Nav() {
             </nav>
             <div className="mt-auto">
               <PopButton
-                text="Start 7-day trial"
+                text="Get started free"
                 color="#b2ff59"
                 icon={Zap}
                 onClick={() => {

@@ -6,7 +6,6 @@ import { CookieBanner } from "./components/CookieBanner";
 import { MobileCta } from "./components/MobileCta";
 import { Seo } from "./components/Seo";
 import { Landing } from "./pages/Landing";
-import { Demo } from "./pages/Demo";
 import { ToolsIndex } from "./pages/tools/ToolsIndex";
 import { ProfitCalculator } from "./pages/tools/ProfitCalculator";
 import { GstCalculator } from "./pages/tools/GstCalculator";
@@ -23,7 +22,7 @@ import { NotFound } from "./pages/NotFound";
 // with its own self-contained nav and no site footer.
 function SiteLayout() {
   return (
-    <div className="bg-[#fff0f5] text-black font-cartoon">
+    <div className="site-canvas min-h-screen text-black font-cartoon">
       <Nav />
       <Outlet />
       <Footer />
@@ -57,15 +56,6 @@ export function App() {
             "Neo — the compiler for your catalogue",
             "Neo turns one canonical Product Genome into a Meesho-, Amazon-, and Flipkart-ready listing. Reversible, dry-run-first, built for Indian e-commerce sellers.",
             <Landing />,
-          )}
-        />
-        <Route
-          path="/demo"
-          element={page(
-            "/demo",
-            "Live Autofill Demo — Neo",
-            "Try Neo's autofill on a safe practice form. See how one product genome fills a marketplace listing in seconds — you always review before submit.",
-            <Demo />,
           )}
         />
         {/* V3 */}

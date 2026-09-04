@@ -8,17 +8,17 @@ import { PopButton } from "@neo/ui";
 // landing. Kept upbeat and short.
 export function ThankYou() {
   return (
-    <main className="grain-yellow flex min-h-screen items-center justify-center px-4 py-16">
-      <div className="relative z-10 mx-auto max-w-xl rounded-2xl border-4 border-black bg-white p-8 text-center shadow-[8px_8px_0px_0px_#000] md:p-12">
-        <span className="mx-auto mb-6 flex h-16 w-16 items-center justify-center rounded-2xl border-4 border-black bg-[#b2ff59]">
+    <main className="comic-cream flex min-h-screen items-center justify-center px-4 py-16">
+      <div className="relative z-10 mx-auto max-w-xl rounded-2xl border-2 border-black/70 bg-white p-8 text-center shadow-[10px_10px_0px_0px_rgba(26,22,15,0.9)] md:p-12">
+        <span className="mx-auto mb-6 flex h-16 w-16 items-center justify-center rounded-2xl border-2 border-black/70 bg-[#b2ff59]">
           <PartyPopper className="h-8 w-8 stroke-[3px] text-black" />
         </span>
-        <h1 className="font-display text-4xl text-[#ff90e8] drop-shadow-[2px_2px_0px_rgba(0,0,0,1)] md:text-5xl">
+        <h1 className="font-display text-4xl text-[#ff90e8] drop-shadow-[2px_2px_0px_rgba(26,22,15,0.9)] md:text-5xl">
           You&rsquo;re in!
         </h1>
-        <p className="mt-4 font-body text-base text-black/80">
-          Your 7-day trial is ready. Next step: install the Neo extension, sign in, and let it fill
-          your first listing for you — you always review and confirm before anything goes live.
+        <p className="mt-4 font-cartoon text-lg text-black/80">
+          Neo is free — no card, no trial clock. Next step: install the Neo extension, sign in, and let
+          it fill your first listing for you — you always review and confirm before anything goes live.
         </p>
 
         <div className="mt-8 flex flex-col items-center gap-4">

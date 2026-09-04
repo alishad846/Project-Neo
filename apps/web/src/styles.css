@@ -22,6 +22,21 @@
 
 * { box-sizing: border-box; }
 
+/* ============================================================================
+   NEO DESIGN TOKENS
+   Palette weighting (per brand direction): ~50% warm off-white canvas,
+   ~30% bright yellow, ~20% pink — cartoonish, hand-inked, immersive.
+   ========================================================================== */
+:root {
+  --neo-cream: #faf3e6;   /* warm off-white — the dominant canvas */
+  --neo-pink: #ff90e8;    /* signature pink accent */
+  --neo-pink-soft: #ffd9ec;
+  --neo-yellow: #ffc93c;  /* bright comic yellow */
+  --neo-yellow-soft: #ffe680;
+  --neo-ink: #1a1a1a;     /* warm near-black — never pure #000 */
+  --neo-grid: rgba(26, 22, 15, 0.05);
+}
+
 html {
   scroll-behavior: smooth;
   -webkit-text-size-adjust: 100%;
@@ -34,6 +49,59 @@ html {
 body {
   margin: 0;
   overflow-x: hidden;
+  color: var(--neo-ink);
+}
+
+/* ============================================================================
+   SITE CANVAS — warm off-white with faint hand-inked GRID LINES behind
+   everything, plus a soft immersive SIDE-SHADOW vignette so the page feels
+   like a framed comic panel rather than a flat white sheet.
+   ========================================================================== */
+.site-canvas {
+  position: relative;
+  background-color: var(--neo-cream);
+  background-image:
+    linear-gradient(var(--neo-grid) 1px, transparent 1px),
+    linear-gradient(90deg, var(--neo-grid) 1px, transparent 1px);
+  background-size: 34px 34px;
+}
+
+/* Fixed vignette overlay: dark shadows hugging the left/right edges so the
+   content feels lit from the centre. pointer-events:none so it never blocks
+   clicks; sits above the canvas grid but below all content. */
+.site-canvas::before {
+  content: "";
+  position: fixed;
+  inset: 0;
+  z-index: 0;
+  pointer-events: none;
+  box-shadow:
+    inset 70px 0 90px -55px rgba(0, 0, 0, 0.35),
+    inset -70px 0 90px -55px rgba(0, 0, 0, 0.35);
+}
+/* Everything after the overlay must sit above it. */
+.site-canvas > * { position: relative; z-index: 1; }
+
+/* ============================================================================
+   WEB FONT ROLES — brand direction: Magic Cookie is the workhorse (~80% of
+   the site: headings, copy, buttons, nav). Whoa Sauce is reserved for a few
+   eye-catching signature moments (~20%) via .font-display. These override the
+   shared @neo/ui/cartoon.css mappings for the marketing site only, so the
+   extension's own type is untouched.
+   ========================================================================== */
+.font-cartoon,
+.font-body,
+.font-loud,
+.font-accent { font-family: "Magic Cookie", system-ui, sans-serif; }
+.font-display { font-family: "Whoa Sauce", "Impact", system-ui, sans-serif; }
+
+/* Comic heading depth WITHOUT the counter-closing text-stroke that hurt
+   readability. A tight offset ink shadow reads as hand-inked at any size. */
+.heading-pop {
+  text-shadow: 3px 3px 0 rgba(26, 22, 15, 0.18);
+}
+.heading-pop-pink {
+  text-shadow: 3px 3px 0 var(--neo-pink);
 }
 
 ::selection { background: #ff90e8; color: #000; }
@@ -93,6 +161,61 @@ body {
 }
 .grain-pink { background-color: #ffd9e8; }
 .grain-yellow { background-color: #ffe680; }
+
+/* ============================================================================
+   CARTOON SECTION BACKGROUNDS — replace the old photographic section images
+   with hand-inked flat-colour panels: brand colour + faint grid + a soft
+   inner side/bottom shadow so each band reads as a lit comic panel with depth.
+   ========================================================================== */
+.comic-panel {
+  position: relative;
+}
+.comic-panel::after {
+  /* Inner edge shadow for immersive depth (top + sides), non-blocking. */
+  content: "";
+  position: absolute;
+  inset: 0;
+  z-index: 0;
+  pointer-events: none;
+  box-shadow:
+    inset 0 22px 40px -30px rgba(0, 0, 0, 0.45),
+    inset 60px 0 70px -55px rgba(0, 0, 0, 0.30),
+    inset -60px 0 70px -55px rgba(0, 0, 0, 0.30);
+}
+.comic-yellow {
+  background-color: var(--neo-yellow);
+  background-image:
+    linear-gradient(rgba(26, 22, 15, 0.06) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(26, 22, 15, 0.06) 1px, transparent 1px);
+  background-size: 34px 34px;
+}
+.comic-pink {
+  background-color: var(--neo-pink);
+  background-image:
+    linear-gradient(rgba(26, 22, 15, 0.08) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(26, 22, 15, 0.08) 1px, transparent 1px);
+  background-size: 34px 34px;
+}
+.comic-cream {
+  background-color: var(--neo-cream);
+  background-image:
+    linear-gradient(var(--neo-grid) 1px, transparent 1px),
+    linear-gradient(90deg, var(--neo-grid) 1px, transparent 1px);
+  background-size: 34px 34px;
+}
+
+/* A soft gradient lip at the very top of a section, fading FROM the previous
+   band's colour into transparent, so colour changes don't jar the eye. Pair
+   with extra top padding to give the section room to breathe. */
+.section-fade-top::before {
+  content: "";
+  position: absolute;
+  inset: 0 0 auto 0;
+  height: 140px;
+  z-index: 0;
+  pointer-events: none;
+  background: linear-gradient(var(--neo-cream), transparent);
+}
 .grain-pink::before,
 .grain-yellow::before {
   content: "";

@@ -42,12 +42,12 @@ const TOOLS: ToolCard[] = [
 
 export function ToolsIndex() {
   return (
-    <main className="grain-yellow min-h-screen px-4 py-10 md:px-6 md:py-16">
+    <main className="comic-cream min-h-screen px-4 py-10 md:px-6 md:py-16">
       <div className="relative z-10 mx-auto max-w-5xl">
         <h1 className="font-display text-5xl text-black drop-shadow-[3px_3px_0px_rgba(255,144,232,1)] md:text-6xl">
           Free Tools
         </h1>
-        <p className="mt-3 max-w-xl font-body text-lg text-black/80">
+        <p className="mt-3 max-w-xl font-cartoon text-lg text-black/80">
           No signup, no upload, no catch. Calculators run instantly and the PDF tools process
           everything right in your browser.
         </p>
@@ -57,17 +57,17 @@ export function ToolsIndex() {
             <Link
               key={tool.to}
               to={tool.to}
-              className="group flex flex-col rounded-2xl border-4 border-black bg-white p-6 shadow-[8px_8px_0px_0px_#000] transition-all hover:-translate-y-1 hover:shadow-[12px_12px_0px_0px_#000] active:translate-x-1 active:translate-y-1 active:shadow-[0px_0px_0px_0px_#000]"
+              className="group flex flex-col rounded-2xl border-2 border-black/70 bg-white p-6 shadow-[8px_8px_0px_0px_rgba(26,22,15,0.9)] transition-all hover:-translate-y-1 hover:shadow-[11px_11px_0px_0px_rgba(26,22,15,0.9)] active:translate-x-1 active:translate-y-1 active:shadow-[0px_0px_0px_0px_rgba(26,22,15,0.9)]"
             >
               <div
-                className="mb-4 flex h-12 w-12 items-center justify-center rounded-xl border-2 border-black"
+                className="mb-4 flex h-12 w-12 items-center justify-center rounded-xl border-2 border-black/70 shadow-[3px_3px_0px_0px_rgba(26,22,15,0.85)]"
                 style={{ backgroundColor: tool.color }}
               >
                 <tool.icon className="h-6 w-6 stroke-[3px] text-black" />
               </div>
-              <h2 className="font-accent text-xl text-black">{tool.title}</h2>
-              <p className="mt-2 font-body text-sm text-black/70">{tool.blurb}</p>
-              <span className="mt-4 font-body text-sm font-semibold text-black underline decoration-2 underline-offset-2 group-hover:text-[#ff90e8]">
+              <h2 className="font-loud text-2xl text-black">{tool.title}</h2>
+              <p className="mt-2 font-cartoon text-sm text-black/70">{tool.blurb}</p>
+              <span className="mt-4 font-loud text-base text-black group-hover:text-[#ff2fb0]">
                 Open tool →
               </span>
             </Link>

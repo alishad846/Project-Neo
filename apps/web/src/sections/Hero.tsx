@@ -34,27 +34,27 @@ export function Hero() {
       </div>
 
       <div className="relative z-10 flex w-full flex-col items-center justify-center px-6">
-        <div className="relative flex flex-col items-center leading-none text-center">
+        <div className="relative flex w-full max-w-2xl flex-col items-center leading-none text-center">
           <h1
-            className="pop-in relative z-10 flex flex-wrap items-center justify-center gap-x-5 gap-y-2 font-display text-7xl leading-none text-black md:text-9xl"
+            className="pop-in relative z-10 flex max-w-full flex-wrap items-center justify-center gap-x-3 gap-y-1 font-display text-3xl leading-none text-black sm:gap-x-5 sm:text-7xl md:text-9xl"
             // Whoa Sauce is a heavy, connected display face — a little
             // letter-spacing stops the glyphs melting into each other so the
             // wordmark stays readable while keeping its cartoon character.
-            style={{ animationDelay: "0s", letterSpacing: "0.06em" }}
+            style={{ animationDelay: "0s", letterSpacing: "0.04em" }}
           >
             <span className="display-outline-light">SELL</span>
             <span className="flex items-center display-outline-light">
               SM
               <span className="mx-1 flex gap-2">
-                <span className="relative inline-flex h-12 w-12 items-center justify-center overflow-hidden rounded-full border-4 border-black bg-white align-middle shadow-[4px_4px_0px_0px_#000] md:h-16 md:w-16">
+                <span className="relative inline-flex h-6 w-6 items-center justify-center overflow-hidden rounded-full border-2 border-black bg-white align-middle shadow-[3px_3px_0px_0px_#000] sm:h-12 sm:w-12 md:h-16 md:w-16">
                   <span
-                    className="absolute h-5 w-5 rounded-full bg-black md:h-7 md:w-7"
+                    className="absolute h-3.5 w-3.5 rounded-full bg-black sm:h-5 sm:w-5 md:h-7 md:w-7"
                     style={{ transform: `translate(${x}px, ${y}px)` }}
                   />
                 </span>
-                <span className="relative inline-flex h-12 w-12 items-center justify-center overflow-hidden rounded-full border-4 border-black bg-white align-middle shadow-[4px_4px_0px_0px_#000] md:h-16 md:w-16">
+                <span className="relative inline-flex h-6 w-6 items-center justify-center overflow-hidden rounded-full border-2 border-black bg-white align-middle shadow-[3px_3px_0px_0px_#000] sm:h-12 sm:w-12 md:h-16 md:w-16">
                   <span
-                    className="absolute h-5 w-5 rounded-full bg-black md:h-7 md:w-7"
+                    className="absolute h-3.5 w-3.5 rounded-full bg-black sm:h-5 sm:w-5 md:h-7 md:w-7"
                     style={{ transform: `translate(${x}px, ${y}px)` }}
                   />
                 </span>
@@ -81,24 +81,21 @@ export function Hero() {
           </svg>
 
           <div
-            className="pop-in mt-8 flex flex-col items-center gap-3 rounded-3xl border-4 border-black bg-white/95 px-6 py-6 shadow-[6px_6px_0px_0px_#000] md:px-10 md:py-8"
+            className="pop-in mt-8 flex w-full min-w-0 max-w-lg flex-col items-center gap-3 rounded-3xl border-2 border-black/70 bg-white/95 px-5 py-6 shadow-[6px_6px_0px_0px_rgba(26,22,15,0.9)] md:px-10 md:py-8"
             style={{ animationDelay: "0.3s" }}
           >
-            <p className="font-accent text-2xl text-black md:text-3xl">One catalog, every marketplace.</p>
-            <p className="mx-auto max-w-xl font-body text-base text-black/80 md:text-lg">
+            <p className="max-w-full text-center font-accent text-lg text-black [text-wrap:balance] md:text-3xl">
+              One catalog, every marketplace.
+            </p>
+            <p className="max-w-full font-body text-sm text-black/80 [text-wrap:pretty] md:text-lg">
               List once. Neo compiles your products for every store you sell on and fills the forms for you.
             </p>
           </div>
         </div>
 
         <div className="pop-in mt-10 flex flex-col gap-6 sm:flex-row" style={{ animationDelay: "0.5s" }}>
-          <PopButton text="Start 7-day trial" color="#b2ff59" icon={Zap} onClick={() => navigate("/thank-you")} />
-          <PopButton
-            text="See how it works"
-            color="#ffffff"
-            icon={Send}
-            onClick={() => document.getElementById("how")?.scrollIntoView({ behavior: "smooth" })}
-          />
+          <PopButton text="Get started free" color="#b2ff59" icon={Zap} onClick={() => navigate("/thank-you")} />
+          <PopButton text="Free seller tools" color="#ffffff" icon={Send} onClick={() => navigate("/tools")} />
         </div>
       </div>
 
