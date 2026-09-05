@@ -17,6 +17,7 @@ import { Terms } from "./pages/Terms";
 import { Contact } from "./pages/Contact";
 import { ThankYou } from "./pages/ThankYou";
 import { NotFound } from "./pages/NotFound";
+import { Inventory } from "./pages/Inventory";
 
 // Shared chrome (nav, footer, cookie banner) wraps every normal route via
 // <Outlet/>. The 404 route sits OUTSIDE this layout so it can render full-bleed
@@ -104,6 +105,18 @@ export function App() {
           path="/signup"
           element={page("/signup", "Sign up — Neo", "Create your Neo account — one login for the website and the extension.", <Login initialMode="signup" />)}
         />
+        
+        {/* === NEW INVENTORY ROUTE === */}
+        <Route
+          path="/inventory"
+          element={page(
+            "/inventory",
+            "Inventory — Neo",
+            "View and manage your saved Product Genomes.",
+            <Inventory />,
+          )}
+        />
+
         {/* V3 */}
         <Route
           path="/tools"

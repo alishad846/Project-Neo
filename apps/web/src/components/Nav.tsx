@@ -10,6 +10,7 @@ const LINKS = [
   { label: "How it works", to: "/#how" },
   { label: "Pricing", to: "/#pricing" },
   { label: "Tools", to: "/tools" },
+  { label: "Inventory", to: "/inventory" },
 ];
 
 export function Nav() {
