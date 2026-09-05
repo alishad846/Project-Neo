@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { Link, useNavigate } from "react-router-dom";
+import { Link, useNavigate, useLocation } from "react-router-dom";
 import { Zap, Menu, X } from "lucide-react";
 import { PopButton } from "@neo/ui";
 
@@ -14,11 +14,31 @@ const LINKS = [
 
 export function Nav() {
   const navigate = useNavigate();
+  const location = useLocation();
   const [menuOpen, setMenuOpen] = useState(false);
+  const [scrolled, setScrolled] = useState(false);
+  const [isLoggedIn, setIsLoggedIn] = useState(false);
+
+  // Check login status when the navbar loads
+  // Check login status whenever the URL changes
+useEffect(() => {
+  const token = localStorage.getItem("neo_token"); 
+  if (token) {
+    setIsLoggedIn(true);
+  } else {
+    setIsLoggedIn(false); // Make sure it resets if token is missing
+  }
+}, [location]);
+
+  const handleLogout = () => {
+    localStorage.removeItem("neo_token");
+    localStorage.removeItem("neo_user");  // Clear user data too
+    setIsLoggedIn(false);
+    navigate("/");
+  };
+
   // Add a drop shadow once the page has scrolled, so the sticky bar lifts off
   // the content instead of blending into it.
-  const [scrolled, setScrolled] = useState(false);
-
   useEffect(() => {
     function onScroll() {
       setScrolled(window.scrollY > 8);
@@ -59,21 +79,34 @@ export function Nav() {
         </nav>
 
         <div className="flex items-center gap-4">
-          <Link
-            to="/login"
-            className="hidden font-accent text-lg text-black transition-transform hover:-translate-y-0.5 md:inline-block"
-          >
-            Log in
-          </Link>
-          <div className="hidden md:block">
-            <PopButton
-              text="Get started"
-              color="#b2ff59"
-              icon={Zap}
-              variant="panel"
-              onClick={() => navigate("/signup")}
-            />
-          </div>
+          {/* Desktop Auth Buttons */}
+          {isLoggedIn ? (
+            <button
+              onClick={handleLogout}
+              className="hidden font-accent text-lg text-black transition-transform hover:-translate-y-0.5 md:inline-block"
+            >
+              Log out
+            </button>
+          ) : (
+            <>
+              <Link
+                to="/login"
+                className="hidden font-accent text-lg text-black transition-transform hover:-translate-y-0.5 md:inline-block"
+              >
+                Log in
+              </Link>
+              <div className="hidden md:block">
+                <PopButton
+                  text="Get started"
+                  color="#b2ff59"
+                  icon={Zap}
+                  variant="panel"
+                  onClick={() => navigate("/signup")}
+                />
+              </div>
+            </>
+          )}
+
           {/* Mobile hamburger */}
           <button
             onClick={() => setMenuOpen(true)}
@@ -115,25 +148,43 @@ export function Nav() {
                   {link.label}
                 </Link>
               ))}
-              <Link
-                to="/login"
-                onClick={() => setMenuOpen(false)}
-                className="border border-black/40 bg-white px-4 py-3 font-accent text-lg text-black shadow-[3px_3px_0px_0px_rgba(26,22,15,0.9)] transition-transform active:translate-x-0.5 active:translate-y-0.5 active:shadow-none"
-              >
-                Log in
-              </Link>
+              
+              {/* Mobile Auth Buttons */}
+              {isLoggedIn ? (
+                <button
+                  onClick={() => {
+                    setMenuOpen(false);
+                    handleLogout();
+                  }}
+                  className="border border-black/40 bg-white px-4 py-3 text-left font-accent text-lg text-black shadow-[3px_3px_0px_0px_rgba(26,22,15,0.9)] transition-transform active:translate-x-0.5 active:translate-y-0.5 active:shadow-none"
+                >
+                  Log out
+                </button>
+              ) : (
+                <Link
+                  to="/login"
+                  onClick={() => setMenuOpen(false)}
+                  className="border border-black/40 bg-white px-4 py-3 font-accent text-lg text-black shadow-[3px_3px_0px_0px_rgba(26,22,15,0.9)] transition-transform active:translate-x-0.5 active:translate-y-0.5 active:shadow-none"
+                >
+                  Log in
+                </Link>
+              )}
             </nav>
-            <div className="mt-auto">
-              <PopButton
-                text="Get started"
-                color="#b2ff59"
-                icon={Zap}
-                onClick={() => {
-                  setMenuOpen(false);
-                  navigate("/signup");
-                }}
-              />
-            </div>
+            
+            {/* Mobile Get Started Button (Hidden when logged in) */}
+            {!isLoggedIn && (
+              <div className="mt-auto">
+                <PopButton
+                  text="Get started"
+                  color="#b2ff59"
+                  icon={Zap}
+                  onClick={() => {
+                    setMenuOpen(false);
+                    navigate("/signup");
+                  }}
+                />
+              </div>
+            )}
           </div>
         </div>
       )}
