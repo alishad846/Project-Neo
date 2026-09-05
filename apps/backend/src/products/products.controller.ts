@@ -13,7 +13,10 @@ import {
 import { ProductsService } from './products.service';
 import { productGenome } from '../db/schema';
 import { ZodValidationPipe } from '../common/zod-validation.pipe';
-import { productGenomeInsertSchema } from '@neo/genome';
+import {
+  productGenomeInsertSchema,
+  productGenomeUpdateSchema,
+} from '@neo/genome';
 
 @Controller('products')
 export class ProductsController {
@@ -37,7 +40,8 @@ export class ProductsController {
   @Patch(':id')
 updateProduct(
   @Param('id', ParseIntPipe) id: number,
-  @Body() data: Partial<typeof productGenome.$inferInsert>,
+  @Body(new ZodValidationPipe(productGenomeUpdateSchema))
+  data: Partial<typeof productGenome.$inferInsert>,
 ) {
   return this.productsService.updateProduct(id, data);
 }

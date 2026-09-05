@@ -31,6 +31,9 @@ export const productGenomeSchema = productGenomeInsertSchema.extend({
   createdAt: z.coerce.date(),
   updatedAt: z.coerce.date(),
 });
+export const productGenomeUpdateSchema =
+  productGenomeInsertSchema.partial();
 
 export type ProductGenomeInsert = z.infer<typeof productGenomeInsertSchema>;
+export type ProductGenomeUpdate = z.infer<typeof productGenomeUpdateSchema>;
 export type ProductGenome = z.infer<typeof productGenomeSchema>;
