@@ -1,4 +1,5 @@
 import { SELECTOR_CONFIGS, type MeeshoConfigId, type MeeshoSelectorMap } from "@neo/adapter-meesho";
+import { injectScript } from "#imports";
 
 export interface FillValues {
   title: string;
@@ -11,10 +12,12 @@ interface FillMessage {
   type: "NEO_FILL";
   config: MeeshoConfigId;
   values: FillValues;
-  // When present (live Meesho), fill generically by field `name` instead of the
-  // fixed fixture selector map. Keyed by Meesho's stable `name` attribute
-  // (e.g. { product_name, comment, color, fabric, occasion, ... }).
   fields?: Record<string, string>;
+}
+
+interface MeeshoAutofillMessage {
+  type: "NEO_MEESHO_AUTOFILL";
+  product: Record<string, unknown>;
 }
 
 interface FillResponse {
@@ -27,6 +30,46 @@ interface FillResponse {
 }
 
 const sleep = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
+
+function requestMeeshoAutofill(product: Record<string, unknown>): Promise<unknown> {
+  return new Promise((resolve, reject) => {
+    const requestId = `neo-${Date.now()}-${Math.random().toString(36).slice(2)}`;
+
+    const handler = (event: MessageEvent) => {
+      if (
+        event.source !== window ||
+        event.data?.source !== "PROJECT_NEO_MEESHO_MAIN" ||
+        event.data?.type !== "PROJECT_NEO_AUTOFILL_RESULT" ||
+        event.data?.requestId !== requestId
+      ) {
+        return;
+      }
+
+      window.removeEventListener("message", handler);
+
+      const result = event.data?.result;
+
+      if (result?.success === false && result?.error) {
+        reject(new Error(result.error));
+        return;
+      }
+
+      resolve(result);
+    };
+
+    window.addEventListener("message", handler);
+
+    window.postMessage(
+      {
+        source: "PROJECT_NEO_EXTENSION",
+        type: "PROJECT_NEO_AUTOFILL_MEESHO",
+        requestId,
+        product,
+      },
+      "*",
+    );
+  });
+}
 
 // Human-readable labels for the fixed fixture fields (for the "✓ filled" badge).
 const FIELD_LABELS: Record<keyof FillValues, string> = {
@@ -117,7 +160,6 @@ function removeStopButton() {
 
 function clearOverlays() {
   document.querySelectorAll(`.${POP_CLASS}`).forEach((n) => n.remove());
-  // Remove any stray highlight from earlier builds.
   document.querySelectorAll(".neo-af-highlight").forEach((n) => n.classList.remove("neo-af-highlight"));
 }
 
@@ -138,7 +180,6 @@ function popConfetti(el: Element, label: string) {
   pill.textContent = `🎉 ${label}`;
   pop.appendChild(pill);
 
-  // A small confetti burst radiating from the pill.
   for (let i = 0; i < 8; i++) {
     const piece = document.createElement("span");
     piece.className = "neo-af-confetti";
@@ -156,21 +197,20 @@ function popConfetti(el: Element, label: string) {
 }
 
 function setNativeValue(el: HTMLInputElement | HTMLTextAreaElement, value: string) {
-  // React/MUI track value via the prototype setter; call it directly so the
-  // framework's onChange fires and the field is considered "dirty".
   const proto = Object.getPrototypeOf(el);
   const descriptor = Object.getOwnPropertyDescriptor(proto, "value");
   const setter = descriptor?.set;
+
   if (setter) {
     setter.call(el, value);
   } else {
     el.value = value;
   }
+
   el.dispatchEvent(new Event("input", { bubbles: true }));
   el.dispatchEvent(new Event("change", { bubbles: true }));
 }
 
-// A field is a (readonly) dropdown/select rather than a free-text input.
 function isDropdown(el: HTMLInputElement): boolean {
   return (
     el.readOnly ||
@@ -189,45 +229,50 @@ function visibleOptions(): HTMLElement[] {
   );
 }
 
-// Reliably close any open MUI popover/menu. MUI listens for Escape to close and
-// UNLOCK body scroll — clicking away is unreliable and can leave the scroll lock
-// in place (the "whole site is frozen" bug). Sends Escape until nothing is open.
 async function closeOpenPopovers() {
   for (let i = 0; i < 4; i++) {
     if (!document.querySelector(OPEN_POPOVER_SELECTOR)) return;
+
     const active = (document.activeElement as HTMLElement) ?? document.body;
+
     for (const target of [active, document.body]) {
       target.dispatchEvent(
-        new KeyboardEvent("keydown", { key: "Escape", code: "Escape", keyCode: 27, which: 27, bubbles: true }),
+        new KeyboardEvent("keydown", {
+          key: "Escape",
+          code: "Escape",
+          keyCode: 27,
+          which: 27,
+          bubbles: true,
+        }),
       );
     }
+
     await sleep(120);
   }
-  // Last resort: MUI backdrop click.
+
   const backdrop = document.querySelector<HTMLElement>(".MuiBackdrop-root");
   backdrop?.click();
   await sleep(80);
 }
 
-// Open a MUI-style dropdown and click the option whose visible text best matches
-// `value`. ALWAYS closes the popover afterwards (success or fail) so it can never
-// be left open blocking the page. Overwrites any existing selection.
 async function fillDropdown(el: HTMLInputElement, value: string): Promise<boolean> {
   const wanted = value.trim().toLowerCase();
+
   try {
     el.focus();
     el.click();
 
-    // Poll for the options to render (portals can be slow); type into a search
-    // box if the dropdown has one.
     let options: HTMLElement[] = [];
+
     for (let i = 0; i < 8 && options.length === 0; i++) {
       await sleep(140);
       options = visibleOptions();
     }
+
     const search = document.querySelector<HTMLInputElement>(
       '.MuiAutocomplete-popper input, [role="listbox"] input:not([readonly])',
     );
+
     if (search) {
       setNativeValue(search, value);
       await sleep(280);
@@ -235,8 +280,15 @@ async function fillDropdown(el: HTMLInputElement, value: string): Promise<boolea
     }
 
     const norm = (o: HTMLElement) => (o.textContent ?? "").trim().toLowerCase();
+
     const exact = options.find((o) => norm(o) === wanted);
-    const partial = options.find((o) => norm(o).includes(wanted) || (wanted.length > 3 && wanted.includes(norm(o))));
+
+    const partial = options.find(
+      (o) =>
+        norm(o).includes(wanted) ||
+        (wanted.length > 3 && wanted.includes(norm(o))),
+    );
+
     const choice = exact ?? partial;
 
     if (choice) {
@@ -245,19 +297,13 @@ async function fillDropdown(el: HTMLInputElement, value: string): Promise<boolea
       await closeOpenPopovers();
       return true;
     }
+
     return false;
   } finally {
-    // Whatever happened, never leave a dropdown open.
     await closeOpenPopovers();
   }
 }
 
-/**
- * Generic fill by field `name` (live Meesho). Enumerates the values Neo has and
- * fills whichever fields exist on the current page — category-agnostic, since
- * every Meesho field (text and dropdown) carries a stable `name`. Fields not on
- * the page are reported missing; the seller reviews and submits themselves.
- */
 async function fillByName(fields: Record<string, string>): Promise<FillResponse> {
   const filled: string[] = [];
   const missing: string[] = [];
@@ -274,28 +320,35 @@ async function fillByName(fields: Record<string, string>): Promise<FillResponse>
       stopped = true;
       break;
     }
+
     if (!value) {
       skipped.push(name);
       continue;
     }
-    const el = document.querySelector<HTMLInputElement | HTMLTextAreaElement>(`[name="${name}"]`);
+
+    const el = document.querySelector<HTMLInputElement | HTMLTextAreaElement>(
+      `[name="${name}"]`,
+    );
+
     if (!el) {
       missing.push(name);
       continue;
     }
 
-    // Clear the previous pop BEFORE scrolling so it never lingers on-screen
-    // while the page moves to the next field.
     clearOverlays();
     el.scrollIntoView({ behavior: "auto", block: "center" });
     await sleep(120);
 
     let ok = true;
+
     if (el instanceof HTMLInputElement && isDropdown(el)) {
       ok = await fillDropdown(el, value);
     } else {
       el.focus();
-      setNativeValue(el as HTMLInputElement | HTMLTextAreaElement, value);
+      setNativeValue(
+        el as HTMLInputElement | HTMLTextAreaElement,
+        value,
+      );
     }
 
     if (ok) {
@@ -303,7 +356,6 @@ async function fillByName(fields: Record<string, string>): Promise<FillResponse>
       filled.push(name);
       await sleep(360);
     } else {
-      // Element found but no matching option — surface it so the seller knows.
       missing.push(name);
     }
   }
@@ -311,14 +363,21 @@ async function fillByName(fields: Record<string, string>): Promise<FillResponse>
   clearOverlays();
   await closeOpenPopovers();
   removeStopButton();
-  return { ok: true, filled, missing, skipped, submitFocused: false, stopped };
+
+  return {
+    ok: true,
+    filled,
+    missing,
+    skipped,
+    submitFocused: false,
+    stopped,
+  };
 }
 
-/**
- * Legacy fixed-field fill for the local demo/fixture (id selectors). Focuses the
- * submit control at the end but NEVER clicks it.
- */
-async function fillForm(map: MeeshoSelectorMap, vals: FillValues): Promise<FillResponse> {
+async function fillForm(
+  map: MeeshoSelectorMap,
+  vals: FillValues,
+): Promise<FillResponse> {
   const fieldOrder: Array<[keyof FillValues, string]> = [
     ["title", map.title],
     ["description", map.description],
@@ -341,15 +400,21 @@ async function fillForm(map: MeeshoSelectorMap, vals: FillValues): Promise<FillR
       stopped = true;
       break;
     }
+
     if (!selector) {
       skipped.push(key);
       continue;
     }
-    const el = document.querySelector(selector) as HTMLInputElement | HTMLTextAreaElement | null;
+
+    const el = document.querySelector(
+      selector,
+    ) as HTMLInputElement | HTMLTextAreaElement | null;
+
     if (!el) {
       missing.push(key);
       continue;
     }
+
     el.scrollIntoView({ behavior: "smooth", block: "center" });
     await sleep(220);
     el.focus();
@@ -360,10 +425,18 @@ async function fillForm(map: MeeshoSelectorMap, vals: FillValues): Promise<FillR
   }
 
   let submitFocused = false;
+
   if (!stopped && map.submit) {
-    const submitEl = document.querySelector(map.submit) as HTMLElement | null;
+    const submitEl = document.querySelector(
+      map.submit,
+    ) as HTMLElement | null;
+
     if (submitEl) {
-      submitEl.scrollIntoView({ behavior: "smooth", block: "center" });
+      submitEl.scrollIntoView({
+        behavior: "smooth",
+        block: "center",
+      });
+
       submitEl.focus();
       submitFocused = true;
     } else {
@@ -372,42 +445,111 @@ async function fillForm(map: MeeshoSelectorMap, vals: FillValues): Promise<FillR
   }
 
   removeStopButton();
-  return { ok: true, filled, missing, skipped, submitFocused, stopped };
+
+  return {
+    ok: true,
+    filled,
+    missing,
+    skipped,
+    submitFocused,
+    stopped,
+  };
 }
 
 export default defineContentScript({
   matches: ["*://*.meesho.com/*"],
-  main() {
+
+  async main() {
+    // Inject the main-world script that exposes window.meeshoAutofill.
+    await injectScript("/meesho-main-world.js", {
+      keepInDom: true,
+    });
+
     // Readiness marker so the side panel (or a test probe) can detect that the
     // declarative content script actually injected into this page.
     (window as unknown as { __NEO_CONTENT__?: boolean }).__NEO_CONTENT__ = true;
 
     const chrome = (globalThis as { chrome?: any }).chrome;
+
     if (!chrome?.runtime?.onMessage) return;
 
     chrome.runtime.onMessage.addListener(
-      (message: FillMessage, _sender: unknown, sendResponse: (response: FillResponse | { ok: false; error: string }) => void) => {
-        if (!message || message.type !== "NEO_FILL") return false;
+      (
+        message: FillMessage | MeeshoAutofillMessage,
+        _sender: unknown,
+        sendResponse: (
+          response: FillResponse | { ok: false; error: string },
+        ) => void,
+      ) => {
+        if (!message) return false;
+
+        // New full Meesho autofill engine.
+        if (message.type === "NEO_MEESHO_AUTOFILL") {
+  requestMeeshoAutofill(message.product)
+    .then((result: any) => {
+      sendResponse({
+        ok: true,
+        filled: result?.filled ?? [],
+        missing: result?.requiredMissing ?? [],
+        skipped: result?.skipped ?? [],
+        submitFocused: false,
+        stopped: result?.stopped ?? false,
+      });
+    })
+            .catch((err) => {
+              sendResponse({
+                ok: false,
+                error:
+                  err instanceof Error
+                    ? err.message
+                    : String(err),
+              });
+            });
+
+          return true;
+        }
+
+        // Existing generic/fixture autofill path.
+        if (message.type !== "NEO_FILL") return false;
 
         const done = (result: FillResponse) => sendResponse(result);
+
         const fail = (err: unknown) => {
           removeStopButton();
-          sendResponse({ ok: false, error: err instanceof Error ? err.message : String(err) });
+
+          sendResponse({
+            ok: false,
+            error:
+              err instanceof Error
+                ? err.message
+                : String(err),
+          });
         };
 
-        // Generic name-based fill (live Meesho) when `fields` is provided.
         if (message.fields) {
-          fillByName(message.fields).then(done).catch(fail);
+          fillByName(message.fields)
+            .then(done)
+            .catch(fail);
+
           return true;
         }
 
         const map = SELECTOR_CONFIGS[message.config];
+
         if (!map) {
-          sendResponse({ ok: false, error: `Unknown selector config: ${message.config}` });
+          sendResponse({
+            ok: false,
+            error: `Unknown selector config: ${message.config}`,
+          });
+
           return true;
         }
-        fillForm(map, message.values).then(done).catch(fail);
-        return true; // keep the message channel open for the async response
+
+        fillForm(map, message.values)
+          .then(done)
+          .catch(fail);
+
+        return true;
       },
     );
   },

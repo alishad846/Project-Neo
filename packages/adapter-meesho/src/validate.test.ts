@@ -44,6 +44,23 @@ describe("validate", () => {
     expect(issues).toContainEqual(expect.objectContaining({ field: "sellingPrice", severity: "error" }));
   });
 
+  it("errors when Meesho price is not below MRP", () => {
+    const issues = validate(listingWith({ meesho_price: "699", mrp: "699" }));
+    expect(issues).toContainEqual(expect.objectContaining({ field: "mrp", severity: "error" }));
+  });
+
+  it("errors when wrong/defective returns price is not below Meesho price", () => {
+    const issues = validate(listingWith({
+      wrong_defective_returns_price: "699",
+      meesho_price: "699",
+      mrp: "999",
+    }));
+    expect(issues).toContainEqual(expect.objectContaining({
+      field: "wrong_defective_returns_price",
+      severity: "error",
+    }));
+  });
+
   it("warns (does not error) on missing images", () => {
     const issues = validate(listingWith({ images: [] }));
     const imageIssue = issues.find((i) => i.field === "images");
