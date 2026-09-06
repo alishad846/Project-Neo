@@ -74,14 +74,14 @@ export function PriceShowcase() {
             rules,
           ),
         );
-        const { netProfit, gstComponent } = computeCost(
+        const { netProfit, gstComponent, marginPct } = computeCost(
           { sellingPrice: preview, manufacturingCost: mfg, gstRate: settings.gst / 100 },
           rules,
         );
         return {
           sku: row.sku,
           name: row.name,
-          margin: row.margin,
+          margin: Math.round(marginPct),
           original,
           base,
           preview,
@@ -109,12 +109,10 @@ export function PriceShowcase() {
     setJustApplied(true);
   }
   function undo() {
-    setUndoStack((stack) => {
-      if (stack.length === 0) return stack;
-      const prevBases = stack[stack.length - 1];
-      setBases(prevBases);
-      return stack.slice(0, -1);
-    });
+    if (undoStack.length === 0) return;
+    const prevBases = undoStack[undoStack.length - 1];
+    setBases(prevBases);
+    setUndoStack(undoStack.slice(0, -1));
     setJustApplied(false);
   }
   function update(patch: Partial<Settings>) {
@@ -159,9 +157,16 @@ export function PriceShowcase() {
                       <td className="px-3 py-2.5 font-bold">{row.sku}</td>
                       <td className="px-3 py-2.5">
                         {row.name}
-                        {row.base < row.original && (
+                        {(row.base < row.original || settings.discount > 0) && (
                           <div className="mt-1 inline-block border border-black/30 bg-[#ff2fb0]/10 px-1.5 py-0.5 text-[10px] font-bold uppercase tracking-wide text-[#ff2fb0]">
-                            −{Math.round((1 - row.base / row.original) * 100)}% from ₹{row.original}
+                            {row.base < row.original && (
+                              <>
+                                −{Math.round((1 - row.base / row.original) * 100)}% from ₹{row.original}
+                              </>
+                            )}
+                            {settings.discount > 0 && (
+                              <>{row.base < row.original ? " · " : ""}+{settings.discount}% pending</>
+                            )}
                           </div>
                         )}
                       </td>
