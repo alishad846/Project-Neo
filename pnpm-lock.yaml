@@ -313,6 +313,10 @@ importers:
         version: 2.1.9(@types/node@24.13.3)(jsdom@25.0.1)(lightningcss@1.32.0)(terser@5.51.2)
 
   packages/ui:
+    dependencies:
+      '@neo/genome':
+        specifier: workspace:*
+        version: link:../genome
     devDependencies:
       '@testing-library/react':
         specifier: ^16.0.0
