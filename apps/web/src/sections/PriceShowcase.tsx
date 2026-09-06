@@ -14,7 +14,7 @@ const GST_RATES = [0, 5, 12, 18] as const;
 interface Settings {
   discount: number; // % off the current base price
   gst: number; // product GST %, fed into the engine as a cost input — never added on top
-  roundCharm: boolean; // round each price to the nearest ₹9 (charm price)
+  roundCharm: boolean; // round each price to a customer-appeal charm price (₹__99 / ₹_9 / ₹9)
   floorBE: boolean; // floor the proposed price at break-even
 }
 
@@ -157,16 +157,9 @@ export function PriceShowcase() {
                       <td className="px-3 py-2.5 font-bold">{row.sku}</td>
                       <td className="px-3 py-2.5">
                         {row.name}
-                        {(row.base < row.original || settings.discount > 0) && (
+                        {row.base < row.original && (
                           <div className="mt-1 inline-block border border-black/30 bg-[#ff2fb0]/10 px-1.5 py-0.5 text-[10px] font-bold uppercase tracking-wide text-[#ff2fb0]">
-                            {row.base < row.original && (
-                              <>
-                                −{Math.round((1 - row.base / row.original) * 100)}% from ₹{row.original}
-                              </>
-                            )}
-                            {settings.discount > 0 && (
-                              <>{row.base < row.original ? " · " : ""}+{settings.discount}% pending</>
-                            )}
+                            −{Math.round((1 - row.base / row.original) * 100)}% from ₹{row.original}
                           </div>
                         )}
                       </td>
@@ -245,7 +238,7 @@ export function PriceShowcase() {
                   onChange={(e) => update({ roundCharm: e.target.checked })}
                   className="h-4 w-4 accent-[#ff2fb0]"
                 />
-                Round to nearest ₹9 (charm price)
+                Round Off Charm
               </label>
               <label className="flex cursor-pointer items-center gap-2 border border-black/40 bg-[#fff0f5] px-4 py-2.5 font-body text-sm font-bold text-black">
                 <input

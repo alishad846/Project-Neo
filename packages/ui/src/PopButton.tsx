@@ -30,7 +30,7 @@ export function PopButton({ text, color, icon: Icon, onClick, variant = "site", 
         <button
             onClick={disabled ? undefined : onClick}
             disabled={disabled}
-            className={`group relative flex items-center gap-3 font-bold text-black transition-all ${VARIANT_CLASSES[variant]} ${disabled ? "cursor-not-allowed opacity-60" : ""}`}
+            className={`group relative flex items-center justify-center gap-3 font-bold text-black transition-all ${VARIANT_CLASSES[variant]} ${disabled ? "cursor-not-allowed opacity-60" : ""}`}
             style={{ backgroundColor: color }}>
             <span className={`relative z-10 font-semibold tracking-tight ${VARIANT_TEXT_CLASSES[variant]}`}>{text}</span>
             <Icon className="h-6 w-6 stroke-[3px] transition-transform group-hover:rotate-12" />
