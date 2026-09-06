@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from "react";
 import { LogIn, UserPlus } from "lucide-react";
-import { PopButton } from "@neo/ui";
+import { PopButton, PasswordField, isPasswordValid, PASSWORD_MESSAGE } from "@neo/ui";
 import { getToken, login, signup } from "../auth";
 
 const inputClass =
@@ -33,8 +33,14 @@ export function AuthGate({ children }: { children: React.ReactNode }) {
     };
   }, []);
 
+  const passwordOk = mode === "login" || isPasswordValid(password);
+
   async function handleSubmit() {
     if (busy) return;
+    if (mode === "signup" && !isPasswordValid(password)) {
+      setError(PASSWORD_MESSAGE);
+      return;
+    }
     setBusy(true);
     setError(null);
     try {
@@ -45,7 +51,12 @@ export function AuthGate({ children }: { children: React.ReactNode }) {
       }
       setAuthed(true);
     } catch (e) {
-      setError((e as Error).message);
+      const status = (e as { status?: number } | null)?.status;
+      if (status === 429) {
+        setError("Too many attempts — please wait a minute and try again.");
+      } else {
+        setError((e as Error).message);
+      }
     } finally {
       setBusy(false);
     }
@@ -135,13 +146,20 @@ export function AuthGate({ children }: { children: React.ReactNode }) {
           </label>
           <label className="font-cartoon text-xs font-semibold">
             Password
-            <input
-              className={`${inputClass} mt-1`}
-              type="password"
-              value={password}
-              onChange={(e) => setPassword(e.target.value)}
-              required
-            />
+            <div className="mt-1">
+              <PasswordField
+                value={password}
+                onChange={setPassword}
+                inputClassName={inputClass}
+                showMeter={mode === "signup"}
+                autoComplete={mode === "signup" ? "new-password" : "current-password"}
+              />
+            </div>
+            {mode === "signup" && !passwordOk && (
+              <span className="mt-1 block font-cartoon text-[11px] font-semibold text-red-700">
+                {PASSWORD_MESSAGE}
+              </span>
+            )}
           </label>
 
           {error && (
@@ -156,8 +174,8 @@ export function AuthGate({ children }: { children: React.ReactNode }) {
               color={mode === "login" ? "#00e5ff" : "#b2ff59"}
               icon={mode === "login" ? LogIn : UserPlus}
               variant="panel"
-              disabled={busy}
-              onClick={() => { if (!busy) handleSubmit(); }}
+              disabled={busy || !passwordOk}
+              onClick={() => { if (!busy && passwordOk) handleSubmit(); }}
             />
           </div>
         </form>
