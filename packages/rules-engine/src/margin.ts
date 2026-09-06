@@ -19,10 +19,15 @@ export interface PricingRule {
   roundToCharm?: boolean;
 }
 
-// Nearest charm price ending in 9, at ₹10 granularity: 10→9, 150→149, 200→199.
+// Customer-appeal charm price. Shoppers dislike odd tails like ₹609 but buy a
+// clean ₹99 ending, so round to the nearest such price at a magnitude-appropriate
+// step: single digit → ₹9; ₹10–99 → nearest ₹_9; ₹100+ → nearest ₹__99.
+// Examples: 8→9, 45→49, 100→99, 150→199, 200→199, 609→599, 650→699.
 export function roundToCharm(price: number): number {
-  if (!Number.isFinite(price) || price < 10) return price;
-  return Math.round(price / 10) * 10 - 1;
+  if (!Number.isFinite(price) || price <= 0) return price;
+  if (price < 10) return 9;                            // single digit → ₹9
+  if (price < 100) return Math.round(price / 10) * 10 - 1;   // nearest ₹_9
+  return Math.round(price / 100) * 100 - 1;            // nearest ₹__99
 }
 
 function categoryFor(category: string, rules: RuleSet): CategoryRule {
@@ -95,7 +100,10 @@ export function computeProposedPrice(rule: PricingRule, sku: SkuCosting, rules: 
   if (floor && price < breakeven) price = breakeven;
   if (rule.roundToCharm) {
     price = roundToCharm(price);
-    if (floor) while (price < breakeven) price += 10;  // next ₹9 tier stays at/above breakeven
+    // If flooring pushed us under break-even, step up to the smallest charm
+    // price at or above it (step by the current magnitude so we always land on
+    // a valid ₹_9 / ₹__99 tier and the loop strictly increases → terminates).
+    if (floor) while (price < breakeven) price = roundToCharm(price + (price < 100 ? 10 : 100));
   } else if (rule.roundTo99) {
     price = Math.floor(price / 100) * 100 + 99;
     if (floor && price < breakeven) price += 100;

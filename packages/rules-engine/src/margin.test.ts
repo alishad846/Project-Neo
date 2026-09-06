@@ -107,8 +107,8 @@ describe("computeProposedPrice", () => {
   });
 });
 
-describe("roundToCharm (nearest ₹9 at ₹10 granularity)", () => {
-  it.each([[10,9],[100,99],[150,149],[200,199],[125,129],[499,499],[9,9]])(
+describe("roundToCharm (customer-appeal ₹__99 / ₹_9 / ₹9)", () => {
+  it.each([[8,9],[9,9],[10,9],[45,49],[90,89],[100,99],[125,99],[150,199],[200,199],[499,499],[609,599],[650,699]])(
     "%i → %i", (input, expected) => expect(roundToCharm(input)).toBe(expected));
 });
 describe("computeProposedPrice floorBreakeven + roundToCharm", () => {
