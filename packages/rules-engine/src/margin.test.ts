@@ -1,6 +1,6 @@
 import { describe, it, expect } from "vitest";
 import { resolveRuleSet, type RuleSet } from "./rules.js";
-import { computeMargin, computeBreakeven, computeProposedPrice, type SkuCosting } from "./margin.js";
+import { computeMargin, computeBreakeven, computeProposedPrice, roundToCharm, type SkuCosting } from "./margin.js";
 
 const rules = resolveRuleSet(new Date("2026-01-01"));
 const sku: SkuCosting = { sku: "K1", currentPrice: 899, baseCost: 450, weightKg: 0.4, category: "Women > Kurtis" };
@@ -104,5 +104,28 @@ describe("computeProposedPrice", () => {
     const marginShallow = computeMargin(shallowSku, 899, localRules);
     // Both should resolve to the "Women > Kurtis" rule (gstRate 0.05), not the "*" fallback (0.18).
     expect(marginDeep).toBeCloseTo(marginShallow, 5);
+  });
+});
+
+describe("roundToCharm (nearest ₹9 at ₹10 granularity)", () => {
+  it.each([[10,9],[100,99],[150,149],[200,199],[125,129],[499,499],[9,9]])(
+    "%i → %i", (input, expected) => expect(roundToCharm(input)).toBe(expected));
+});
+describe("computeProposedPrice floorBreakeven + roundToCharm", () => {
+  it("floorBreakeven:false lets a deep discount fall below breakeven", () => {
+    const be = computeBreakeven(sku, rules);
+    const p = computeProposedPrice({ actionType: "PERCENTAGE_DISCOUNT", actionValue: 95, floorBreakeven: false }, sku, rules);
+    expect(p).toBeLessThan(be);
+  });
+  it("floorBreakeven default (true) still clamps at breakeven", () => {
+    const be = computeBreakeven(sku, rules);
+    const p = computeProposedPrice({ actionType: "PERCENTAGE_DISCOUNT", actionValue: 95 }, sku, rules);
+    expect(p).toBeGreaterThanOrEqual(be - 0.001);
+  });
+  it("roundToCharm yields a price ending in 9 and stays >= breakeven when floored", () => {
+    const be = computeBreakeven(sku, rules);
+    const p = computeProposedPrice({ actionType: "PERCENTAGE_DISCOUNT", actionValue: 30, roundToCharm: true }, sku, rules);
+    expect(Math.round(p) % 10).toBe(9);
+    expect(p).toBeGreaterThanOrEqual(be - 0.001);
   });
 });

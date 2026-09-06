@@ -46,6 +46,14 @@ describe("computeCost", () => {
   });
 });
 
+describe("CostLine keys", () => {
+  it("every CostLine carries a stable key", () => {
+    const r = computeCost({ sellingPrice: 500, manufacturingCost: 250 }, rules);
+    const keys = r.lines.map((l) => l.key);
+    expect(keys).toEqual(expect.arrayContaining(["commission","collection","fixedFee","shipping","feeGst","manufacturing","packaging","returns","gstInfo"]));
+  });
+});
+
 describe("breakevenPrice", () => {
   it("is the price where netProfit is ~0 (round trip)", () => {
     const inp: CostInputs = { sellingPrice: 999, manufacturingCost: 300, commissionRate: 0.10,

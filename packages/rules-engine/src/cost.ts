@@ -11,7 +11,7 @@ export interface CostInputs {
   fixedFee?: number;
   collectionRate?: number;
 }
-export interface CostLine { label: string; amount: number; kind: "cost" | "info"; }
+export interface CostLine { label: string; amount: number; kind: "cost" | "info"; key: string; }
 export interface CostBreakdown {
   netProfit: number; marginPct: number; breakeven: number;
   gstComponent: number; lines: CostLine[]; defaultsUsed: string[];
@@ -79,15 +79,15 @@ export function computeCost(inputs: CostInputs, rules: RuleSet): CostBreakdown {
   const gstComponent = (S * r.gstRate) / (1 + r.gstRate);
 
   const lines: CostLine[] = [
-    { label: "Commission", amount: commission, kind: "cost" },
-    { label: "Collection fee", amount: collection, kind: "cost" },
-    { label: "Fixed fee", amount: r.fixedFee, kind: "cost" },
-    { label: "Shipping", amount: r.shippingCharge, kind: "cost" },
-    { label: `GST on fees (${(feeGst * 100).toFixed(0)}%)`, amount: feeGstAmount, kind: "cost" },
-    { label: "Manufacturing cost", amount: mfg, kind: "cost" },
-    { label: "Packaging", amount: r.packagingFee, kind: "cost" },
-    { label: "Returns provision", amount: returnLoss, kind: "cost" },
-    { label: "GST you collect (remit / claim ITC)", amount: gstComponent, kind: "info" },
+    { label: "Commission", amount: commission, kind: "cost", key: "commission" },
+    { label: "Collection fee", amount: collection, kind: "cost", key: "collection" },
+    { label: "Fixed fee", amount: r.fixedFee, kind: "cost", key: "fixedFee" },
+    { label: "Shipping", amount: r.shippingCharge, kind: "cost", key: "shipping" },
+    { label: `GST on fees (${(feeGst * 100).toFixed(0)}%)`, amount: feeGstAmount, kind: "cost", key: "feeGst" },
+    { label: "Manufacturing cost", amount: mfg, kind: "cost", key: "manufacturing" },
+    { label: "Packaging", amount: r.packagingFee, kind: "cost", key: "packaging" },
+    { label: "Returns provision", amount: returnLoss, kind: "cost", key: "returns" },
+    { label: "GST you collect (remit / claim ITC)", amount: gstComponent, kind: "info", key: "gstInfo" },
   ];
 
   return { netProfit, marginPct, breakeven: breakevenPrice(inputs, rules), gstComponent, lines, defaultsUsed: r.defaultsUsed };

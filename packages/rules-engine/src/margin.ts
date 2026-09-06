@@ -15,6 +15,14 @@ export interface PricingRule {
   actionValue: number;
   floorPrice?: number;
   roundTo99?: boolean;
+  floorBreakeven?: boolean;
+  roundToCharm?: boolean;
+}
+
+// Nearest charm price ending in 9, at ₹10 granularity: 10→9, 150→149, 200→199.
+export function roundToCharm(price: number): number {
+  if (!Number.isFinite(price) || price < 10) return price;
+  return Math.round(price / 10) * 10 - 1;
 }
 
 function categoryFor(category: string, rules: RuleSet): CategoryRule {
@@ -82,11 +90,15 @@ export function computeProposedPrice(rule: PricingRule, sku: SkuCosting, rules: 
   }
 
   if (rule.floorPrice != null && price < rule.floorPrice) price = rule.floorPrice;
+  const floor = rule.floorBreakeven !== false;       // default true
   const breakeven = computeBreakeven(sku, rules);
-  if (price < breakeven) price = breakeven;
-  if (rule.roundTo99) {
+  if (floor && price < breakeven) price = breakeven;
+  if (rule.roundToCharm) {
+    price = roundToCharm(price);
+    if (floor) while (price < breakeven) price += 10;  // next ₹9 tier stays at/above breakeven
+  } else if (rule.roundTo99) {
     price = Math.floor(price / 100) * 100 + 99;
-    if (price < breakeven) price += 100; // next .99 tier keeps it at/above breakeven
+    if (floor && price < breakeven) price += 100;
   }
   return price;
 }
