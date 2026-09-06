@@ -1,9 +1,23 @@
 import type { ProductGenome } from "@neo/genome";
+import { clearToken, getToken } from "./auth";
 
 const API_URL = "http://localhost:3000";
 
+async function authHeaders(): Promise<Record<string, string>> {
+  const token = await getToken();
+  return token ? { Authorization: `Bearer ${token}` } : {};
+}
+
+async function handleUnauthorized(res: Response): Promise<void> {
+  if (res.status === 401) {
+    await clearToken();
+    throw new Error("Session expired — please log in again.");
+  }
+}
+
 export async function getProducts(): Promise<ProductGenome[]> {
-  const res = await fetch(`${API_URL}/products`);
+  const res = await fetch(`${API_URL}/products`, { headers: await authHeaders() });
+  await handleUnauthorized(res);
   if (!res.ok) throw new Error(`Product API error: ${res.status}`);
   return res.json();
 }
@@ -36,9 +50,10 @@ export interface DryRunResult {
 export async function dryRunPricing(rule: PricingRule): Promise<DryRunResult> {
   const res = await fetch(`${API_URL}/pricing/dry-run`, {
     method: "POST",
-    headers: { "Content-Type": "application/json" },
+    headers: { "Content-Type": "application/json", ...(await authHeaders()) },
     body: JSON.stringify(rule),
   });
+  await handleUnauthorized(res);
   if (!res.ok) throw new Error(`Dry-run error: ${res.status}`);
   return res.json();
 }
@@ -46,15 +61,20 @@ export async function dryRunPricing(rule: PricingRule): Promise<DryRunResult> {
 export async function applyPricing(rule: PricingRule): Promise<{ txnId: number; updated: number }> {
   const res = await fetch(`${API_URL}/pricing/apply`, {
     method: "POST",
-    headers: { "Content-Type": "application/json" },
+    headers: { "Content-Type": "application/json", ...(await authHeaders()) },
     body: JSON.stringify({ rule }),
   });
+  await handleUnauthorized(res);
   if (!res.ok) throw new Error(`Apply error: ${res.status}`);
   return res.json();
 }
 
 export async function undoPricing(txnId: number): Promise<{ restored: number }> {
-  const res = await fetch(`${API_URL}/pricing/undo/${txnId}`, { method: "POST" });
+  const res = await fetch(`${API_URL}/pricing/undo/${txnId}`, {
+    method: "POST",
+    headers: await authHeaders(),
+  });
+  await handleUnauthorized(res);
   if (!res.ok) throw new Error(`Undo error: ${res.status}`);
   return res.json();
 }
@@ -89,9 +109,10 @@ export interface PublishResult {
 export async function extractFromImage(imageBase64: string, category?: string): Promise<ExtractResult> {
   const res = await fetch(`${API_URL}/ai/extract`, {
     method: "POST",
-    headers: { "Content-Type": "application/json" },
+    headers: { "Content-Type": "application/json", ...(await authHeaders()) },
     body: JSON.stringify(category ? { imageBase64, category } : { imageBase64 }),
   });
+  await handleUnauthorized(res);
   if (!res.ok) throw new Error(`Extract error: ${res.status}`);
   return res.json();
 }
@@ -104,7 +125,7 @@ export async function publishListing(
 ): Promise<PublishResult> {
   const res = await fetch(`${API_URL}/ai/publish`, {
     method: "POST",
-    headers: { "Content-Type": "application/json" },
+    headers: { "Content-Type": "application/json", ...(await authHeaders()) },
     body: JSON.stringify({
       productId,
       title,
@@ -113,12 +134,17 @@ export async function publishListing(
       sellingPrice: genomeEdits?.sellingPrice,
     }),
   });
+  await handleUnauthorized(res);
   if (!res.ok) throw new Error(`Publish error: ${res.status}`);
   return res.json();
 }
 
 export async function undoPublish(txnId: number): Promise<{ restored: number }> {
-  const res = await fetch(`${API_URL}/ai/undo/${txnId}`, { method: "POST" });
+  const res = await fetch(`${API_URL}/ai/undo/${txnId}`, {
+    method: "POST",
+    headers: await authHeaders(),
+  });
+  await handleUnauthorized(res);
   if (!res.ok) throw new Error(`Undo error: ${res.status}`);
   return res.json();
 }
