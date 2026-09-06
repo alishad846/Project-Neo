@@ -171,4 +171,7 @@ export const PRICE_ROWS: PriceRow[] = [
   { sku: "DUP-021", name: "Chiffon Printed Dupatta", oldPrice: 399, newPrice: 359, margin: 26, breakeven: true },
   { sku: "TOP-018", name: "Ribbed Knit Tank Top", oldPrice: 299, newPrice: 269, margin: 18, breakeven: true },
   { sku: "NGT-004", name: "Cotton Nightwear Set", oldPrice: 649, newPrice: 584, margin: 7, breakeven: false },
+  { sku: "ACC-010", name: "Silicone Phone Grip", oldPrice: 10, newPrice: 8, margin: 20, breakeven: false },
+  { sku: "ACC-100", name: "Cotton Handkerchief", oldPrice: 100, newPrice: 90, margin: 15, breakeven: true },
+  { sku: "ACC-150", name: "Beaded Hair Clip Set", oldPrice: 150, newPrice: 135, margin: 18, breakeven: true },
 ];

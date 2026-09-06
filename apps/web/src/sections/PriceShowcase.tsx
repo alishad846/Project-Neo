@@ -1,65 +1,57 @@
 import { useMemo, useState } from "react";
 import { Check, Undo2 } from "lucide-react";
 import { PopButton } from "@neo/ui";
-import { computeCost, computeProposedPrice, resolveRuleSet, type RuleSet, type SkuCosting } from "@neo/rules-engine";
-import { PRICE_ROWS } from "../data";
+import { computeCost, computeProposedPrice, resolveRuleSet, type SkuCosting } from "@neo/rules-engine";
+import { PRICE_ROWS, type PriceRow } from "../data";
 import { useReveal } from "../hooks/useReveal";
 import { SectionBg } from "../components/SectionBg";
 
 // Marketing count used in the copy to signal "bulk" — the table below shows a
-// live sample of 10 real SKUs; the rule conceptually hits all 500.
+// live sample of 13 real SKUs; the rule conceptually hits all 500.
 const TOTAL_SKUS = 500;
 const GST_RATES = [0, 5, 12, 18] as const;
 
 interface Settings {
-  discount: number; // % off list price
+  discount: number; // % off the current base price
   gst: number; // product GST %, fed into the engine as a cost input — never added on top
-  round99: boolean; // round each price to ₹__99
+  roundCharm: boolean; // round each price to the nearest ₹9 (charm price)
+  floorBE: boolean; // floor the proposed price at break-even
 }
 
-const BASELINE: Settings = { discount: 0, gst: 0, round99: false };
+const INITIAL_SETTINGS: Settings = { discount: 0, gst: 0, roundCharm: false, floorBE: true };
 
-// A demo row's manufacturing cost, derived the same way the old local `costOf`
-// helper did (from its listed margin), so we can build a SkuCosting for it.
-function skuFor(row: (typeof PRICE_ROWS)[number]): SkuCosting {
+// A demo row's manufacturing cost, derived from its listed margin off the
+// *original* list price — a stable number that doesn't move as `base` moves,
+// so repeated Apply cycles don't drift the implied cost.
+function costFrom(row: PriceRow): number {
+  return Math.round(row.oldPrice * (1 - row.margin / 100));
+}
+
+// Builds the SkuCosting the engine needs to price this row from its current
+// committed base — never from the original list price, so a discount always
+// applies to what's live right now, not to some stale reference point.
+function skuFrom(row: PriceRow, base: number): SkuCosting {
   return {
     sku: row.sku,
-    currentPrice: row.oldPrice, // GST-inclusive list price — never modified by adding GST on top
-    baseCost: Math.round(row.newPrice * (1 - row.margin / 100)),
+    currentPrice: base,
+    baseCost: costFrom(row),
     weightKg: 0.5,
     category: "*",
   };
 }
 
-// Runs a row through the real engine: proposed price is computed by
-// computeProposedPrice (which clamps at breakeven and handles round-to-99),
-// and margin/breakeven for display come from computeCost — no local pricing
-// math. GST is passed in as a cost input only; it is never added on top of
-// the displayed price, so a discount can never raise it.
-function priceUnder(sku: SkuCosting, s: Settings, rules: RuleSet) {
-  const listed = computeProposedPrice(
-    { actionType: "PERCENTAGE_DISCOUNT", actionValue: s.discount, roundTo99: s.round99 },
-    sku,
-    rules,
-  );
-  const breakdown = computeCost({ sellingPrice: listed, manufacturingCost: sku.baseCost, gstRate: s.gst / 100 }, rules);
-  return {
-    listed: Math.round(listed),
-    marginPct: Math.round(breakdown.marginPct),
-    breakeven: breakdown.breakeven,
-    gstComponent: breakdown.gstComponent,
-  };
-}
-function settingsEqual(a: Settings, b: Settings) {
-  return a.discount === b.discount && a.gst === b.gst && a.round99 === b.round99;
+function initialBases(): Record<string, number> {
+  const bases: Record<string, number> = {};
+  for (const row of PRICE_ROWS) bases[row.sku] = row.oldPrice;
+  return bases;
 }
 
 export function PriceShowcase() {
   const { ref, visible } = useReveal<HTMLDivElement>();
 
-  const [settings, setSettings] = useState<Settings>({ discount: 10, gst: 0, round99: false });
-  const [applied, setApplied] = useState<Settings>(BASELINE);
-  const [prev, setPrev] = useState<Settings | null>(null);
+  const [settings, setSettings] = useState<Settings>(INITIAL_SETTINGS);
+  const [bases, setBases] = useState<Record<string, number>>(initialBases);
+  const [undoStack, setUndoStack] = useState<Record<string, number>[]>([]);
   const [justApplied, setJustApplied] = useState(false);
 
   const rules = useMemo(() => resolveRuleSet(new Date()), []);
@@ -67,43 +59,62 @@ export function PriceShowcase() {
   const rows = useMemo(
     () =>
       PRICE_ROWS.map((row) => {
-        const sku = skuFor(row);
-        const now = priceUnder(sku, applied, rules);
-        const next = priceUnder(sku, settings, rules);
-        // The engine unconditionally floors at breakeven, so "floored" tells
-        // us it clamped this row rather than applying the raw discounted price.
-        const floored = next.listed <= next.breakeven + 0.5;
+        const base = bases[row.sku] ?? row.oldPrice;
+        const original = row.oldPrice;
+        const mfg = costFrom(row);
+        const preview = Math.round(
+          computeProposedPrice(
+            {
+              actionType: "PERCENTAGE_DISCOUNT",
+              actionValue: settings.discount,
+              roundToCharm: settings.roundCharm,
+              floorBreakeven: settings.floorBE,
+            },
+            skuFrom(row, base),
+            rules,
+          ),
+        );
+        const { netProfit, gstComponent } = computeCost(
+          { sellingPrice: preview, manufacturingCost: mfg, gstRate: settings.gst / 100 },
+          rules,
+        );
         return {
           sku: row.sku,
           name: row.name,
-          oldListed: now.listed,
-          newListed: next.listed,
-          margin: next.marginPct,
-          floored,
-          changed: next.listed !== now.listed,
-          gstComponent: next.gstComponent,
+          margin: row.margin,
+          original,
+          base,
+          preview,
+          changed: preview !== base,
+          netProfit,
+          gstComponent,
         };
       }),
-    [settings, applied, rules],
+    [settings, bases, rules],
   );
 
-  const pendingChange = !settingsEqual(settings, applied);
-  const flooredCount = rows.filter((r) => r.floored).length;
+  const pendingChange = settings.discount > 0;
+  const lossCount = rows.filter((r) => r.netProfit < 0).length;
   // Average GST embedded in the proposed prices — what you remit / claim as
   // ITC per order, straight from computeCost. Never added on top of the
   // displayed price; purely an info figure driven by the GST buttons.
   const avgGstToRemit = Math.round(rows.reduce((sum, r) => sum + r.gstComponent, 0) / rows.length);
 
   function apply() {
-    setPrev(applied);
-    setApplied(settings);
+    setUndoStack((stack) => [...stack, bases]);
+    const nextBases: Record<string, number> = {};
+    for (const row of rows) nextBases[row.sku] = row.preview;
+    setBases(nextBases);
+    setSettings((s) => ({ ...s, discount: 0 }));
     setJustApplied(true);
   }
   function undo() {
-    if (!prev) return;
-    setApplied(prev);
-    setSettings(prev);
-    setPrev(null);
+    setUndoStack((stack) => {
+      if (stack.length === 0) return stack;
+      const prevBases = stack[stack.length - 1];
+      setBases(prevBases);
+      return stack.slice(0, -1);
+    });
     setJustApplied(false);
   }
   function update(patch: Partial<Settings>) {
@@ -146,24 +157,27 @@ export function PriceShowcase() {
                   {rows.map((row) => (
                     <tr key={row.sku} className="border-b border-black/15">
                       <td className="px-3 py-2.5 font-bold">{row.sku}</td>
-                      <td className="px-3 py-2.5">{row.name}</td>
+                      <td className="px-3 py-2.5">
+                        {row.name}
+                        {row.base < row.original && (
+                          <div className="mt-1 inline-block border border-black/30 bg-[#ff2fb0]/10 px-1.5 py-0.5 text-[10px] font-bold uppercase tracking-wide text-[#ff2fb0]">
+                            −{Math.round((1 - row.base / row.original) * 100)}% from ₹{row.original}
+                          </div>
+                        )}
+                      </td>
                       <td className="px-3 py-2.5 tabular-nums">
-                        <span className="text-black/40 line-through">₹{row.oldListed}</span>{" "}
+                        <span className="text-black/40 line-through">₹{row.base}</span>{" "}
                         <span className="text-black">→</span>{" "}
                         <span className={`font-bold ${row.changed ? "text-[#ff2fb0]" : "text-black"}`}>
-                          ₹{row.newListed}
+                          ₹{row.preview}
                         </span>
                       </td>
                       <td className="px-3 py-2.5 tabular-nums">{row.margin}%</td>
-                      <td className="px-3 py-2.5">
-                        {!row.floored ? (
-                          <span className="border border-black/40 bg-[#b2ff59] px-2.5 py-1 text-xs font-bold uppercase">
-                            safe
-                          </span>
+                      <td className="px-3 py-2.5 tabular-nums">
+                        {row.netProfit >= 0 ? (
+                          <span className="font-bold text-green-600">+₹{Math.round(row.netProfit)}</span>
                         ) : (
-                          <span className="border border-black/40 bg-red-400 px-2.5 py-1 text-xs font-bold uppercase">
-                            floored
-                          </span>
+                          <span className="font-bold text-red-600">−₹{Math.round(Math.abs(row.netProfit))}</span>
                         )}
                       </td>
                     </tr>
@@ -222,15 +236,20 @@ export function PriceShowcase() {
               <label className="mb-3 flex cursor-pointer items-center gap-2 border border-black/40 bg-[#fff0f5] px-4 py-2.5 font-body text-sm font-bold text-black">
                 <input
                   type="checkbox"
-                  checked={settings.round99}
-                  onChange={(e) => update({ round99: e.target.checked })}
+                  checked={settings.roundCharm}
+                  onChange={(e) => update({ roundCharm: e.target.checked })}
                   className="h-4 w-4 accent-[#ff2fb0]"
                 />
-                Round to ₹__99
+                Round to nearest ₹9 (charm price)
               </label>
-              <label className="flex cursor-not-allowed items-center gap-2 border border-black/40 bg-[#fff0f5] px-4 py-2.5 font-body text-sm font-bold text-black/70">
-                <input type="checkbox" checked disabled className="h-4 w-4 accent-[#ff2fb0]" />
-                Floor at break-even <span className="font-normal text-black/50">— always on, can&rsquo;t be turned off</span>
+              <label className="flex cursor-pointer items-center gap-2 border border-black/40 bg-[#fff0f5] px-4 py-2.5 font-body text-sm font-bold text-black">
+                <input
+                  type="checkbox"
+                  checked={settings.floorBE}
+                  onChange={(e) => update({ floorBE: e.target.checked })}
+                  className="h-4 w-4 accent-[#ff2fb0]"
+                />
+                Floor at break-even
               </label>
             </div>
 
@@ -243,15 +262,21 @@ export function PriceShowcase() {
                   <>
                     Pending: <span className="font-bold text-[#ff2fb0]">{settings.discount}% off</span> on{" "}
                     {TOTAL_SKUS} SKUs
-                    {flooredCount > 0 && <span className="font-bold text-red-500"> · {flooredCount} floored</span>}
+                    {lossCount > 0 && <span className="font-bold text-red-500"> · {lossCount} at a loss</span>}
                   </>
                 ) : (
                   <span>Live prices are up to date.</span>
                 )}
               </p>
               <div className="flex flex-col gap-3">
-                <PopButton text="Apply to 500" color="#b2ff59" icon={Check} onClick={apply} disabled={!pendingChange} />
-                <PopButton text="Previous (undo)" color="#ffffff" icon={Undo2} onClick={undo} disabled={!prev} />
+                <PopButton text="Apply" color="#b2ff59" icon={Check} onClick={apply} disabled={!pendingChange} />
+                <PopButton
+                  text="Previous (undo)"
+                  color="#ffffff"
+                  icon={Undo2}
+                  onClick={undo}
+                  disabled={undoStack.length === 0}
+                />
               </div>
             </div>
           </div>
