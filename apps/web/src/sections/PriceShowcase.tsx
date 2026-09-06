@@ -15,10 +15,9 @@ interface Settings {
   discount: number; // % off list price
   gst: number; // product GST %, fed into the engine as a cost input — never added on top
   round99: boolean; // round each price to ₹__99
-  floorBE: boolean; // surface the engine's break-even safety clamp in the UI
 }
 
-const BASELINE: Settings = { discount: 0, gst: 0, round99: false, floorBE: true };
+const BASELINE: Settings = { discount: 0, gst: 0, round99: false };
 
 // A demo row's manufacturing cost, derived the same way the old local `costOf`
 // helper did (from its listed margin), so we can build a SkuCosting for it.
@@ -44,16 +43,21 @@ function priceUnder(sku: SkuCosting, s: Settings, rules: RuleSet) {
     rules,
   );
   const breakdown = computeCost({ sellingPrice: listed, manufacturingCost: sku.baseCost, gstRate: s.gst / 100 }, rules);
-  return { listed: Math.round(listed), marginPct: Math.round(breakdown.marginPct), breakeven: breakdown.breakeven };
+  return {
+    listed: Math.round(listed),
+    marginPct: Math.round(breakdown.marginPct),
+    breakeven: breakdown.breakeven,
+    gstComponent: breakdown.gstComponent,
+  };
 }
 function settingsEqual(a: Settings, b: Settings) {
-  return a.discount === b.discount && a.gst === b.gst && a.round99 === b.round99 && a.floorBE === b.floorBE;
+  return a.discount === b.discount && a.gst === b.gst && a.round99 === b.round99;
 }
 
 export function PriceShowcase() {
   const { ref, visible } = useReveal<HTMLDivElement>();
 
-  const [settings, setSettings] = useState<Settings>({ discount: 10, gst: 0, round99: false, floorBE: true });
+  const [settings, setSettings] = useState<Settings>({ discount: 10, gst: 0, round99: false });
   const [applied, setApplied] = useState<Settings>(BASELINE);
   const [prev, setPrev] = useState<Settings | null>(null);
   const [justApplied, setJustApplied] = useState(false);
@@ -77,13 +81,18 @@ export function PriceShowcase() {
           margin: next.marginPct,
           floored,
           changed: next.listed !== now.listed,
+          gstComponent: next.gstComponent,
         };
       }),
     [settings, applied, rules],
   );
 
   const pendingChange = !settingsEqual(settings, applied);
-  const belowCount = rows.filter((r) => r.floored).length;
+  const flooredCount = rows.filter((r) => r.floored).length;
+  // Average GST embedded in the proposed prices — what you remit / claim as
+  // ITC per order, straight from computeCost. Never added on top of the
+  // displayed price; purely an info figure driven by the GST buttons.
+  const avgGstToRemit = Math.round(rows.reduce((sum, r) => sum + r.gstComponent, 0) / rows.length);
 
   function apply() {
     setPrev(applied);
@@ -203,6 +212,11 @@ export function PriceShowcase() {
                     </button>
                   ))}
                 </div>
+                <p className="mt-2 font-body text-xs text-black/60">
+                  GST doesn&rsquo;t change the buyer&rsquo;s price — it&rsquo;s baked in either way. It changes what
+                  you remit: ≈ <span className="font-bold text-black">₹{avgGstToRemit}</span> per order to collect /
+                  claim as ITC.
+                </p>
               </div>
 
               <label className="mb-3 flex cursor-pointer items-center gap-2 border border-black/40 bg-[#fff0f5] px-4 py-2.5 font-body text-sm font-bold text-black">
@@ -214,14 +228,9 @@ export function PriceShowcase() {
                 />
                 Round to ₹__99
               </label>
-              <label className="flex cursor-pointer items-center gap-2 border border-black/40 bg-[#fff0f5] px-4 py-2.5 font-body text-sm font-bold text-black">
-                <input
-                  type="checkbox"
-                  checked={settings.floorBE}
-                  onChange={(e) => update({ floorBE: e.target.checked })}
-                  className="h-4 w-4 accent-[#ff2fb0]"
-                />
-                Floor at break-even
+              <label className="flex cursor-not-allowed items-center gap-2 border border-black/40 bg-[#fff0f5] px-4 py-2.5 font-body text-sm font-bold text-black/70">
+                <input type="checkbox" checked disabled className="h-4 w-4 accent-[#ff2fb0]" />
+                Floor at break-even <span className="font-normal text-black/50">— always on, can&rsquo;t be turned off</span>
               </label>
             </div>
 
@@ -234,7 +243,7 @@ export function PriceShowcase() {
                   <>
                     Pending: <span className="font-bold text-[#ff2fb0]">{settings.discount}% off</span> on{" "}
                     {TOTAL_SKUS} SKUs
-                    {belowCount > 0 && <span className="font-bold text-red-500"> · {belowCount} below</span>}
+                    {flooredCount > 0 && <span className="font-bold text-red-500"> · {flooredCount} floored</span>}
                   </>
                 ) : (
                   <span>Live prices are up to date.</span>
