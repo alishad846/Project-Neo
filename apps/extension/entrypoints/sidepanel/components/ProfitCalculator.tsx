@@ -4,23 +4,53 @@ import { calcProfit } from "../lib/calcProfit";
 
 const money = (n: number) => `₹${n.toFixed(2)}`;
 
-const inputClass = "rounded-lg border-2 border-black px-2 py-1.5 font-cartoon text-xs";
+const inputClass =
+  "rounded-lg border-2 border-black px-2 py-1.5 font-cartoon text-xs disabled:cursor-not-allowed disabled:border-black/20 disabled:bg-black/5 disabled:text-black/40 placeholder:text-black/30";
 
 // "" means "use the rule engine's default" — keep numeric fields as `number | ""`
 // so a cleared input reverts to the placeholder default rather than becoming 0.
-const num = (v: number | ""): number | undefined => (v === "" ? undefined : Number(v));
-const pct = (v: number | ""): number | undefined => (v === "" ? undefined : Number(v) / 100);
+type NumOrBlank = number | "";
+const num = (v: NumOrBlank): number | undefined => (v === "" ? undefined : Number(v));
+const pct = (v: NumOrBlank): number | undefined => (v === "" ? undefined : Number(v) / 100);
+
+// Three-state build for one optional factor: OFF -> 0 (contributes nothing),
+// ON + blank -> undefined (engine falls back to the RuleSet default), ON + value -> Number(value).
+function buildFactor(on: boolean, value: NumOrBlank, convert: (v: NumOrBlank) => number | undefined): number | undefined {
+  if (!on) return 0;
+  return convert(value);
+}
+
+type FactorKey = "commission" | "return" | "shipping" | "gst" | "packaging" | "fixedFee" | "collection";
+
+// Maps each optional factor to the CostLine.key(s) it should reveal in the breakdown.
+const FACTOR_LINE_KEYS: Record<FactorKey, string[]> = {
+  commission: ["commission"],
+  return: ["returns"],
+  shipping: ["shipping"],
+  gst: ["gstInfo"],
+  packaging: ["packaging"],
+  fixedFee: ["fixedFee"],
+  collection: ["collection"],
+};
 
 export function ProfitCalculator() {
-  const [sellingPrice, setSellingPrice] = useState<number | "">("");
-  const [manufacturingCost, setManufacturingCost] = useState<number | "">("");
-  const [commission, setCommission] = useState<number | "">("");
-  const [returnRate, setReturnRate] = useState<number | "">("");
-  const [shipping, setShipping] = useState<number | "">("");
-  const [gst, setGst] = useState<number | "">("");
-  const [packaging, setPackaging] = useState<number | "">("");
-  const [fixedFee, setFixedFee] = useState<number | "">("");
-  const [collection, setCollection] = useState<number | "">("");
+  const [sellingPrice, setSellingPrice] = useState<NumOrBlank>("");
+  const [manufacturingCost, setManufacturingCost] = useState<NumOrBlank>("");
+
+  const [commissionOn, setCommissionOn] = useState(false);
+  const [commission, setCommission] = useState<NumOrBlank>("");
+  const [returnOn, setReturnOn] = useState(false);
+  const [returnRate, setReturnRate] = useState<NumOrBlank>("");
+  const [shippingOn, setShippingOn] = useState(false);
+  const [shipping, setShipping] = useState<NumOrBlank>("");
+  const [gstOn, setGstOn] = useState(false);
+  const [gst, setGst] = useState<NumOrBlank>("");
+  const [packagingOn, setPackagingOn] = useState(false);
+  const [packaging, setPackaging] = useState<NumOrBlank>("");
+  const [fixedFeeOn, setFixedFeeOn] = useState(false);
+  const [fixedFee, setFixedFee] = useState<NumOrBlank>("");
+  const [collectionOn, setCollectionOn] = useState(false);
+  const [collection, setCollection] = useState<NumOrBlank>("");
 
   const rules = resolveRuleSet(new Date());
   const star = rules.categories.find((c) => c.category === "*") ?? rules.categories[0] ?? {
@@ -38,26 +68,134 @@ export function ProfitCalculator() {
       calcProfit({
         sellingPrice: sellingPrice === "" ? NaN : Number(sellingPrice),
         manufacturingCost: manufacturingCost === "" ? NaN : Number(manufacturingCost),
-        commissionRate: pct(commission),
-        returnRate: pct(returnRate),
-        shippingCharge: num(shipping),
-        gstRate: pct(gst),
-        packagingFee: num(packaging),
-        fixedFee: num(fixedFee),
-        collectionRate: pct(collection),
+        commissionRate: buildFactor(commissionOn, commission, pct),
+        returnRate: buildFactor(returnOn, returnRate, pct),
+        shippingCharge: buildFactor(shippingOn, shipping, num),
+        gstRate: buildFactor(gstOn, gst, pct),
+        packagingFee: buildFactor(packagingOn, packaging, num),
+        fixedFee: buildFactor(fixedFeeOn, fixedFee, num),
+        collectionRate: buildFactor(collectionOn, collection, pct),
       }),
-    [sellingPrice, manufacturingCost, commission, returnRate, shipping, gst, packaging, fixedFee, collection]
+    [
+      sellingPrice,
+      manufacturingCost,
+      commissionOn,
+      commission,
+      returnOn,
+      returnRate,
+      shippingOn,
+      shipping,
+      gstOn,
+      gst,
+      packagingOn,
+      packaging,
+      fixedFeeOn,
+      fixedFee,
+      collectionOn,
+      collection,
+    ]
   );
   const result = outcome.ok ? outcome.result : null;
 
-  const assumptions: { key: string; label: string }[] = [
-    { key: "commissionRate", label: `Commission ${(star.commissionRate * 100).toFixed(0)}%` },
-    { key: "shippingCharge", label: `Shipping ${money(defaultShippingCharge)}` },
-    { key: "gstRate", label: `GST ${(star.gstRate * 100).toFixed(0)}%` },
-    { key: "packagingFee", label: `Packaging ${money(rules.margin.packagingFee)}` },
-    { key: "returnRate", label: `Return ${(star.defaultReturnRate * 100).toFixed(0)}%` },
-    { key: "fixedFee", label: `Fixed fee ${money(star.fixedFee ?? 0)}` },
-    { key: "collectionRate", label: `Collection ${((star.collectionRate ?? 0) * 100).toFixed(0)}%` },
+  // A breakdown line is shown only when the factor that produces it is switched on.
+  // "manufacturing" is always shown (it's a required input, not an optional factor).
+  // "feeGst" (GST charged on top of %-fees/fixed-fee/shipping) shows if any fee-bearing factor is on.
+  const activeFactors: FactorKey[] = [
+    ...(commissionOn ? (["commission"] as const) : []),
+    ...(returnOn ? (["return"] as const) : []),
+    ...(shippingOn ? (["shipping"] as const) : []),
+    ...(gstOn ? (["gst"] as const) : []),
+    ...(packagingOn ? (["packaging"] as const) : []),
+    ...(fixedFeeOn ? (["fixedFee"] as const) : []),
+    ...(collectionOn ? (["collection"] as const) : []),
+  ];
+  const visibleKeys = new Set<string>(["manufacturing", ...activeFactors.flatMap((f) => FACTOR_LINE_KEYS[f])]);
+  if (commissionOn || collectionOn || fixedFeeOn || shippingOn) visibleKeys.add("feeGst");
+
+  const visibleLines = result?.lines.filter((line) => visibleKeys.has(line.key)) ?? [];
+
+  const factorRows: {
+    key: FactorKey;
+    label: string;
+    on: boolean;
+    setOn: (v: boolean) => void;
+    value: NumOrBlank;
+    setValue: (v: NumOrBlank) => void;
+    placeholder: string;
+    definition: string;
+  }[] = [
+    {
+      key: "commission",
+      label: "Commission %",
+      on: commissionOn,
+      setOn: setCommissionOn,
+      value: commission,
+      setValue: setCommission,
+      placeholder: `${(star.commissionRate * 100).toFixed(0)}`,
+      definition:
+        "% of the selling price the marketplace keeps per order (Meesho 0%, Flipkart 3–22%, Amazon 5–17%).",
+    },
+    {
+      key: "fixedFee",
+      label: "Fixed fee (₹)",
+      on: fixedFeeOn,
+      setOn: setFixedFeeOn,
+      value: fixedFee,
+      setValue: setFixedFee,
+      placeholder: `${star.fixedFee ?? 0}`,
+      definition: "Flat ₹/order regardless of price (Amazon closing, Flipkart fixed; Meesho none).",
+    },
+    {
+      key: "collection",
+      label: "Collection %",
+      on: collectionOn,
+      setOn: setCollectionOn,
+      value: collection,
+      setValue: setCollection,
+      placeholder: `${((star.collectionRate ?? 0) * 100).toFixed(0)}`,
+      definition: "Payment-handling % to collect the buyer's money (Flipkart ~2% prepaid).",
+    },
+    {
+      key: "shipping",
+      label: "Shipping (₹)",
+      on: shippingOn,
+      setOn: setShippingOn,
+      value: shipping,
+      setValue: setShipping,
+      placeholder: `${defaultShippingCharge}`,
+      definition: "Forward logistics cost per order.",
+    },
+    {
+      key: "packaging",
+      label: "Packaging fee (₹)",
+      on: packagingOn,
+      setOn: setPackagingOn,
+      value: packaging,
+      setValue: setPackaging,
+      placeholder: `${rules.margin.packagingFee}`,
+      definition: "Cost to pack one order.",
+    },
+    {
+      key: "return",
+      label: "Return %",
+      on: returnOn,
+      setOn: setReturnOn,
+      value: returnRate,
+      setValue: setReturnRate,
+      placeholder: `${(star.defaultReturnRate * 100).toFixed(0)}`,
+      definition: "Expected share of orders returned; each costs return-shipping + a resale-loss chance.",
+    },
+    {
+      key: "gst",
+      label: "GST %",
+      on: gstOn,
+      setOn: setGstOn,
+      value: gst,
+      setValue: setGst,
+      placeholder: `${(star.gstRate * 100).toFixed(0)}`,
+      definition:
+        "GST rate on your product; the GST baked into your price you collect & remit (claimable ITC); info, not a deduction.",
+    },
   ];
 
   return (
@@ -81,63 +219,50 @@ export function ProfitCalculator() {
           onChange={(e) => setManufacturingCost(e.target.value === "" ? "" : Number(e.target.value))}
           placeholder="Manufacturing cost (₹)"
         />
-        <input
-          className={inputClass}
-          type="number"
-          min="0"
-          value={commission}
-          onChange={(e) => setCommission(e.target.value === "" ? "" : Number(e.target.value))}
-          placeholder={`Commission % (${(star.commissionRate * 100).toFixed(0)})`}
-        />
-        <input
-          className={inputClass}
-          type="number"
-          min="0"
-          max="99"
-          value={returnRate}
-          onChange={(e) => setReturnRate(e.target.value === "" ? "" : Number(e.target.value))}
-          placeholder={`Return % (${(star.defaultReturnRate * 100).toFixed(0)})`}
-        />
-        <input
-          className={inputClass}
-          type="number"
-          min="0"
-          value={shipping}
-          onChange={(e) => setShipping(e.target.value === "" ? "" : Number(e.target.value))}
-          placeholder={`Shipping ₹ (${defaultShippingCharge})`}
-        />
-        <input
-          className={inputClass}
-          type="number"
-          min="0"
-          value={gst}
-          onChange={(e) => setGst(e.target.value === "" ? "" : Number(e.target.value))}
-          placeholder={`GST % (${(star.gstRate * 100).toFixed(0)})`}
-        />
-        <input
-          className={inputClass}
-          type="number"
-          min="0"
-          value={packaging}
-          onChange={(e) => setPackaging(e.target.value === "" ? "" : Number(e.target.value))}
-          placeholder={`Packaging ₹ (${rules.margin.packagingFee})`}
-        />
-        <input
-          className={inputClass}
-          type="number"
-          min="0"
-          value={fixedFee}
-          onChange={(e) => setFixedFee(e.target.value === "" ? "" : Number(e.target.value))}
-          placeholder={`Fixed fee ₹ (${star.fixedFee ?? 0})`}
-        />
-        <input
-          className={`${inputClass} col-span-2`}
-          type="number"
-          min="0"
-          value={collection}
-          onChange={(e) => setCollection(e.target.value === "" ? "" : Number(e.target.value))}
-          placeholder={`Collection % (${((star.collectionRate ?? 0) * 100).toFixed(0)})`}
-        />
+      </div>
+
+      <div className="mt-3">
+        <h3 className="font-accent text-sm text-black">Optional factors</h3>
+        <p className="mt-1 font-cartoon text-[10px] text-black/50">
+          Off by default. Switch on, then leave blank for Neo's default or enter your own number.
+        </p>
+        <div className="mt-2 flex flex-col gap-2">
+          {factorRows.map((row) => (
+            <div
+              key={row.key}
+              className={`rounded-lg border-2 px-2 py-1.5 ${row.on ? "border-black bg-white" : "border-black/20 bg-black/5"}`}
+            >
+              <div className="flex items-center justify-between gap-2">
+                <label className="flex items-center gap-1.5">
+                  <input
+                    type="checkbox"
+                    className="h-3.5 w-3.5 accent-black"
+                    checked={row.on}
+                    onChange={(e) => row.setOn(e.target.checked)}
+                  />
+                  <span
+                    className={`font-cartoon text-[11px] ${row.on ? "font-semibold text-black" : "text-black/50"}`}
+                  >
+                    {row.label}
+                  </span>
+                </label>
+                <input
+                  className={`${inputClass} w-16 py-1 text-right`}
+                  type="number"
+                  min="0"
+                  disabled={!row.on}
+                  value={row.value}
+                  onChange={(e) => row.setValue(e.target.value === "" ? "" : Number(e.target.value))}
+                  placeholder={row.placeholder}
+                  title={row.definition}
+                />
+              </div>
+              <p className={`mt-1 font-cartoon text-[10px] ${row.on ? "text-black/60" : "text-black/35"}`}>
+                {row.definition}
+              </p>
+            </div>
+          ))}
+        </div>
       </div>
 
       {result == null ? (
@@ -168,8 +293,8 @@ export function ProfitCalculator() {
           <div className="mt-2 border-t-2 border-black/10 pt-2">
             <h3 className="font-accent text-sm text-black">Cost breakdown</h3>
             <ul className="mt-1 flex flex-col gap-1 font-cartoon text-[11px]">
-              {result.lines.map((line) => (
-                <li key={line.label} className="flex items-center justify-between">
+              {visibleLines.map((line) => (
+                <li key={line.key} className="flex items-center justify-between">
                   <span className={line.kind === "info" ? "text-black/50" : "text-black/80"}>{line.label}</span>
                   <span className={line.kind === "info" ? "text-black/50" : "font-semibold"}>
                     {line.kind === "cost" ? "−" : ""}
@@ -185,24 +310,6 @@ export function ProfitCalculator() {
           </p>
         </div>
       )}
-
-      <details className="mt-3 rounded-xl border-2 border-black bg-[#fff8fb] p-3 font-cartoon text-xs">
-        <summary className="cursor-pointer font-accent text-sm text-black">Assumptions</summary>
-        <p className="mt-1 text-[11px] text-black/50">Blank fields fall back to these defaults. Highlighted = in use.</p>
-        <ul className="mt-2 flex flex-col gap-1">
-          {assumptions.map((a) => {
-            const active = result == null ? true : outcome.ok && outcome.result.defaultsUsed.includes(a.key);
-            return (
-              <li
-                key={a.key}
-                className={active ? "rounded bg-[#b2ff59]/60 px-1.5 py-0.5 font-semibold" : "px-1.5 py-0.5 text-black/60"}
-              >
-                {a.label}
-              </li>
-            );
-          })}
-        </ul>
-      </details>
     </div>
   );
 }
