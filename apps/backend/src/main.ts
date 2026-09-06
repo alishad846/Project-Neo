@@ -23,4 +23,10 @@ async function bootstrap() {
   app.enableCors();
   await app.listen(process.env.PORT ?? 3000);
 }
-bootstrap();
+bootstrap().catch((error) => {
+  // Deterministic non-zero exit on any fatal startup error (e.g. a missing/default
+  // JWT_SECRET in production), rather than relying on the unhandled-rejection path.
+  // eslint-disable-next-line no-console
+  console.error('[bootstrap] Failed to start:', error instanceof Error ? error.message : error);
+  process.exit(1);
+});

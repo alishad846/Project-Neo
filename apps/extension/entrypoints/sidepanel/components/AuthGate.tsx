@@ -2,6 +2,7 @@ import React, { useEffect, useState } from "react";
 import { LogIn, UserPlus } from "lucide-react";
 import { PopButton, PasswordField, isPasswordValid, PASSWORD_MESSAGE } from "@neo/ui";
 import { getToken, login, signup } from "../auth";
+import { AUTH_EXPIRED_EVENT } from "../api";
 
 const inputClass =
   "rounded-lg border-2 border-black px-2 py-1.5 font-cartoon text-xs w-full";
@@ -31,6 +32,14 @@ export function AuthGate({ children }: { children: React.ReactNode }) {
     return () => {
       cancelled = true;
     };
+  }, []);
+
+  // Re-lock the panel the moment an API call reports the session expired (401),
+  // so the seller lands back on the login screen without needing to reload.
+  useEffect(() => {
+    const onExpired = () => setAuthed(false);
+    window.addEventListener(AUTH_EXPIRED_EVENT, onExpired);
+    return () => window.removeEventListener(AUTH_EXPIRED_EVENT, onExpired);
   }, []);
 
   const passwordOk = mode === "login" || isPasswordValid(password);

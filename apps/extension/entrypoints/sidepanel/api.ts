@@ -8,9 +8,14 @@ async function authHeaders(): Promise<Record<string, string>> {
   return token ? { Authorization: `Bearer ${token}` } : {};
 }
 
+// Broadcast so the AuthGate can re-lock the panel immediately on a mid-session
+// 401, instead of the user being stuck on an error until they reload.
+export const AUTH_EXPIRED_EVENT = "neo-auth-expired";
+
 async function handleUnauthorized(res: Response): Promise<void> {
   if (res.status === 401) {
     await clearToken();
+    if (typeof window !== "undefined") window.dispatchEvent(new Event(AUTH_EXPIRED_EVENT));
     throw new Error("Session expired — please log in again.");
   }
 }
