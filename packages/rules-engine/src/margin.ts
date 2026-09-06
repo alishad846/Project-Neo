@@ -1,4 +1,5 @@
 import type { RuleSet, CategoryRule, ShippingSlab } from "./rules.js";
+import { computeCost, breakevenPrice, type CostInputs } from "./cost.js";
 
 export interface SkuCosting {
   sku: string;
@@ -34,39 +35,32 @@ function shippingFor(weightKg: number, rules: RuleSet): number {
   return (slab ?? rules.shipping[rules.shipping.length - 1]).charge;
 }
 
-// Net margin at a given price. Preserves the original PricingEngine formula,
-// but every constant now comes from the effective-dated RuleSet.
-export function computeMargin(sku: SkuCosting, price: number, rules: RuleSet): number {
+// Builds the shared-core CostInputs for a SKU at a given price, resolving
+// category -> rates and weight -> shipping charge from the RuleSet.
+function toCostInputs(sku: SkuCosting, price: number, rules: RuleSet): CostInputs {
   const cat = categoryFor(sku.category, rules);
-  const x = sku.returnRate ?? cat.defaultReturnRate;
-  const k = 1 - x;
-  const C = sku.baseCost;
-  const P = rules.margin.packagingFee;
-  const Ship = shippingFor(sku.weightKg, rules);
-  const gst = cat.gstRate;
+  return {
+    sellingPrice: price,
+    manufacturingCost: sku.baseCost,
+    commissionRate: cat.commissionRate,
+    returnRate: sku.returnRate ?? cat.defaultReturnRate,
+    shippingCharge: shippingFor(sku.weightKg, rules),
+    packagingFee: rules.margin.packagingFee,
+    gstRate: cat.gstRate,
+    fixedFee: cat.fixedFee ?? 0,
+    collectionRate: cat.collectionRate ?? 0,
+  };
+}
 
-  const revenue = k * price;
-  const cogs = k * C;
-  const returnLoss = x * rules.margin.returnShippingCost + x * rules.margin.defectRate * C;
-  const shipGst = k * rules.margin.shippingGstRate * Ship;
-  const productGst = k * ((price * gst) / (1 + gst));
-
-  return revenue - (cogs + P + returnLoss + shipGst + productGst);
+// Net margin at a given price. Delegates to the shared cost core so there is
+// one arithmetic implementation shared with the Price Manager / cost.ts.
+export function computeMargin(sku: SkuCosting, price: number, rules: RuleSet): number {
+  return computeCost(toCostInputs(sku, price, rules), rules).netProfit;
 }
 
 // The price at which net margin is zero.
 export function computeBreakeven(sku: SkuCosting, rules: RuleSet): number {
-  const cat = categoryFor(sku.category, rules);
-  const x = sku.returnRate ?? cat.defaultReturnRate;
-  const k = 1 - x;
-  const C = sku.baseCost;
-  const P = rules.margin.packagingFee;
-  const Ship = shippingFor(sku.weightKg, rules);
-  const gst = cat.gstRate;
-
-  const numerator = P + x * rules.margin.returnShippingCost + x * rules.margin.defectRate * C;
-  const base = numerator / k + C + rules.margin.shippingGstRate * Ship;
-  return base * (1 + gst);
+  return breakevenPrice(toCostInputs(sku, sku.currentPrice, rules), rules);
 }
 
 export function computeProposedPrice(rule: PricingRule, sku: SkuCosting, rules: RuleSet): number {
