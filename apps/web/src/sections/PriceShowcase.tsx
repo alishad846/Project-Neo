@@ -1,6 +1,7 @@
 import { useMemo, useState } from "react";
 import { Check, Undo2 } from "lucide-react";
 import { PopButton } from "@neo/ui";
+import { computeCost, computeProposedPrice, resolveRuleSet, type RuleSet, type SkuCosting } from "@neo/rules-engine";
 import { PRICE_ROWS } from "../data";
 import { useReveal } from "../hooks/useReveal";
 import { SectionBg } from "../components/SectionBg";
@@ -12,32 +13,38 @@ const GST_RATES = [0, 5, 12, 18] as const;
 
 interface Settings {
   discount: number; // % off list price
-  gst: number; // GST % added on top of the net price
-  round99: boolean; // round each net price to ₹__99
-  floorBE: boolean; // never let the net price fall below break-even (cost)
+  gst: number; // product GST %, fed into the engine as a cost input — never added on top
+  round99: boolean; // round each price to ₹__99
+  floorBE: boolean; // surface the engine's break-even safety clamp in the UI
 }
 
 const BASELINE: Settings = { discount: 0, gst: 0, round99: false, floorBE: true };
 
-function costOf(row: (typeof PRICE_ROWS)[number]) {
-  return Math.round(row.newPrice * (1 - row.margin / 100));
-}
-function roundTo99(p: number) {
-  return Math.max(99, Math.round((p - 99) / 100) * 100 + 99);
+// A demo row's manufacturing cost, derived the same way the old local `costOf`
+// helper did (from its listed margin), so we can build a SkuCosting for it.
+function skuFor(row: (typeof PRICE_ROWS)[number]): SkuCosting {
+  return {
+    sku: row.sku,
+    currentPrice: row.oldPrice, // GST-inclusive list price — never modified by adding GST on top
+    baseCost: Math.round(row.newPrice * (1 - row.margin / 100)),
+    weightKg: 0.5,
+    category: "*",
+  };
 }
 
-// Net (ex-GST) and listed (incl-GST) price for a row under a set of knobs.
-function priceUnder(row: (typeof PRICE_ROWS)[number], s: Settings) {
-  let net = row.oldPrice * (1 - s.discount / 100);
-  if (s.round99) net = roundTo99(net);
-  const cost = costOf(row);
-  if (s.floorBE && net < cost) net = cost;
-  net = Math.round(net);
-  const listed = Math.round(net * (1 + s.gst / 100));
-  return { net, listed, cost };
-}
-function marginOf(net: number, cost: number) {
-  return net <= 0 ? 0 : Math.round(((net - cost) / net) * 100);
+// Runs a row through the real engine: proposed price is computed by
+// computeProposedPrice (which clamps at breakeven and handles round-to-99),
+// and margin/breakeven for display come from computeCost — no local pricing
+// math. GST is passed in as a cost input only; it is never added on top of
+// the displayed price, so a discount can never raise it.
+function priceUnder(sku: SkuCosting, s: Settings, rules: RuleSet) {
+  const listed = computeProposedPrice(
+    { actionType: "PERCENTAGE_DISCOUNT", actionValue: s.discount, roundTo99: s.round99 },
+    sku,
+    rules,
+  );
+  const breakdown = computeCost({ sellingPrice: listed, manufacturingCost: sku.baseCost, gstRate: s.gst / 100 }, rules);
+  return { listed: Math.round(listed), marginPct: Math.round(breakdown.marginPct), breakeven: breakdown.breakeven };
 }
 function settingsEqual(a: Settings, b: Settings) {
   return a.discount === b.discount && a.gst === b.gst && a.round99 === b.round99 && a.floorBE === b.floorBE;
@@ -51,26 +58,32 @@ export function PriceShowcase() {
   const [prev, setPrev] = useState<Settings | null>(null);
   const [justApplied, setJustApplied] = useState(false);
 
+  const rules = useMemo(() => resolveRuleSet(new Date()), []);
+
   const rows = useMemo(
     () =>
       PRICE_ROWS.map((row) => {
-        const now = priceUnder(row, applied);
-        const next = priceUnder(row, settings);
+        const sku = skuFor(row);
+        const now = priceUnder(sku, applied, rules);
+        const next = priceUnder(sku, settings, rules);
+        // The engine unconditionally floors at breakeven, so "floored" tells
+        // us it clamped this row rather than applying the raw discounted price.
+        const floored = next.listed <= next.breakeven + 0.5;
         return {
           sku: row.sku,
           name: row.name,
           oldListed: now.listed,
           newListed: next.listed,
-          margin: marginOf(next.net, next.cost),
-          breakeven: next.net >= next.cost,
+          margin: next.marginPct,
+          floored,
           changed: next.listed !== now.listed,
         };
       }),
-    [settings, applied],
+    [settings, applied, rules],
   );
 
   const pendingChange = !settingsEqual(settings, applied);
-  const belowCount = rows.filter((r) => !r.breakeven).length;
+  const belowCount = rows.filter((r) => r.floored).length;
 
   function apply() {
     setPrev(applied);
@@ -134,13 +147,13 @@ export function PriceShowcase() {
                       </td>
                       <td className="px-3 py-2.5 tabular-nums">{row.margin}%</td>
                       <td className="px-3 py-2.5">
-                        {row.breakeven ? (
+                        {!row.floored ? (
                           <span className="border border-black/40 bg-[#b2ff59] px-2.5 py-1 text-xs font-bold uppercase">
                             safe
                           </span>
                         ) : (
                           <span className="border border-black/40 bg-red-400 px-2.5 py-1 text-xs font-bold uppercase">
-                            below
+                            floored
                           </span>
                         )}
                       </td>
@@ -164,7 +177,7 @@ export function PriceShowcase() {
                 <input
                   type="range"
                   min={0}
-                  max={60}
+                  max={100}
                   step={1}
                   value={settings.discount}
                   onChange={(e) => update({ discount: Number(e.target.value) })}
