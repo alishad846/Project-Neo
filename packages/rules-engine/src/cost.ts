@@ -83,7 +83,7 @@ export function computeCost(inputs: CostInputs, rules: RuleSet): CostBreakdown {
     { label: "Collection fee", amount: collection, kind: "cost" },
     { label: "Fixed fee", amount: r.fixedFee, kind: "cost" },
     { label: "Shipping", amount: r.shippingCharge, kind: "cost" },
-    { label: "GST on fees (18%)", amount: feeGstAmount, kind: "cost" },
+    { label: `GST on fees (${(feeGst * 100).toFixed(0)}%)`, amount: feeGstAmount, kind: "cost" },
     { label: "Manufacturing cost", amount: mfg, kind: "cost" },
     { label: "Packaging", amount: r.packagingFee, kind: "cost" },
     { label: "Returns provision", amount: returnLoss, kind: "cost" },
