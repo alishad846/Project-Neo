@@ -4,6 +4,8 @@ import { QueryClientProvider } from "@tanstack/react-query";
 import { queryClient } from "./lib/queryClient";
 import { AIAutofill } from "./components/AIAutofill";
 import { BusinessDetails } from "./components/BusinessDetails";
+import { ProfitCalculator } from "./components/ProfitCalculator";
+import { GstCalculator } from "./components/GstCalculator";
 import { Header } from "./components/Header";
 import { AuthGate } from "./components/AuthGate";
 import { clearToken } from "./auth";
@@ -14,33 +16,40 @@ async function handleLogout() {
   window.location.reload();
 }
 
+const SECTIONS = [
+  { id: "autofill", label: "AI Autofill", color: "#ff90e8", node: <AIAutofill /> },
+  { id: "details", label: "Business Details", color: "#b2ff59", node: <BusinessDetails /> },
+  { id: "profit", label: "Profit Calc", color: "#00e5ff", node: <ProfitCalculator /> },
+  { id: "gst", label: "GST Calc", color: "#ffeb3b", node: <GstCalculator /> },
+] as const;
+type SectionId = (typeof SECTIONS)[number]["id"];
+
 function App() {
-  const [tab, setTab] = useState<"details" | "autofill">("autofill");
+  const [tab, setTab] = useState<SectionId>("autofill");
   return (
     <div className="min-h-screen bg-[#fff0f5]">
       <Header onLogout={handleLogout} />
-      <nav className="flex gap-2 border-b-4 border-black bg-white px-3 py-2">
-        <button
-          onClick={() => setTab("autofill")}
-          className={`flex-1 rounded-lg border-2 border-black px-3 py-2 font-cartoon text-xs font-semibold transition-all ${
-            tab === "autofill" ? "bg-[#ff90e8] shadow-[3px_3px_0px_0px_#000] -translate-y-0.5" : "bg-white"
-          }`}
-        >
-          AI Autofill
-        </button>
-        <button
-          onClick={() => setTab("details")}
-          className={`flex-1 rounded-lg border-2 border-black px-3 py-2 font-cartoon text-xs font-semibold transition-all ${
-            tab === "details" ? "bg-[#b2ff59] shadow-[3px_3px_0px_0px_#000] -translate-y-0.5" : "bg-white"
-          }`}
-        >
-          Business Details
-        </button>
+      <nav className="flex gap-2 overflow-x-auto border-b-4 border-black bg-white px-3 py-2">
+        {SECTIONS.map((section) => (
+          <button
+            key={section.id}
+            onClick={() => setTab(section.id)}
+            className={`shrink-0 whitespace-nowrap rounded-lg border-2 border-black px-3 py-2 font-cartoon text-xs font-semibold transition-all ${
+              tab === section.id ? "shadow-[3px_3px_0px_0px_#000] -translate-y-0.5" : "bg-white"
+            }`}
+            style={tab === section.id ? { backgroundColor: section.color } : undefined}
+          >
+            {section.label}
+          </button>
+        ))}
       </nav>
-      {/* Both tabs stay mounted so an in-progress autofill draft or unsaved
-          business-details edits survive a tab switch. */}
-      <div style={{ display: tab === "autofill" ? "block" : "none" }}><AIAutofill /></div>
-      <div style={{ display: tab === "details" ? "block" : "none" }}><BusinessDetails /></div>
+      {/* All sections stay mounted so an in-progress autofill draft or unsaved
+          business-details / calculator edits survive a tab switch. */}
+      {SECTIONS.map((section) => (
+        <div key={section.id} style={{ display: tab === section.id ? "block" : "none" }}>
+          {section.node}
+        </div>
+      ))}
     </div>
   );
 }
