@@ -46,8 +46,8 @@ describe("computeProposedPrice", () => {
     // 699.7: floor(699.7/100)*100+99 = 699, which is < 699.7 -- the pre-fix bug.
     const zeroRules: RuleSet = {
       effectiveFrom: "2024-01-01",
-      margin: { packagingFee: 0, returnShippingCost: 0, defectRate: 0, shippingGstRate: 0 },
-      categories: [{ category: "*", gstRate: 0, defaultReturnRate: 0 }],
+      margin: { packagingFee: 0, returnShippingCost: 0, defectRate: 0, shippingGstRate: 0, feeGstRate: 0 },
+      categories: [{ category: "*", gstRate: 0, defaultReturnRate: 0, commissionRate: 0 }],
       shipping: [{ maxWeightKg: Infinity, charge: 0 }],
     };
     const roundingSku: SkuCosting = { sku: "R1", currentPrice: 1000, baseCost: 699.7, weightKg: 0.4, category: "Any" };
@@ -77,10 +77,10 @@ describe("computeProposedPrice", () => {
   it("matches categories by longest prefix, not exact equality", () => {
     const localRules: RuleSet = {
       effectiveFrom: "2024-01-01",
-      margin: { packagingFee: 5, returnShippingCost: 160, defectRate: 0.1, shippingGstRate: 0.18 },
+      margin: { packagingFee: 5, returnShippingCost: 160, defectRate: 0.1, shippingGstRate: 0.18, feeGstRate: 0.18 },
       categories: [
-        { category: "Women > Kurtis", gstRate: 0.05, defaultReturnRate: 0.15 },
-        { category: "*", gstRate: 0.18, defaultReturnRate: 0.5 },
+        { category: "Women > Kurtis", gstRate: 0.05, defaultReturnRate: 0.15, commissionRate: 0 },
+        { category: "*", gstRate: 0.18, defaultReturnRate: 0.5, commissionRate: 0 },
       ],
       shipping: [{ maxWeightKg: Infinity, charge: 56 }],
     };
