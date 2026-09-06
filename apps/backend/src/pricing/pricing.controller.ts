@@ -1,8 +1,10 @@
-import { Body, Controller, Param, ParseIntPipe, Post } from "@nestjs/common";
+import { Body, Controller, Param, ParseIntPipe, Post, UseGuards } from "@nestjs/common";
 import type { PricingRuleDto } from "./pricing.dto";
 import { PricingService } from "./pricing.service";
+import { JwtAuthGuard } from "../auth/jwt-auth.guard";
 
 @Controller("pricing")
+@UseGuards(JwtAuthGuard)
 export class PricingController {
   constructor(private readonly pricingService: PricingService) {}
 

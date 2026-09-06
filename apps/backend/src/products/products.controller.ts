@@ -7,6 +7,7 @@ import {
   ParseIntPipe,
   Patch,
   Post,
+  UseGuards,
   UsePipes,
 } from '@nestjs/common';
 
@@ -14,8 +15,10 @@ import { ProductsService } from './products.service';
 import { productGenome } from '../db/schema';
 import { ZodValidationPipe } from '../common/zod-validation.pipe';
 import { productGenomeInsertSchema } from '@neo/genome';
+import { JwtAuthGuard } from '../auth/jwt-auth.guard';
 
 @Controller('products')
+@UseGuards(JwtAuthGuard)
 export class ProductsController {
   constructor(private readonly productsService: ProductsService) {}
 

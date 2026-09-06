@@ -1,7 +1,8 @@
-import { Body, Controller, Param, ParseIntPipe, Post, UsePipes } from '@nestjs/common';
+import { Body, Controller, Param, ParseIntPipe, Post, UseGuards, UsePipes } from '@nestjs/common';
 import { z } from 'zod';
 import { AiService } from './ai.service';
 import { ZodValidationPipe } from '../common/zod-validation.pipe';
+import { JwtAuthGuard } from '../auth/jwt-auth.guard';
 
 // Image-first extraction: `imageBase64` is required. Either pass a `productId`
 // (legacy: uses that product's category as the moondream hint) or an optional
@@ -22,6 +23,7 @@ const publishRequestSchema = z.object({
 });
 
 @Controller('ai')
+@UseGuards(JwtAuthGuard)
 export class AiController {
   constructor(private readonly aiService: AiService) {}
 
