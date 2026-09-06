@@ -93,9 +93,20 @@ export function computeCost(inputs: CostInputs, rules: RuleSet): CostBreakdown {
   return { netProfit, marginPct, breakeven: breakevenPrice(inputs, rules), gstComponent, lines, defaultsUsed: r.defaultsUsed };
 }
 
-export function breakevenPrice(inputs: CostInputs, rules: RuleSet): number {
+// netProfit(S) = S*denomFor(inputs,rules) - flatFor(inputs,rules); exported so
+// callers (e.g. TARGET_MARGIN pricing) can solve for a price at a target
+// netProfit without duplicating this algebra: S = (flat + target) / denom.
+export function denomFor(inputs: CostInputs, rules: RuleSet): number {
   const r = resolve(inputs, rules);
-  const denom = 1 - rateBurden(r, rules);
+  return 1 - rateBurden(r, rules);
+}
+export function flatFor(inputs: CostInputs, rules: RuleSet): number {
+  const r = resolve(inputs, rules);
+  return flatBurden(r, inputs.manufacturingCost, rules);
+}
+
+export function breakevenPrice(inputs: CostInputs, rules: RuleSet): number {
+  const denom = denomFor(inputs, rules);
   if (denom <= 0) return Infinity; // %-fees alone exceed the price — unsellable
-  return flatBurden(r, inputs.manufacturingCost, rules) / denom;
+  return flatFor(inputs, rules) / denom;
 }

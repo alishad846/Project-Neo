@@ -1,5 +1,5 @@
 import type { RuleSet, CategoryRule, ShippingSlab } from "./rules.js";
-import { computeCost, breakevenPrice, type CostInputs } from "./cost.js";
+import { computeCost, breakevenPrice, denomFor, flatFor, type CostInputs } from "./cost.js";
 
 export interface SkuCosting {
   sku: string;
@@ -70,15 +70,12 @@ export function computeProposedPrice(rule: PricingRule, sku: SkuCosting, rules: 
     case "FLAT_DISCOUNT": price = sku.currentPrice - rule.actionValue; break;
     case "SET_FIXED": price = rule.actionValue; break;
     case "TARGET_MARGIN": {
-      const cat = categoryFor(sku.category, rules);
-      const x = sku.returnRate ?? cat.defaultReturnRate;
-      const k = 1 - x;
-      const C = sku.baseCost;
-      const P = rules.margin.packagingFee;
-      const Ship = shippingFor(sku.weightKg, rules);
-      const gst = cat.gstRate;
-      const num = rule.actionValue + P + x * rules.margin.returnShippingCost + x * rules.margin.defectRate * C;
-      price = (num / k + C + rules.margin.shippingGstRate * Ship) * (1 + gst);
+      // netProfit(S) = S*denom - flat (shared cost core), so solve directly
+      // for the price whose netProfit equals the target: S = (flat + target) / denom.
+      const ci = toCostInputs(sku, sku.currentPrice, rules);
+      const denom = denomFor(ci, rules);
+      const flat = flatFor(ci, rules);
+      price = denom > 0 ? (flat + rule.actionValue) / denom : sku.currentPrice;
       break;
     }
     default: price = sku.currentPrice;
