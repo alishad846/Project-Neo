@@ -1,7 +1,7 @@
 import { useState, type FormEvent } from "react";
 import { useNavigate, Link } from "react-router-dom";
-import { LogIn, UserPlus, Store, Mail, Lock, User, Loader2 } from "lucide-react";
-import { PopButton } from "@neo/ui";
+import { LogIn, UserPlus, Store, Mail, User, Loader2 } from "lucide-react";
+import { PopButton, PasswordField, isPasswordValid, PASSWORD_MESSAGE } from "@neo/ui";
 import { login, signup } from "../lib/auth";
 
 type Mode = "login" | "signup";
@@ -22,8 +22,14 @@ export function Login({ initialMode = "login" }: { initialMode?: Mode }) {
 
   const isSignup = mode === "signup";
 
+  const passwordOk = !isSignup || isPasswordValid(password);
+
   async function onSubmit(e: FormEvent) {
     e.preventDefault();
+    if (isSignup && !isPasswordValid(password)) {
+      setError(PASSWORD_MESSAGE);
+      return;
+    }
     setError(null);
     setBusy(true);
     try {
@@ -32,7 +38,12 @@ export function Login({ initialMode = "login" }: { initialMode?: Mode }) {
         : await login({ email, password });
       navigate("/thank-you", { state: { name: user.fullName } });
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Something went wrong.");
+      const status = (err as { status?: number } | null)?.status;
+      if (status === 429) {
+        setError("Too many attempts — please wait a minute and try again.");
+      } else {
+        setError(err instanceof Error ? err.message : "Something went wrong.");
+      }
     } finally {
       setBusy(false);
     }
@@ -80,15 +91,23 @@ export function Login({ initialMode = "login" }: { initialMode?: Mode }) {
             </>
           )}
           <Field icon={Mail} label="Email" type="email" value={email} onChange={setEmail} placeholder="you@shop.com" autoComplete="email" />
-          <Field
-            icon={Lock}
-            label="Password"
-            type="password"
-            value={password}
-            onChange={setPassword}
-            placeholder={isSignup ? "At least 8 characters" : "Your password"}
-            autoComplete={isSignup ? "new-password" : "current-password"}
-          />
+
+          <label className="block">
+            <span className="mb-1.5 block font-body text-sm font-bold uppercase tracking-wide text-black/70">Password</span>
+            <span className="block border border-black/40 bg-[#fff7fb] px-3 shadow-[3px_3px_0px_0px_rgba(26,22,15,0.85)] focus-within:bg-white">
+              <PasswordField
+                value={password}
+                onChange={setPassword}
+                placeholder={isSignup ? "At least 8 characters" : "Your password"}
+                autoComplete={isSignup ? "new-password" : "current-password"}
+                showMeter={isSignup}
+                inputClassName="bg-transparent py-2.5 font-body text-base text-black outline-none placeholder:text-black/35"
+              />
+            </span>
+            {isSignup && !passwordOk && (
+              <span className="mt-1 block font-body text-xs font-semibold text-red-600">{PASSWORD_MESSAGE}</span>
+            )}
+          </label>
 
           {error && (
             <p className="border border-red-500/60 bg-red-100 px-3 py-2 font-body text-sm font-semibold text-red-700">
@@ -101,7 +120,7 @@ export function Login({ initialMode = "login" }: { initialMode?: Mode }) {
               text={busy ? "Please wait…" : isSignup ? "Create account" : "Log in"}
               color="#b2ff59"
               icon={busy ? Loader2 : isSignup ? UserPlus : LogIn}
-              disabled={busy}
+              disabled={busy || !passwordOk}
             />
           </div>
 
