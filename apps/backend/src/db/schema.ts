@@ -7,6 +7,10 @@ import {
   jsonb,
   timestamp,
   boolean,
+  index,
+  unique,
+  check,
+  sql,
 } from 'drizzle-orm/pg-core';
 
 // Seller account is the parent entity for seller-owned data.
@@ -66,8 +70,26 @@ export const productGenome = pgTable(
 
   createdAt: timestamp('created_at').defaultNow().notNull(),
 
-    updatedAt: timestamp('updated_at').defaultNow().notNull(),
-});
+  updatedAt: timestamp('updated_at').defaultNow().notNull(),
+  },
+  (table) => [
+    // Prevents duplicate SKUs for the same seller.
+    unique('product_genome_seller_sku_unique').on(
+      table.sellerId,
+      table.sku,
+    ),
+
+    // Speeds up seller-specific product queries.
+    index('product_genome_seller_id_idx').on(table.sellerId),
+
+    // Prevents invalid version and price/weight values.
+    check('product_genome_version_check', sql`${table.version} >= 1`),
+    check('product_genome_weight_check', sql`${table.weight} IS NULL OR ${table.weight} >= 0`),
+    check('product_genome_cost_price_check', sql`${table.costPrice} IS NULL OR ${table.costPrice} >= 0`),
+    check('product_genome_selling_price_check', sql`${table.sellingPrice} IS NULL OR ${table.sellingPrice} >= 0`),
+  ],
+);
+
 
 export const productGenomeHistory = pgTable(
   'product_genome_history', 
@@ -77,8 +99,8 @@ export const productGenomeHistory = pgTable(
   // FK: keeps every history record linked to an existing product.
   productId: integer('product_id').notNull().references(() => productGenome.id),
 
-  // Matches sellers.id so seller references use a consistent identifier size.
-  sellerId: varchar('seller_id', { length: 64 }).notNull(),
+  // FK: ensures historical product data belongs to a valid seller.
+  sellerId: varchar('seller_id', { length: 64 }).notNull().references(() => sellers.id),
 
   sku: varchar('sku', { length: 100 }).notNull(),
 
@@ -110,8 +132,22 @@ export const productGenomeHistory = pgTable(
 
   version: integer('version').notNull(),
 
-    archivedAt: timestamp('archived_at').defaultNow().notNull(),
-});
+  archivedAt: timestamp('archived_at').defaultNow().notNull(),
+  },
+  (table) => [
+    // Speeds up history/version lookup during rollback.
+    index('product_genome_history_product_version_idx').on(
+      table.productId,
+      table.version,
+    ),
+
+    // Prevents invalid version and price/weight values.
+    check('product_genome_history_version_check', sql`${table.version} >= 1`),
+    check('product_genome_history_weight_check', sql`${table.weight} IS NULL OR ${table.weight} >= 0`),
+    check('product_genome_history_cost_price_check', sql`${table.costPrice} IS NULL OR ${table.costPrice} >= 0`),
+    check('product_genome_history_selling_price_check', sql`${table.sellingPrice} IS NULL OR ${table.sellingPrice} >= 0`),
+  ],
+);
 
 export const transactions = pgTable('transactions', {
   id: serial('id').primaryKey(),
