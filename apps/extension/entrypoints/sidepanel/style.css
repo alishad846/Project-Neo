@@ -258,10 +258,12 @@ button {
 
 .attributes {
   display: flex;
-  gap: 4px;
+  gap: 5px;
   margin-top: 6px;
-  color: #64748b;
-  font-size: 9px;
+  color: #475569;
+  font-size: 10px;
+  line-height: 1.4;
+  letter-spacing: 0.01em;
 }
 
 .productBottom {
@@ -278,9 +280,10 @@ button {
 .viewButton {
   border: 0;
   background: transparent;
-  color: #4f46e5;
-  font-size: 9px;
+  color: #4338ca;
+  font-size: 10px;
   font-weight: 700;
+  letter-spacing: 0.02em;
 }
 
 .composerCard,
@@ -845,4 +848,114 @@ button {
   font-size: 13px;
   line-height: 1.5;
   margin: 10px 0 0;
+}
+/* ============================================================================
+   NEO EXTENSION — READABILITY & INTERACTIONS
+   ========================================================================== */
+
+body {
+  line-height: 1.5;
+  letter-spacing: 0.01em;
+}
+
+/* Improve readability of common text elements */
+p,
+span,
+label,
+div {
+  letter-spacing: 0.01em;
+}
+
+/* Make form controls easier to read */
+input,
+textarea,
+select {
+  color: #1a1a1a;
+  background: #fffdf8;
+  letter-spacing: 0.02em;
+}
+
+input::placeholder,
+textarea::placeholder {
+  color: rgba(26, 26, 26, 0.6);
+}
+
+/* Clear keyboard focus */
+button:focus-visible,
+input:focus-visible,
+textarea:focus-visible,
+select:focus-visible {
+  outline: 3px solid #1a1a1a;
+  outline-offset: 2px;
+}
+
+/* ============================================================================
+   NEO BUTTON PRESS / SHADOW INTERACTIONS
+   ========================================================================== */
+
+/* Main action buttons */
+.primaryButton,
+.secondaryButton,
+.generateButton,
+.primary-button,
+.secondary-button {
+  cursor: pointer;
+  transition:
+    transform 150ms ease-out,
+    box-shadow 150ms ease-out,
+    background-color 150ms ease-out;
+}
+
+/* Default comic offset shadow */
+.primaryButton,
+.generateButton,
+.primary-button {
+  box-shadow: 3px 3px 0 #1a1a1a;
+}
+
+.secondaryButton,
+.secondary-button {
+  box-shadow: 3px 3px 0 #1a1a1a;
+}
+
+/* Hover = button moves into its shadow */
+.primaryButton:hover,
+.secondaryButton:hover,
+.generateButton:hover,
+.primary-button:hover,
+.secondary-button:hover {
+  transform: translate(3px, 3px);
+  box-shadow: 0 0 0 transparent;
+}
+
+/* Click = smooth physical press */
+.primaryButton:active,
+.secondaryButton:active,
+.generateButton:active,
+.primary-button:active,
+.secondary-button:active {
+  transform: translate(3px, 3px) scale(0.97);
+  box-shadow: 0 0 0 transparent;
+}
+
+/* Disabled controls */
+button:disabled {
+  cursor: not-allowed;
+  opacity: 0.55;
+  transform: none !important;
+  box-shadow: none !important;
+}
+/* ============================================================================
+   REDUCED MOTION
+   ========================================================================== */
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    scroll-behavior: auto !important;
+    transition-duration: 0.01ms !important;
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+  }
 }

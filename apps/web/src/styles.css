@@ -55,8 +55,42 @@ body {
   margin: 0;
   overflow-x: hidden;
   color: var(--neo-ink);
+
+  /* Improve readability and prevent clustered text */
+  line-height: 1.5;
+  letter-spacing: 0.01em;
+  font-family: "Hogfish", system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
 }
 
+/* ============================================================================
+   GLOBAL TYPOGRAPHY
+   ========================================================================== */
+
+h1,
+h2,
+h3,
+h4,
+h5,
+h6 {
+  line-height: 1.15;
+  letter-spacing: 0.01em;
+}
+
+p {
+  line-height: 1.55;
+  letter-spacing: 0.01em;
+}
+
+button,
+input,
+textarea,
+select {
+  letter-spacing: 0.02em;
+}
+
+label {
+  letter-spacing: 0.03em;
+}
 /* ============================================================================
    SITE CANVAS — warm off-white with faint hand-inked GRID LINES behind
    everything, plus a soft immersive SIDE-SHADOW vignette so the page feels
@@ -280,4 +314,116 @@ body {
     transition-duration: 0.001ms !important;
     scroll-behavior: auto !important;
   }
+}
+/* ============================================================================
+   ACCESSIBLE INTERACTIONS
+   ========================================================================== */
+
+/* Make interactive elements clearly clickable */
+button,
+a {
+  cursor: pointer;
+}
+
+/* Strong keyboard focus indicator */
+button:focus-visible,
+a:focus-visible,
+input:focus-visible,
+textarea:focus-visible,
+select:focus-visible {
+  outline: 3px solid var(--neo-ink);
+  outline-offset: 3px;
+}
+
+/* Prevent disabled controls from looking interactive */
+button:disabled,
+input:disabled,
+textarea:disabled,
+select:disabled {
+  cursor: not-allowed;
+  opacity: 0.55;
+}
+/* ============================================================================
+   READABILITY ON COLORED PANELS
+   ========================================================================== */
+
+/* Keep normal text dark and readable on Neo's bright backgrounds. */
+.comic-yellow,
+.comic-pink,
+.grain-yellow,
+.grain-pink {
+  color: var(--neo-ink);
+}
+
+/* Make form controls readable regardless of inherited section colors. */
+input,
+textarea,
+select {
+  color: var(--neo-ink);
+  background-color: #fffdf8;
+}
+
+/* Placeholder text should remain visible but clearly secondary. */
+input::placeholder,
+textarea::placeholder {
+  color: rgba(26, 26, 26, 0.6);
+}
+
+/* Respect users who prefer reduced motion */
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    scroll-behavior: auto !important;
+    transition-duration: 0.01ms !important;
+    animation-duration: 0.01ms !important;
+  }
+}
+/* ============================================================================
+   NEO GLOBAL BUTTON PRESS EFFECT
+   ========================================================================== */
+
+button:not(:disabled),
+a[role="button"],
+a.inline-flex,
+a.flex {
+  cursor: pointer;
+  transition:
+    transform 150ms ease-out,
+    box-shadow 150ms ease-out;
+}
+
+/* Move the control into its comic shadow */
+button:not(:disabled):hover,
+a[role="button"]:hover,
+a.inline-flex:hover,
+a.flex:hover {
+  transform: translate(4px, 4px);
+}
+
+/* Remove the visible offset while the control is pressed */
+button:not(:disabled):hover,
+a[role="button"]:hover,
+a.inline-flex:hover,
+a.flex:hover {
+  box-shadow: 0 0 0 0 transparent;
+}
+
+/* Smooth physical click/pop */
+button:not(:disabled):active,
+a[role="button"]:active,
+a.inline-flex:active,
+a.flex:active {
+  transform: translate(4px, 4px) scale(0.97);
+}
+
+/* Disabled controls should not move */
+button:disabled {
+  cursor: not-allowed;
+}
+
+/* Navigation links are not physical buttons */
+nav a:not([role="button"]) {
+  transform: none;
+  box-shadow: none;
 }
