@@ -20,6 +20,14 @@ interface MeeshoAutofillMessage {
   product: Record<string, unknown>;
 }
 
+interface MeeshoBulkGenerationMessage {
+  type: "PROJECT_NEO_GENERATE_MEESHO_BULK";
+  templateBase64: string;
+  templateName?: string;
+  templateType?: string;
+  products: unknown[];
+}
+
 interface FillResponse {
   ok: boolean;
   filled: string[];
@@ -65,6 +73,54 @@ function requestMeeshoAutofill(product: Record<string, unknown>): Promise<unknow
         type: "PROJECT_NEO_AUTOFILL_MEESHO",
         requestId,
         product,
+      },
+      "*",
+    );
+  });
+}
+
+function requestMeeshoBulkGeneration(payload: {
+  templateBase64: string;
+  templateName?: string;
+  templateType?: string;
+  products: unknown[];
+}): Promise<unknown> {
+  return new Promise((resolve, reject) => {
+    const requestId = `neo-bulk-${Date.now()}-${Math.random().toString(36).slice(2)}`;
+
+    const handler = (event: MessageEvent) => {
+      if (
+        event.source !== window ||
+        event.data?.source !== "PROJECT_NEO_MEESHO_MAIN" ||
+        event.data?.type !== "PROJECT_NEO_BULK_RESULT" ||
+        event.data?.requestId !== requestId
+      ) {
+        return;
+      }
+
+      window.removeEventListener("message", handler);
+
+      const result = event.data?.result;
+
+      if (result?.success === false && result?.error) {
+        reject(new Error(result.error));
+        return;
+      }
+
+      resolve(result);
+    };
+
+    window.addEventListener("message", handler);
+
+    window.postMessage(
+      {
+        source: "PROJECT_NEO_EXTENSION",
+        type: "PROJECT_NEO_GENERATE_MEESHO_BULK",
+        requestId,
+        templateBase64: payload.templateBase64,
+        templateName: payload.templateName,
+        templateType: payload.templateType,
+        products: payload.products,
       },
       "*",
     );
@@ -475,13 +531,42 @@ export default defineContentScript({
 
     chrome.runtime.onMessage.addListener(
       (
-        message: FillMessage | MeeshoAutofillMessage,
+        message:
+  | FillMessage
+  | MeeshoAutofillMessage
+  | MeeshoBulkGenerationMessage,
         _sender: unknown,
         sendResponse: (
-          response: FillResponse | { ok: false; error: string },
-        ) => void,
+  response:
+    | FillResponse
+    | { ok: false; error: string }
+    | { success: boolean; error?: string },
+) => void,
       ) => {
         if (!message) return false;
+
+if (message.type === "PROJECT_NEO_GENERATE_MEESHO_BULK") {
+  requestMeeshoBulkGeneration({
+    templateBase64: message.templateBase64,
+    templateName: message.templateName,
+    templateType: message.templateType,
+    products: message.products,
+  })
+    .then((result: any) => {
+      sendResponse(result);
+    })
+    .catch((err) => {
+      sendResponse({
+        success: false,
+        error:
+          err instanceof Error
+            ? err.message
+            : String(err),
+      });
+    });
+
+  return true;
+}
 
         // New full Meesho autofill engine.
         if (message.type === "NEO_MEESHO_AUTOFILL") {

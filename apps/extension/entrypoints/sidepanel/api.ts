@@ -4,8 +4,22 @@ const API_URL = "http://localhost:3000";
 
 export async function getProducts(): Promise<ProductGenome[]> {
   const res = await fetch(`${API_URL}/products`);
-  if (!res.ok) throw new Error(`Product API error: ${res.status}`);
-  return res.json();
+
+  if (!res.ok) {
+    throw new Error(`Product API error: ${res.status}`);
+  }
+
+  const data = await res.json();
+
+  if (Array.isArray(data)) {
+    return data;
+  }
+
+  if (Array.isArray(data?.value)) {
+    return data.value;
+  }
+
+  throw new Error("Invalid products API response.");
 }
 
 export interface PricingRule {

@@ -1,5 +1,10 @@
-import React, { useState } from "react";
+import React, { useEffect, useState } from "react";
 import { browser } from "wxt/browser";
+import { getProducts } from "../api";
+import {
+  getBusinessDetails,
+  businessDetailsToFields,
+} from "../businessDetails";
 
 type GenerateResponse = {
   success: boolean;
@@ -11,11 +16,8 @@ type GenerateResponse = {
   error?: string;
 };
 
-function arrayBufferToBase64(
-  buffer: ArrayBuffer
-): string {
+function arrayBufferToBase64(buffer: ArrayBuffer): string {
   const bytes = new Uint8Array(buffer);
-
   let binary = "";
 
   const chunkSize = 0x8000;
@@ -27,26 +29,32 @@ function arrayBufferToBase64(
   ) {
     const chunk = bytes.subarray(
       offset,
-      Math.min(
-        offset + chunkSize,
-        bytes.length
-      )
+      Math.min(offset + chunkSize, bytes.length),
     );
 
-    binary += String.fromCharCode(
-      ...chunk
-    );
+    binary += String.fromCharCode(...chunk);
   }
 
   return btoa(binary);
 }
 
 export function Catalogue() {
+
+  const [businessFields, setBusinessFields] = useState<
+    Record<string, string>
+  >({});
+
+  const [productsList, setProductsList] = useState<
+    Awaited<ReturnType<typeof getProducts>>
+  >([]);
+
+  const [selectedSkus, setSelectedSkus] = useState<string[]>([]);
+  const [referenceSkus, setReferenceSkus] = useState<
+  Record<string, string>
+>({});
+
   const [templateFile, setTemplateFile] =
     useState<File | null>(null);
-
-  const [productsJson, setProductsJson] =
-    useState("");
 
   const [status, setStatus] =
     useState("Ready");
@@ -54,50 +62,277 @@ export function Catalogue() {
   const [error, setError] =
     useState("");
 
+  useEffect(() => {
+    getProducts()
+      .then(setProductsList)
+      .catch((loadError) => {
+        console.error(
+          "[PROJECT NEO] Failed to load catalogue products:",
+          loadError,
+        );
+
+        setError(
+          "Could not load your catalogue products.",
+        );
+      });
+  }, []);
+
+  function toggleSku(
+    sku: string,
+    checked: boolean,
+  ) {
+    setSelectedSkus((current) => {
+      if (checked) {
+        if (current.includes(sku)) {
+          return current;
+        }
+
+        return [...current, sku];
+      }
+
+      return current.filter(
+        (currentSku) => currentSku !== sku,
+      );
+    });
+  }
+
+  function selectAllProducts() {
+    setSelectedSkus(
+      productsList.map((product) => product.sku),
+    );
+  }
+
+  function clearSelectedProducts() {
+    setSelectedSkus([]);
+  }
+
+  useEffect(() => {
+    getBusinessDetails()
+      .then((details) => {
+        setBusinessFields(
+          businessDetailsToFields(details),
+        );
+      })
+      .catch((error) => {
+        console.error(
+          "[PROJECT NEO] Failed to load business details:",
+          error,
+        );
+      });
+  }, []);
+
   async function generateBulkExcel() {
     setError("");
 
     if (!templateFile) {
       setError(
-        "Please select the Meesho Excel template."
+        "Please select the Meesho Excel template.",
       );
       return;
     }
 
-    if (!productsJson.trim()) {
-      setError(
-        "Please enter product data."
-      );
-      return;
+    const products = productsList
+  .filter((product) => selectedSkus.includes(product.sku))
+  .map((product) => {
+    const referenceSku = referenceSkus[product.sku];
+
+    if (!referenceSku) {
+      return product;
     }
 
-    let products: unknown;
+    const referenceProduct = productsList.find(
+      (item) => item.sku === referenceSku,
+    );
 
-    try {
-      products = JSON.parse(productsJson);
-    } catch {
-      setError(
-        "Product data is not valid JSON."
-      );
-      return;
+    if (!referenceProduct) {
+      return product;
     }
 
-    if (!Array.isArray(products)) {
-      setError(
-        "Product data must be a JSON array."
-      );
-      return;
+    const currentAttributes =
+      product.attributes &&
+      typeof product.attributes === "object"
+        ? (product.attributes as Record<string, unknown>)
+        : {};
+
+    const rawReferenceAttributes =
+      referenceProduct.attributes &&
+      typeof referenceProduct.attributes === "object"
+        ? (referenceProduct.attributes as Record<string, unknown>)
+        : {};
+
+    // Convert reference attributes to the field names
+    // expected by the Meesho bulk generator.
+    const referenceAttributes: Record<string, unknown> = {};
+
+    for (const [key, value] of Object.entries(
+      rawReferenceAttributes,
+    )) {
+      if (value === null || value === undefined || value === "") {
+        continue;
+      }
+
+      const normalized = key
+        .toLowerCase()
+        .replace(/[\s_-]/g, "");
+
+      const targetKey =
+  normalized === "pattern"
+    ? "print_or_pattern_type"
+  : normalized === "print" ||
+      normalized === "printtype" ||
+      normalized === "printorpattern"
+    ? "print_or_pattern_type"
+          : normalized === "necktype" ||
+              normalized === "neckline" ||
+              normalized === "neckstyle"
+            ? "neck"
+            : normalized === "fit" ||
+                normalized === "shape" ||
+                normalized === "fittype"
+              ? "fit_shape"
+              : normalized === "type" ||
+                  normalized === "producttype" ||
+                  normalized === "genericname"
+                ? "generic_name"
+                : normalized === "sleeve" ||
+                    normalized === "sleevelength" ||
+                    normalized === "sleevetype"
+                  ? "sleeve_length"
+                  : normalized === "color" ||
+                      normalized === "colour"
+                    ? "color"
+                    : normalized === "fabric" ||
+                        normalized === "material"
+                      ? "fabric"
+                      : normalized === "weight" ||
+                          normalized === "netweight" ||
+                          normalized === "netweightgms"
+                        ? "net_weight_gms"
+                        : normalized === "country" ||
+                            normalized === "countryoforigin"
+                          ? "country_of_origin"
+                          : normalized === "hsn" ||
+                              normalized === "hsnid" ||
+                              normalized === "hsncode"
+                            ? "hsn_id"
+                            : normalized === "bustsize"
+                              ? "bust_size"
+                              : normalized === "shouldersize"
+                                ? "shoulder_size"
+                                : normalized === "sizelength"
+                                  ? "size_length"
+                                  : normalized === "waistsize"
+                                    ? "waist_size"
+                                    : key;
+
+      referenceAttributes[targetKey] = value;
+      if (normalized === "pattern") {
+  referenceAttributes.pattern = value;
+}
     }
+
+    // Copy important top-level ProductGenome fields into the
+    // same normalized attribute names used by bulk generation.
+    if (referenceProduct.fabric) {
+      referenceAttributes.fabric ??= referenceProduct.fabric;
+    }
+
+    if (referenceProduct.colour) {
+      referenceAttributes.color ??= referenceProduct.colour;
+    }
+
+    if (referenceProduct.weight) {
+      referenceAttributes.net_weight_gms ??=
+        referenceProduct.weight;
+    }
+
+    if (referenceProduct.hsnCode) {
+      referenceAttributes.hsn_id ??=
+        referenceProduct.hsnCode;
+    }
+
+    if (referenceProduct.sizes != null) {
+      referenceAttributes.sizes ??=
+        referenceProduct.sizes;
+    }
+
+    return {
+  ...referenceProduct,
+  ...product,
+  ...businessFields,
+
+      // Reference fills missing product-level values.
+      fabric:
+        product.fabric || referenceProduct.fabric,
+
+      colour:
+        product.colour || referenceProduct.colour,
+
+      weight:
+  product.weight ||
+  referenceProduct.weight ||
+  businessFields.product_weight_in_gms,
+
+      hsnCode:
+        product.hsnCode || referenceProduct.hsnCode,
+
+      sizes:
+        product.sizes ?? referenceProduct.sizes,
+
+      images:
+        product.images ?? referenceProduct.images,
+
+      attributes: {
+        ...referenceAttributes,
+        ...currentAttributes,
+      },
+
+      manufacturer_details:
+  [
+    businessFields.manufacturer_name,
+    businessFields.manufacturer_address,
+    businessFields.manufacturer_pincode,
+  ]
+    .filter(Boolean)
+    .join(", "),
+
+packer_details:
+  [
+    businessFields.packer_name,
+    businessFields.packer_address,
+    businessFields.packer_pincode,
+  ]
+    .filter(Boolean)
+    .join(", "),
+
+importer_details:
+  [
+    businessFields.importer_name,
+    businessFields.importer_address,
+    businessFields.importer_pincode,
+  ]
+    .filter(Boolean)
+    .join(", "),
+
+      // Always preserve the current product identity.
+      sku: product.sku,
+      id: product.id,
+      title:
+        product.title || referenceProduct.title,
+      category:
+        product.category || referenceProduct.category,
+    };
+  });
 
     if (products.length === 0) {
       setError(
-        "At least one product is required."
+        "Please select at least one product.",
       );
       return;
     }
 
     setStatus(
-      "Preparing template..."
+      "Preparing template...",
     );
 
     try {
@@ -115,7 +350,7 @@ export function Catalogue() {
 
       const templateBase64 =
         arrayBufferToBase64(
-          templateBuffer
+          templateBuffer,
         );
 
       console.log(
@@ -126,7 +361,9 @@ export function Catalogue() {
             templateBuffer.byteLength,
           base64Length:
             templateBase64.length,
-        }
+          selectedProducts:
+            products.length,
+        },
       );
 
       const tabs =
@@ -139,12 +376,12 @@ export function Catalogue() {
 
       if (!tab?.id) {
         throw new Error(
-          "Could not find the active Meesho tab."
+          "Could not find the active Meesho tab.",
         );
       }
 
       setStatus(
-        "Generating Meesho Excel..."
+        "Generating Meesho Excel...",
       );
 
       const response =
@@ -163,22 +400,22 @@ export function Catalogue() {
               templateFile.type,
 
             products,
-          }
+          },
         )) as GenerateResponse;
 
       if (!response?.success) {
         throw new Error(
           response?.error ||
             response?.validationProblems?.join(
-              "\n"
+              "\n",
             ) ||
-            "Meesho bulk generation failed."
+            "Meesho bulk generation failed.",
         );
       }
 
       if (!response.blobBytes) {
         throw new Error(
-          "The generator did not return an Excel file."
+          "The generator did not return an Excel file.",
         );
       }
 
@@ -188,7 +425,7 @@ export function Catalogue() {
           type:
             response.blobType ||
             "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
-        }
+        },
       );
 
       const url =
@@ -217,22 +454,22 @@ export function Catalogue() {
         `Generated successfully — ${
           response.rows ??
           products.length
-        } row(s)`
+        } row(s)`,
       );
     } catch (err) {
       console.error(
         "[PROJECT NEO] Bulk generation failed:",
-        err
+        err,
       );
 
       setStatus(
-        "Generation failed"
+        "Generation failed",
       );
 
       setError(
         err instanceof Error
           ? err.message
-          : "Unknown error occurred."
+          : "Unknown error occurred.",
       );
     }
   }
@@ -262,9 +499,8 @@ export function Catalogue() {
           marginBottom: 20,
         }}
       >
-        Upload a Meesho template and provide
-        product data to generate a bulk
-        catalogue.
+        Select your catalogue products and use a
+        Meesho template to generate a bulk catalogue.
       </p>
 
       <section
@@ -298,7 +534,7 @@ export function Catalogue() {
 
             if (file) {
               setStatus(
-                `Template selected: ${file.name}`
+                `Template selected: ${file.name}`,
               );
             }
           }}
@@ -328,15 +564,70 @@ export function Catalogue() {
           marginBottom: 16,
         }}
       >
-        <h2
+        <div
           style={{
-            fontSize: 14,
-            fontWeight: 600,
-            marginBottom: 8,
+            display: "flex",
+            justifyContent: "space-between",
+            alignItems: "center",
+            gap: 10,
+            marginBottom: 10,
           }}
         >
-          2. Product Data
-        </h2>
+          <h2
+            style={{
+              fontSize: 14,
+              fontWeight: 600,
+              margin: 0,
+            }}
+          >
+            2. Select Catalogue Products
+          </h2>
+
+          <div
+            style={{
+              display: "flex",
+              gap: 6,
+            }}
+          >
+            <button
+              type="button"
+              onClick={selectAllProducts}
+              disabled={productsList.length === 0}
+              style={{
+                padding: "5px 8px",
+                borderRadius: 6,
+                border: "1px solid #999",
+                background: "#fff",
+                cursor:
+                  productsList.length > 0
+                    ? "pointer"
+                    : "not-allowed",
+                fontSize: 11,
+              }}
+            >
+              Select All
+            </button>
+
+            <button
+              type="button"
+              onClick={clearSelectedProducts}
+              disabled={selectedSkus.length === 0}
+              style={{
+                padding: "5px 8px",
+                borderRadius: 6,
+                border: "1px solid #999",
+                background: "#fff",
+                cursor:
+                  selectedSkus.length > 0
+                    ? "pointer"
+                    : "not-allowed",
+                fontSize: 11,
+              }}
+            >
+              Clear
+            </button>
+          </div>
+        </div>
 
         <p
           style={{
@@ -345,66 +636,179 @@ export function Catalogue() {
             marginBottom: 10,
           }}
         >
-          Enter an array of Product Genome
-          objects. The data is compiled against
-          the selected Meesho template.
+          Select the SKUs you want to include in the
+          bulk catalogue.
         </p>
 
-        <textarea
-          value={productsJson}
-          onChange={(event) => {
-            setProductsJson(
-              event.target.value
-            );
-            setError("");
-          }}
-          placeholder={`[
-  {
-    "product_name": "...",
-    "meesho_price": 0,
-    "wrong_defective_returns_price": 0,
-    "mrp": 0,
-    "net_weight_gms": 0,
-    "inventory": 0,
-    "country_of_origin": "...",
-    "manufacturer": {
-      "name": "...",
-      "address": "...",
-      "pincode": "..."
-    },
-    "packer": {
-      "name": "...",
-      "address": "...",
-      "pincode": "..."
-    },
-    "importer": {
-      "name": "...",
-      "address": "...",
-      "pincode": "..."
-    },
-    "color": "...",
-    "combo_of": "...",
-    "attributes": {},
-    "variants": [],
-    "images": {
-      "front": "https://..."
-    }
-  }
-]`}
-          spellCheck={false}
+        {productsList.length === 0 ? (
+          <p
+            style={{
+              fontSize: 12,
+              color: "#999",
+            }}
+          >
+            Loading products...
+          </p>
+        ) : (
+          <div
+            style={{
+              display: "grid",
+              gap: 8,
+              maxHeight: 320,
+              overflowY: "auto",
+            }}
+          >
+            {productsList.map((product) => (
+              <label
+                key={product.id}
+                style={{
+                  display: "flex",
+                  alignItems: "center",
+                  gap: 8,
+                  padding: 9,
+                  border:
+                    selectedSkus.includes(product.sku)
+                      ? "2px solid #000"
+                      : "1px solid #ccc",
+                  borderRadius: 7,
+                  background:
+                    selectedSkus.includes(product.sku)
+                      ? "#fff0f5"
+                      : "#fff",
+                  cursor: "pointer",
+                }}
+              >
+                <input
+                  type="checkbox"
+                  checked={selectedSkus.includes(
+                    product.sku,
+                  )}
+                  onChange={(event) =>
+                    toggleSku(
+                      product.sku,
+                      event.target.checked,
+                    )
+                  }
+                />
+
+                <span
+                  style={{
+                    fontSize: 12,
+                  }}
+                >
+                  <strong>
+                    {product.sku}
+                  </strong>
+
+                  {" — "}
+
+                  {product.title ||
+                    "Untitled Product"}
+
+                  {product.category && (
+                    <span
+                      style={{
+                        display: "block",
+                        marginTop: 2,
+                        color: "#777",
+                        fontSize: 11,
+                      }}
+                    >
+                      {product.category}
+                    </span>
+                  )}
+                </span>
+
+<select
+  value={referenceSkus[product.sku] ?? ""}
+  onChange={(event) => {
+    const value = event.target.value;
+
+    setReferenceSkus((current) => {
+      const next = { ...current };
+
+      if (value) {
+        next[product.sku] = value;
+      } else {
+        delete next[product.sku];
+      }
+
+      return next;
+    });
+  }}
+  disabled={!selectedSkus.includes(product.sku)}
+  style={{
+    marginLeft: "auto",
+    minWidth: 190,
+    padding: "5px 7px",
+    border: "1px solid #999",
+    borderRadius: 6,
+    fontSize: 11,
+    background: "#fff",
+  }}
+>
+  <option value="">No reference SKU</option>
+
+  {productsList
+    .filter((reference) => {
+      if (reference.sku === product.sku) {
+        return false;
+      }
+
+      if (!product.category || !reference.category) {
+        return true;
+      }
+
+      const normalizeWords = (value: string) =>
+        value
+          .toLowerCase()
+          .replace(/[>/_-]/g, " ")
+          .replace(/\s+/g, " ")
+          .trim()
+          .split(" ")
+          .filter(Boolean)
+          .map((word) =>
+            word.endsWith("s") && word.length > 3
+              ? word.slice(0, -1)
+              : word,
+          );
+
+      const currentWords = normalizeWords(product.category);
+      const referenceWords = normalizeWords(reference.category);
+
+      return (
+        referenceWords.every((word) =>
+          currentWords.includes(word),
+        ) ||
+        currentWords.every((word) =>
+          referenceWords.includes(word),
+        )
+      );
+    })
+    .map((reference) => (
+      <option key={reference.id} value={reference.sku}>
+        {reference.sku} — {reference.title || "Untitled"}
+      </option>
+    ))}
+</select>
+
+              </label>
+            ))}
+          </div>
+        )}
+
+        <div
           style={{
-            width: "100%",
-            minHeight: 420,
-            resize: "vertical",
-            padding: 12,
-            border: "1px solid #ccc",
-            borderRadius: 6,
-            fontFamily:
-              "ui-monospace, SFMono-Regular, Menlo, monospace",
+            marginTop: 10,
             fontSize: 12,
-            boxSizing: "border-box",
+            color: "#555",
           }}
-        />
+        >
+          <strong>
+            Selected:
+          </strong>{" "}
+          {selectedSkus.length} product(s)
+        </div>
       </section>
 
       <button
@@ -412,22 +816,27 @@ export function Catalogue() {
         onClick={generateBulkExcel}
         disabled={
           !templateFile ||
-          !productsJson.trim()
+          selectedSkus.length === 0
         }
         style={{
           width: "100%",
           padding: "12px 16px",
           borderRadius: 8,
-          border: "none",
+          border: "2px solid #000",
+          background:
+            templateFile &&
+            selectedSkus.length > 0
+              ? "#ffeb3b"
+              : "#eee",
           fontWeight: 600,
           cursor:
             templateFile &&
-            productsJson.trim()
+            selectedSkus.length > 0
               ? "pointer"
               : "not-allowed",
           opacity:
             templateFile &&
-            productsJson.trim()
+            selectedSkus.length > 0
               ? 1
               : 0.5,
         }}

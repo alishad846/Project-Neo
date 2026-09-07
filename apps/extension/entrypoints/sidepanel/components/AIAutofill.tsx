@@ -1,7 +1,11 @@
 import { useEffect, useState } from "react";
 import { UploadCloud, Wand2, Sparkles } from "lucide-react";
 import { PopButton } from "@neo/ui";
-import { extractFromImage, type ExtractResult } from "../api";
+import {
+  extractFromImage,
+  getProducts,
+  type ExtractResult,
+} from "../api";
 import { sendMeeshoAutofill, type FillResult } from "../fill";
 import {
   getBusinessDetails,
@@ -99,6 +103,17 @@ function fileToBase64(file: File): Promise<string> {
 }
 
 export function AIAutofill() {
+  const [referenceProducts, setReferenceProducts] = useState<Awaited<ReturnType<typeof getProducts>>>([]);
+  const [referenceSku, setReferenceSku] = useState("");
+
+    useEffect(() => {
+    getProducts()
+      .then(setReferenceProducts)
+      .catch((error) => {
+        console.error("[PROJECT NEO] Failed to load reference SKUs:", error);
+      });
+  }, []);
+
   const [business, setBusiness] = useState<BusinessDetails | null>(null);
   const [category, setCategory] = useState("");
   const [imageFile, setImageFile] = useState<File | null>(null);
@@ -207,6 +222,30 @@ export function AIAutofill() {
           .join(", ")
       : "";
 
+const referenceProduct =
+  referenceProducts.find(
+    (product) => product.sku === referenceSku,
+  );
+
+const referenceAttributes =
+  referenceProduct?.attributes &&
+  typeof referenceProduct.attributes === "object"
+    ? (referenceProduct.attributes as Record<string, unknown>)
+    : {};
+
+const referenceFallbackAttributes: Record<string, unknown> = {
+  ...referenceAttributes,
+  ...(referenceProduct?.fabric ? { fabric: referenceProduct.fabric } : {}),
+  ...(referenceProduct?.colour ? { color: referenceProduct.colour } : {}),
+  ...(referenceProduct?.hsnCode ? { hsn_id: referenceProduct.hsnCode } : {}),
+  ...(referenceProduct?.weight
+    ? { net_weight_gms: referenceProduct.weight }
+    : {}),
+  ...(Array.isArray(referenceProduct?.sizes)
+    ? { sizes: referenceProduct.sizes }
+    : {}),
+};
+
     const product = {
       ...businessFields,
       product_name: productName,
@@ -223,8 +262,9 @@ export function AIAutofill() {
       packer_details: packerDetails,
       importer_details: importerDetails,
       attributes: {
-        ...attrs,
-      },
+  ...referenceFallbackAttributes,
+  ...attrs,
+},
     };
 
     const result = await sendMeeshoAutofill(product);
@@ -269,6 +309,49 @@ export function AIAutofill() {
             onChange={(e) => setCategory(e.target.value)}
           />
         </label>
+
+        <label className="font-cartoon text-xs font-semibold">
+  Reference Past SKU (optional)
+  <select
+    className={inputClass}
+    value={referenceSku}
+    onChange={(e) => setReferenceSku(e.target.value)}
+  >
+    <option value="">No reference SKU</option>
+
+    {referenceProducts
+      .filter((product) => {
+  if (!category.trim()) return true;
+
+  const normalizeWords = (value: string) =>
+    value
+      .toLowerCase()
+      .replace(/[>/_-]/g, " ")
+      .replace(/\s+/g, " ")
+      .trim()
+      .split(" ")
+      .filter(Boolean)
+      .map((word) =>
+        word.endsWith("s") && word.length > 3
+          ? word.slice(0, -1)
+          : word
+      );
+
+  const selectedWords = normalizeWords(category);
+  const productWords = normalizeWords(product.category ?? "");
+
+  return (
+  productWords.every((word) => selectedWords.includes(word)) ||
+  selectedWords.every((word) => productWords.includes(word))
+);
+})
+      .map((product) => (
+        <option key={product.id} value={product.sku}>
+          {product.sku} — {product.title || "Untitled Product"}
+        </option>
+      ))}
+  </select>
+</label>
 
         <label className="font-cartoon text-xs font-semibold">
           Product photo
