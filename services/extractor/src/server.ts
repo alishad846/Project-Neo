@@ -10,49 +10,67 @@ import {
 const app = express();
 app.use(express.json({ limit: "10mb" }));
 
-const OLLAMA_URL = process.env.OLLAMA_URL ?? "http://ollama:11434";
+const OLLAMA_URL = process.env.OLLAMA_URL ?? "http://127.0.0.1:11434";
 const OLLAMA_MODEL = process.env.OLLAMA_MODEL ?? "moondream";
-// Warmed image inference on CPU is ~5s, but cold starts (first call / model
-// load) and real photos can take up to ~45s. 8s was too aggressive and meant
-// the model path never actually completed before falling back to heuristic.
 const TIMEOUT_MS = Number(process.env.OLLAMA_TIMEOUT_MS ?? 45000);
 
-function buildPrompt(hint?: ExtractHint): string {
+// ADAPTIVE LEARNING: In-memory store to track what the model misses per category
+const categoryLearning = new Map<string, string[]>();
+
+function buildPrompt(hint?: ExtractHint, missedFields: string[] = []): string {
   const cat = hint?.category ? ` This is a "${hint.category}".` : "";
-  // Ask for one factual sentence and name the exact attributes we parse. The
-  // "if plain, say solid" nudge reduces small-model hallucination of patterns.
-  return (
-    `Look at this clothing product photo and describe it factually in one sentence.${cat} ` +
-    "State its main colour, fabric, pattern (if it has no print or design, say 'solid'), " +
-    "neckline, and sleeve length. Only describe what you can clearly see."
-  );
+  
+  let prompt = `Describe this clothing item factually in one sentence.${cat} Include the color, fabric, pattern, neckline, and sleeve length.`;
+
+  // ADAPTIVE LEARNING: Give multiple-choice keywords as a gentle nudge, NOT as a question
+  if (missedFields.length > 0) {
+    prompt += " Please explicitly state the ";
+    const hints = [];
+    if (missedFields.includes("pattern")) hints.push("pattern (floral, solid, or printed)");
+    if (missedFields.includes("fabric")) hints.push("fabric (cotton, silk, or denim)");
+    if (missedFields.includes("sleeveLength")) hints.push("sleeve length (sleeveless, half sleeve, or full sleeve)");
+    if (missedFields.includes("neckType")) hints.push("neckline (v-neck, round neck, or collar)");
+    
+    prompt += hints.join(", ") + ".";
+  }
+
+  return prompt;
 }
 
 async function tryModelExtract(imageBase64: string, hint?: ExtractHint): Promise<ExtractResult | null> {
   try {
+    const categoryKey = hint?.category?.toLowerCase() ?? "default";
+    const missedFields = categoryLearning.get(categoryKey) ?? [];
+
     const controller = new AbortController();
     const timeout = setTimeout(() => controller.abort(), TIMEOUT_MS);
+    
+    console.log(`\n--- NEW REQUEST ---`);
+    console.log(`[AI] Sending prompt to Moondream (Learned misses: ${missedFields.length})`);
+    
     const res = await fetch(`${OLLAMA_URL}/api/generate`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
         model: OLLAMA_MODEL,
-        prompt: buildPrompt(hint),
+        prompt: buildPrompt(hint, missedFields),
         images: [imageBase64],
         stream: false,
       }),
       signal: controller.signal,
     });
     clearTimeout(timeout);
-    if (!res.ok) return null;
+    if (!res.ok) {
+      console.error("[AI] Ollama responded with status:", res.status);
+      return null;
+    }
 
     const body = (await res.json()) as { response?: string };
     if (!body.response) return null;
 
-    // moondream (and most small vision models) answer in prose, not JSON.
-    // Try strict JSON parsing first in case a model ever returns it, then
-    // fall back to keyword-mapping the prose. Never fabricate: only return a
-    // model result when we actually detected something.
+    // LOG THE RAW OUTPUT to see exactly what Moondream is thinking
+    console.log(`[AI] Raw model response: "${body.response}"`);
+
     const jsonAttributes = parseModelResponse(body.response);
     if (jsonAttributes && Object.keys(jsonAttributes).length > 0) {
       return { attributes: jsonAttributes, confidence: "high", source: "model" };
@@ -64,7 +82,8 @@ async function tryModelExtract(imageBase64: string, hint?: ExtractHint): Promise
     }
 
     return null;
-  } catch {
+  } catch (error) {
+    console.error("[AI] Model extraction failed:", error);
     return null;
   }
 }
@@ -77,6 +96,24 @@ app.post("/api/extract", async (req, res) => {
   }
 
   const modelResult = await tryModelExtract(imageBase64, hint);
+
+  // ADAPTIVE LEARNING: Audit the results and store missing fields for next time
+  if (modelResult && modelResult.source === "model") {
+    const expectedFields = ["color", "fabric", "pattern", "neckType", "sleeveLength"];
+    const actualFields = Object.keys(modelResult.attributes);
+    
+    const missing = expectedFields.filter(field => !actualFields.includes(field));
+    const categoryKey = hint?.category?.toLowerCase() ?? "default";
+    
+    if (missing.length > 0) {
+      console.log(`[Adaptive Learning] Model missed ${missing.join(", ")} for '${categoryKey}'. Will emphasize next time.`);
+      categoryLearning.set(categoryKey, missing);
+    } else {
+      console.log(`[Adaptive Learning] Perfect extraction! Clearing learned misses for '${categoryKey}'.`);
+      categoryLearning.delete(categoryKey); 
+    }
+  }
+
   res.json(modelResult ?? extractHeuristic(hint ?? {}));
 });
 
