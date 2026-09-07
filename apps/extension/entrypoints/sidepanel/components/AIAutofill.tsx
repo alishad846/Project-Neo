@@ -6,6 +6,18 @@ import { sendFill, type FillResult } from "../fill";
 import { getBusinessDetails, businessDetailsToFields, type BusinessDetails } from "../businessDetails";
 
 const inputClass = "mt-1 w-full rounded-lg border-2 border-black px-2 py-1.5 font-cartoon text-xs";
+type CatalogueReference = {
+  id: string;
+  sku: string;
+  title: string;
+  category: string;
+  brand: string;
+  colour: string;
+  fabric: string;
+  sellingPrice: string;
+  costPrice: string;
+  notes: string;
+};
 
 // Map an extractor attribute key onto Meesho's field `name`. Extractor naming
 // varies, so several source keys can map to the same Meesho field.
@@ -96,10 +108,42 @@ export function AIAutofill() {
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [fillResult, setFillResult] = useState<FillResult | null>(null);
+  const [catalogueReference, setCatalogueReference] =
+  useState<CatalogueReference | null>(null);
 
   useEffect(() => {
     getBusinessDetails().then(setBusiness);
   }, []);
+  useEffect(() => {
+  function handleCatalogueReference(event: Event) {
+    const customEvent = event as CustomEvent<CatalogueReference>;
+    const item = customEvent.detail;
+
+    if (!item) return;
+
+    setCatalogueReference(item);
+
+    if (!category && item.category) {
+      setCategory(item.category);
+    }
+
+    if (!productName && item.title) {
+      setProductName(item.title);
+    }
+  }
+
+  window.addEventListener(
+    "neo-use-catalogue-reference",
+    handleCatalogueReference,
+  );
+
+  return () => {
+    window.removeEventListener(
+      "neo-use-catalogue-reference",
+      handleCatalogueReference,
+    );
+  };
+}, [category, productName]);
 
   const businessEmpty =
     !!business && Object.values(businessDetailsToFields(business)).length === 0;
@@ -117,6 +161,24 @@ export function AIAutofill() {
         if (v == null || v === "") continue;
         mapped[toMeeshoName(k)] = String(v);
       }
+      if (
+  catalogueReference &&
+  (!category ||
+    !catalogueReference.category ||
+    catalogueReference.category.toLowerCase() === category.toLowerCase())
+) {
+  if (!mapped.brand && catalogueReference.brand) {
+    mapped.brand = catalogueReference.brand;
+  }
+
+  if (!mapped.color && catalogueReference.colour) {
+    mapped.color = catalogueReference.colour;
+  }
+
+  if (!mapped.fabric && catalogueReference.fabric) {
+    mapped.fabric = catalogueReference.fabric;
+  }
+}
       setAttrs(mapped);
       if (!description) {
         const bits = [mapped.pattern, mapped.fabric, mapped.occasion ? `for ${mapped.occasion}` : ""]
