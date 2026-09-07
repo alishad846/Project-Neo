@@ -1,4 +1,7 @@
-import { SELECTOR_CONFIGS, type MeeshoConfigId, type MeeshoSelectorMap } from "@neo/adapter-meesho";
+import { SELECTOR_CONFIGS as MEESHO_SELECTORS, type MeeshoConfigId, type MeeshoSelectorMap } from "@neo/adapter-meesho";
+import { SELECTOR_CONFIGS as AMAZON_SELECTORS, type AmazonConfigId, type AmazonSelectorMap } from "@neo/adapter-amazon";
+import { SELECTOR_CONFIGS as FLIPKART_SELECTORS, type FlipkartConfigId, type FlipkartSelectorMap } from "@neo/adapter-flipkart";
+import type { MarketplaceId } from "@neo/adapter";
 
 export interface FillValues {
   title: string;
@@ -9,10 +12,13 @@ export interface FillValues {
 
 interface FillMessage {
   type: "NEO_FILL";
-  config: MeeshoConfigId;
+  // Marketplace discriminant — when omitted, defaults to "meesho" for backward
+  // compatibility with existing side-panel code that hasn't been updated yet.
+  marketplace?: MarketplaceId;
+  config: string;
   values: FillValues;
-  // When present (live Meesho), fill generically by field `name` instead of the
-  // fixed fixture selector map. Keyed by Meesho's stable `name` attribute
+  // When present, fill generically by field `name` instead of the fixed fixture
+  // selector map. Keyed by the marketplace's stable `name` attribute
   // (e.g. { product_name, comment, color, fabric, occasion, ... }).
   fields?: Record<string, string>;
 }
@@ -36,7 +42,7 @@ const FIELD_LABELS: Record<keyof FillValues, string> = {
   sellingPrice: "Selling Price",
 };
 
-// Turn a Meesho field `name` (snake_case) into a friendly badge label:
+// Turn a marketplace field `name` (snake_case) into a friendly badge label:
 // "sleeve_length" -> "Sleeve Length".
 function labelFromName(name: string): string {
   return name.replace(/_/g, " ").replace(/\b\w/g, (c) => c.toUpperCase());
@@ -252,13 +258,103 @@ async function fillDropdown(el: HTMLInputElement, value: string): Promise<boolea
   }
 }
 
+// ---------------------------------------------------------------------------
+// Amazon-specific: fill a native <select> element by value or visible text.
+// Amazon Seller Central uses both standard <select> and React-select widgets.
+// ---------------------------------------------------------------------------
+async function fillNativeSelect(el: HTMLSelectElement, value: string): Promise<boolean> {
+  const wanted = value.trim().toLowerCase();
+  for (const opt of Array.from(el.options)) {
+    if (
+      opt.value.toLowerCase() === wanted ||
+      (opt.textContent ?? "").trim().toLowerCase() === wanted
+    ) {
+      el.value = opt.value;
+      el.dispatchEvent(new Event("change", { bubbles: true }));
+      return true;
+    }
+  }
+  return false;
+}
+
+// ---------------------------------------------------------------------------
+// Flipkart-specific: fill an Angular reactive-form input. Angular binds via
+// input + blur events on the element directly. We dispatch both to ensure the
+// form control picks up the value change.
+// ---------------------------------------------------------------------------
+function setAngularValue(el: HTMLInputElement | HTMLTextAreaElement, value: string) {
+  setNativeValue(el, value);
+  el.dispatchEvent(new Event("blur", { bubbles: true }));
+}
+
+// ---------------------------------------------------------------------------
+// Flipkart bulk grid fill — fills cells in a `[role="grid"]` table by mapping
+// column indices to field values. Each `[role="row"]` contains `[role="gridcell"]`
+// elements. Editable cells contain an inner `input` or `span[contenteditable]`.
+// ---------------------------------------------------------------------------
+async function fillGridRow(
+  row: Element,
+  columnMap: Record<number, string>,
+): Promise<{ filled: string[]; missing: string[] }> {
+  const cells = row.querySelectorAll('[role="gridcell"]');
+  const filled: string[] = [];
+  const missing: string[] = [];
+
+  for (const [colIdx, value] of Object.entries(columnMap)) {
+    const idx = Number(colIdx);
+    const cell = cells[idx];
+    if (!cell || !value) {
+      if (value) missing.push(`col_${idx}`);
+      continue;
+    }
+
+    // Try to find an editable element within the cell.
+    const input = cell.querySelector<HTMLInputElement | HTMLTextAreaElement>("input, textarea");
+    const editable = cell.querySelector<HTMLElement>("[contenteditable]");
+
+    if (input) {
+      input.focus();
+      setAngularValue(input, value);
+      filled.push(`col_${idx}`);
+    } else if (editable) {
+      editable.focus();
+      editable.textContent = value;
+      editable.dispatchEvent(new Event("input", { bubbles: true }));
+      editable.dispatchEvent(new Event("blur", { bubbles: true }));
+      filled.push(`col_${idx}`);
+    } else {
+      // Cell exists but has no editable child — click to activate, then retry.
+      (cell as HTMLElement).click();
+      await sleep(200);
+      const retryInput = cell.querySelector<HTMLInputElement | HTMLTextAreaElement>("input, textarea");
+      if (retryInput) {
+        retryInput.focus();
+        setAngularValue(retryInput, value);
+        filled.push(`col_${idx}`);
+      } else {
+        missing.push(`col_${idx}`);
+      }
+    }
+    await sleep(100);
+  }
+  return { filled, missing };
+}
+
 /**
- * Generic fill by field `name` (live Meesho). Enumerates the values Neo has and
- * fills whichever fields exist on the current page — category-agnostic, since
- * every Meesho field (text and dropdown) carries a stable `name`. Fields not on
- * the page are reported missing; the seller reviews and submits themselves.
+ * Generic fill by field `name` (live marketplace). Enumerates the values Neo has
+ * and fills whichever fields exist on the current page — category-agnostic, since
+ * marketplace fields carry a stable `name`. Fields not on the page are reported
+ * missing; the seller reviews and submits themselves.
+ *
+ * Works across Meesho, Amazon Seller Central, and Flipkart Seller Hub.
+ * Amazon and Flipkart inputs are filled using the same `setNativeValue` approach
+ * since both are React/Angular apps that respond to synthetic input/change events.
+ * Flipkart fields additionally receive a `blur` event for Angular form binding.
  */
-async function fillByName(fields: Record<string, string>): Promise<FillResponse> {
+async function fillByName(
+  fields: Record<string, string>,
+  marketplace: MarketplaceId = "meesho",
+): Promise<FillResponse> {
   const filled: string[] = [];
   const missing: string[] = [];
   const skipped: string[] = [];
@@ -291,8 +387,15 @@ async function fillByName(fields: Record<string, string>): Promise<FillResponse>
     await sleep(120);
 
     let ok = true;
-    if (el instanceof HTMLInputElement && isDropdown(el)) {
+    if (el instanceof HTMLSelectElement) {
+      // Amazon uses native <select> for some category fields.
+      ok = await fillNativeSelect(el, value);
+    } else if (el instanceof HTMLInputElement && isDropdown(el)) {
       ok = await fillDropdown(el, value);
+    } else if (marketplace === "flipkart") {
+      // Flipkart Angular reactive forms need blur event for binding.
+      el.focus();
+      setAngularValue(el as HTMLInputElement | HTMLTextAreaElement, value);
     } else {
       el.focus();
       setNativeValue(el as HTMLInputElement | HTMLTextAreaElement, value);
@@ -375,8 +478,145 @@ async function fillForm(map: MeeshoSelectorMap, vals: FillValues): Promise<FillR
   return { ok: true, filled, missing, skipped, submitFocused, stopped };
 }
 
+/**
+ * Fixed-field fill for Amazon fixture (id selectors). Fills all Amazon fields
+ * from the selector map in sequence, then focuses submit (never clicks).
+ */
+async function fillAmazonForm(map: AmazonSelectorMap, vals: FillValues & Record<string, string>): Promise<FillResponse> {
+  const fieldOrder: Array<[string, string]> = [
+    ["productName", map.productName],
+    ["description", map.description],
+    ["brandName", map.brandName],
+    ["bulletPoint1", map.bulletPoint1],
+    ["bulletPoint2", map.bulletPoint2],
+    ["bulletPoint3", map.bulletPoint3],
+    ["mrp", map.mrp],
+    ["sellingPrice", map.sellingPrice],
+    ["hsnCode", map.hsnCode],
+    ["skuId", map.skuId],
+    ["quantity", map.quantity],
+    ["searchKeywords", map.searchKeywords],
+  ];
+
+  const filled: string[] = [];
+  const missing: string[] = [];
+  const skipped: string[] = [];
+  let stopped = false;
+
+  stopRequested = false;
+  injectStyles();
+  clearOverlays();
+  showStopButton();
+
+  for (const [key, selector] of fieldOrder) {
+    if (stopRequested) { stopped = true; break; }
+    if (!selector) { skipped.push(key); continue; }
+    const el = document.querySelector(selector) as HTMLInputElement | HTMLTextAreaElement | null;
+    if (!el) { missing.push(key); continue; }
+
+    el.scrollIntoView({ behavior: "smooth", block: "center" });
+    await sleep(220);
+    el.focus();
+    const value = (vals as Record<string, string>)[key] ?? "";
+    setNativeValue(el, value);
+    popConfetti(el, `${labelFromName(key)} filled`);
+    filled.push(key);
+    await sleep(750);
+  }
+
+  let submitFocused = false;
+  if (!stopped && map.submit) {
+    const submitEl = document.querySelector(map.submit) as HTMLElement | null;
+    if (submitEl) {
+      submitEl.scrollIntoView({ behavior: "smooth", block: "center" });
+      submitEl.focus();
+      submitFocused = true;
+    } else {
+      missing.push("submit");
+    }
+  }
+
+  removeStopButton();
+  return { ok: true, filled, missing, skipped, submitFocused, stopped };
+}
+
+/**
+ * Fixed-field fill for Flipkart fixture (id selectors). Uses Angular-style
+ * blur dispatch for form binding.
+ */
+async function fillFlipkartForm(map: FlipkartSelectorMap, vals: FillValues & Record<string, string>): Promise<FillResponse> {
+  const fieldOrder: Array<[string, string]> = [
+    ["productName", map.productName],
+    ["description", map.description],
+    ["brand", map.brand],
+    ["mrp", map.mrp],
+    ["sellingPrice", map.sellingPrice],
+    ["hsnCode", map.hsnCode],
+    ["skuId", map.skuId],
+    ["procurementSla", map.procurementSla],
+    ["stockCount", map.stockCount],
+    ["shippingDays", map.shippingDays],
+  ];
+
+  const filled: string[] = [];
+  const missing: string[] = [];
+  const skipped: string[] = [];
+  let stopped = false;
+
+  stopRequested = false;
+  injectStyles();
+  clearOverlays();
+  showStopButton();
+
+  for (const [key, selector] of fieldOrder) {
+    if (stopRequested) { stopped = true; break; }
+    if (!selector) { skipped.push(key); continue; }
+    const el = document.querySelector(selector) as HTMLInputElement | HTMLTextAreaElement | null;
+    if (!el) { missing.push(key); continue; }
+
+    el.scrollIntoView({ behavior: "smooth", block: "center" });
+    await sleep(220);
+    el.focus();
+    const value = (vals as Record<string, string>)[key] ?? "";
+    setAngularValue(el, value);
+    popConfetti(el, `${labelFromName(key)} filled`);
+    filled.push(key);
+    await sleep(750);
+  }
+
+  let submitFocused = false;
+  if (!stopped && map.submit) {
+    const submitEl = document.querySelector(map.submit) as HTMLElement | null;
+    if (submitEl) {
+      submitEl.scrollIntoView({ behavior: "smooth", block: "center" });
+      submitEl.focus();
+      submitFocused = true;
+    } else {
+      missing.push("submit");
+    }
+  }
+
+  removeStopButton();
+  return { ok: true, filled, missing, skipped, submitFocused, stopped };
+}
+
+// ---------------------------------------------------------------------------
+// Marketplace detection from the current page URL.
+// ---------------------------------------------------------------------------
+function detectMarketplace(): MarketplaceId {
+  const host = window.location.hostname;
+  if (/sellercentral\.amazon\.(in|com)$/i.test(host)) return "amazon_in";
+  if (/seller\.flipkart\.com$/i.test(host)) return "flipkart";
+  return "meesho";
+}
+
 export default defineContentScript({
-  matches: ["*://*.meesho.com/*"],
+  matches: [
+    "*://*.meesho.com/*",
+    "*://*.sellercentral.amazon.in/*",
+    "*://*.sellercentral.amazon.com/*",
+    "*://*.seller.flipkart.com/*",
+  ],
   main() {
     // Readiness marker so the side panel (or a test probe) can detect that the
     // declarative content script actually injected into this page.
@@ -389,19 +629,43 @@ export default defineContentScript({
       (message: FillMessage, _sender: unknown, sendResponse: (response: FillResponse | { ok: false; error: string }) => void) => {
         if (!message || message.type !== "NEO_FILL") return false;
 
+        const marketplace = message.marketplace ?? detectMarketplace();
+
         const done = (result: FillResponse) => sendResponse(result);
         const fail = (err: unknown) => {
           removeStopButton();
           sendResponse({ ok: false, error: err instanceof Error ? err.message : String(err) });
         };
 
-        // Generic name-based fill (live Meesho) when `fields` is provided.
+        // Generic name-based fill (live marketplace) when `fields` is provided.
         if (message.fields) {
-          fillByName(message.fields).then(done).catch(fail);
+          fillByName(message.fields, marketplace).then(done).catch(fail);
           return true;
         }
 
-        const map = SELECTOR_CONFIGS[message.config];
+        // --------------- Fixture / fixed-field fill per marketplace ---------------
+        if (marketplace === "amazon_in") {
+          const map = AMAZON_SELECTORS[message.config as AmazonConfigId];
+          if (!map) {
+            sendResponse({ ok: false, error: `Unknown Amazon selector config: ${message.config}` });
+            return true;
+          }
+          fillAmazonForm(map, message.values as FillValues & Record<string, string>).then(done).catch(fail);
+          return true;
+        }
+
+        if (marketplace === "flipkart") {
+          const map = FLIPKART_SELECTORS[message.config as FlipkartConfigId];
+          if (!map) {
+            sendResponse({ ok: false, error: `Unknown Flipkart selector config: ${message.config}` });
+            return true;
+          }
+          fillFlipkartForm(map, message.values as FillValues & Record<string, string>).then(done).catch(fail);
+          return true;
+        }
+
+        // Default: Meesho (backward compatible)
+        const map = MEESHO_SELECTORS[message.config as MeeshoConfigId];
         if (!map) {
           sendResponse({ ok: false, error: `Unknown selector config: ${message.config}` });
           return true;

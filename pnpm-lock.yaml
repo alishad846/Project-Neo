@@ -150,6 +150,15 @@ importers:
 
   apps/extension:
     dependencies:
+      '@neo/adapter':
+        specifier: workspace:*
+        version: link:../../packages/adapter
+      '@neo/adapter-amazon':
+        specifier: workspace:*
+        version: link:../../packages/adapter-amazon
+      '@neo/adapter-flipkart':
+        specifier: workspace:*
+        version: link:../../packages/adapter-flipkart
       '@neo/adapter-meesho':
         specifier: workspace:*
         version: link:../../packages/adapter-meesho
@@ -269,6 +278,38 @@ importers:
     devDependencies:
       tsup:
         specifier: ^8.5.1
+        version: 8.5.1(jiti@2.7.0)(postcss@8.5.26)(tsx@4.23.12)(typescript@5.9.3)
+      vitest:
+        specifier: ^2.1.0
+        version: 2.1.9(@types/node@24.13.3)(jsdom@25.0.1)(lightningcss@1.32.0)(terser@5.51.2)
+
+  packages/adapter-amazon:
+    dependencies:
+      '@neo/adapter':
+        specifier: workspace:*
+        version: link:../adapter
+      '@neo/genome':
+        specifier: workspace:*
+        version: link:../genome
+    devDependencies:
+      tsup:
+        specifier: ^8.0.0
+        version: 8.5.1(jiti@2.7.0)(postcss@8.5.26)(tsx@4.23.12)(typescript@5.9.3)
+      vitest:
+        specifier: ^2.1.0
+        version: 2.1.9(@types/node@24.13.3)(jsdom@25.0.1)(lightningcss@1.32.0)(terser@5.51.2)
+
+  packages/adapter-flipkart:
+    dependencies:
+      '@neo/adapter':
+        specifier: workspace:*
+        version: link:../adapter
+      '@neo/genome':
+        specifier: workspace:*
+        version: link:../genome
+    devDependencies:
+      tsup:
+        specifier: ^8.0.0
         version: 8.5.1(jiti@2.7.0)(postcss@8.5.26)(tsx@4.23.12)(typescript@5.9.3)
       vitest:
         specifier: ^2.1.0

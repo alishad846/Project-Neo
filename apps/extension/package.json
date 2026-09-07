@@ -16,6 +16,9 @@
     "postinstall": "wxt prepare"
   },
   "dependencies": {
+    "@neo/adapter": "workspace:*",
+    "@neo/adapter-amazon": "workspace:*",
+    "@neo/adapter-flipkart": "workspace:*",
     "@neo/adapter-meesho": "workspace:*",
     "@neo/genome": "workspace:*",
     "@neo/rules-engine": "workspace:*",
