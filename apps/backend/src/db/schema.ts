@@ -2,7 +2,6 @@ import {
   pgTable,
   serial,
   varchar,
-  text,
   integer,
   decimal,
   jsonb,
@@ -10,10 +9,28 @@ import {
   boolean,
 } from 'drizzle-orm/pg-core';
 
-export const productGenome = pgTable('product_genome', {
+// Seller account is the parent entity for seller-owned data.
+export const sellers = pgTable('sellers', {
+  id: varchar('id', { length: 64 }).primaryKey(),
+
+  email: varchar('email', { length: 255 }).notNull().unique(),
+
+  passwordHash: varchar('password_hash', { length: 255 }).notNull(),
+
+  fullName: varchar('full_name', { length: 150 }),
+
+  shopName: varchar('shop_name', { length: 150 }),
+
+  createdAt: timestamp('created_at').defaultNow().notNull(),
+});
+
+export const productGenome = pgTable(
+  'product_genome', 
+  {
   id: serial('id').primaryKey(),
 
-  sellerId: varchar('seller_id', { length: 100 }).notNull(),
+  // FK: ensures every product belongs to a valid seller.
+  sellerId: varchar('seller_id', { length: 64 }).notNull().references(() => sellers.id),
 
   sku: varchar('sku', { length: 100 }).notNull(),
 
@@ -49,14 +66,19 @@ export const productGenome = pgTable('product_genome', {
 
   createdAt: timestamp('created_at').defaultNow().notNull(),
 
-  updatedAt: timestamp('updated_at').defaultNow().notNull(),
+    updatedAt: timestamp('updated_at').defaultNow().notNull(),
 });
-export const productGenomeHistory = pgTable('product_genome_history', {
+
+export const productGenomeHistory = pgTable(
+  'product_genome_history', 
+  {
   id: serial('id').primaryKey(),
 
-  productId: integer('product_id').notNull(),
+  // FK: keeps every history record linked to an existing product.
+  productId: integer('product_id').notNull().references(() => productGenome.id),
 
-  sellerId: varchar('seller_id', { length: 100 }).notNull(),
+  // Matches sellers.id so seller references use a consistent identifier size.
+  sellerId: varchar('seller_id', { length: 64 }).notNull(),
 
   sku: varchar('sku', { length: 100 }).notNull(),
 
@@ -88,21 +110,7 @@ export const productGenomeHistory = pgTable('product_genome_history', {
 
   version: integer('version').notNull(),
 
-  archivedAt: timestamp('archived_at').defaultNow().notNull(),
-});
-
-export const sellers = pgTable('sellers', {
-  id: varchar('id', { length: 64 }).primaryKey(),
-
-  email: varchar('email', { length: 255 }).notNull().unique(),
-
-  passwordHash: varchar('password_hash', { length: 255 }).notNull(),
-
-  fullName: varchar('full_name', { length: 150 }),
-
-  shopName: varchar('shop_name', { length: 150 }),
-
-  createdAt: timestamp('created_at').defaultNow().notNull(),
+    archivedAt: timestamp('archived_at').defaultNow().notNull(),
 });
 
 export const transactions = pgTable('transactions', {
