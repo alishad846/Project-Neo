@@ -1824,6 +1824,84 @@ async function fillCommonFields(
         ]
       ),
 
+    // Meesho's live "Add Catalog" compliance step asks for these as three
+    // separate inputs per party (Name / Address / Pincode), not one combined
+    // field -- unlike manufacturer_details/packer_details/importer_details
+    // above, which target an older single-field layout. Business Details is
+    // already saved with these exact separate keys (see businessDetails.ts),
+    // so this reads straight from the seller's saved data.
+    manufacturer_name:
+      getProductValue(
+        product,
+        [
+          "manufacturer_name"
+        ]
+      ),
+
+    manufacturer_address:
+      getProductValue(
+        product,
+        [
+          "manufacturer_address"
+        ]
+      ),
+
+    manufacturer_pincode:
+      getProductValue(
+        product,
+        [
+          "manufacturer_pincode"
+        ]
+      ),
+
+    packer_name:
+      getProductValue(
+        product,
+        [
+          "packer_name"
+        ]
+      ),
+
+    packer_address:
+      getProductValue(
+        product,
+        [
+          "packer_address"
+        ]
+      ),
+
+    packer_pincode:
+      getProductValue(
+        product,
+        [
+          "packer_pincode"
+        ]
+      ),
+
+    importer_name:
+      getProductValue(
+        product,
+        [
+          "importer_name"
+        ]
+      ),
+
+    importer_address:
+      getProductValue(
+        product,
+        [
+          "importer_address"
+        ]
+      ),
+
+    importer_pincode:
+      getProductValue(
+        product,
+        [
+          "importer_pincode"
+        ]
+      ),
+
     comment:
       getProductValue(
         product,
