@@ -6,6 +6,7 @@ import request from 'supertest';
 import { AuthModule } from './auth.module';
 import { ProductsController } from '../products/products.controller';
 import { ProductsService } from '../products/products.service';
+import { StorageService } from '../storage/storage.service';
 import { PricingController } from '../pricing/pricing.controller';
 import { PricingService } from '../pricing/pricing.service';
 import { AiController } from '../ai/ai.controller';
@@ -28,11 +29,12 @@ describe('JwtAuthGuard enforcement on protected routes', () => {
     controller: any,
     providerToken: any,
     providerValue: unknown,
+    extraProviders: Array<{ provide: any; useValue: unknown }> = [],
   ): Promise<INestApplication> {
     const moduleRef = await Test.createTestingModule({
       imports: [AuthModule],
       controllers: [controller],
-      providers: [{ provide: providerToken, useValue: providerValue }],
+      providers: [{ provide: providerToken, useValue: providerValue }, ...extraProviders],
     }).compile();
 
     const app = moduleRef.createNestApplication();
@@ -51,9 +53,12 @@ describe('JwtAuthGuard enforcement on protected routes', () => {
   describe('GET /products', () => {
     let app: INestApplication;
     const mockProductsService = { getAllProducts: jest.fn(async () => [{ id: 1 }]) };
+    const mockStorageService = { uploadImage: jest.fn(async () => 'http://localhost:9000/neo-products/mock.jpg') };
 
     beforeAll(async () => {
-      app = await buildApp(ProductsController, ProductsService, mockProductsService);
+      app = await buildApp(ProductsController, ProductsService, mockProductsService, [
+        { provide: StorageService, useValue: mockStorageService },
+      ]);
     });
 
     afterAll(async () => {
