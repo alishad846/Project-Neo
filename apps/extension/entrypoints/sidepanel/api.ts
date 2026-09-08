@@ -27,6 +27,51 @@ export async function getProducts(): Promise<ProductGenome[]> {
   return res.json();
 }
 
+export type ProductGenomeCreate = Omit<ProductGenome, "id" | "sellerId" | "version" | "isArchived" | "createdAt" | "updatedAt">;
+
+export async function createProduct(body: Partial<ProductGenomeCreate>): Promise<ProductGenome> {
+  const res = await fetch(`${API_URL}/products`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json", ...(await authHeaders()) },
+    body: JSON.stringify(body),
+  });
+  await handleUnauthorized(res);
+  if (!res.ok) throw new Error(`Create product error: ${res.status}`);
+  return res.json();
+}
+
+export async function updateProductGenome(id: number, body: Partial<ProductGenomeCreate>): Promise<ProductGenome> {
+  const res = await fetch(`${API_URL}/products/${id}`, {
+    method: "PATCH",
+    headers: { "Content-Type": "application/json", ...(await authHeaders()) },
+    body: JSON.stringify(body),
+  });
+  await handleUnauthorized(res);
+  if (!res.ok) throw new Error(`Update product error: ${res.status}`);
+  return res.json();
+}
+
+export async function archiveProduct(id: number): Promise<ProductGenome> {
+  const res = await fetch(`${API_URL}/products/${id}`, {
+    method: "DELETE",
+    headers: await authHeaders(),
+  });
+  await handleUnauthorized(res);
+  if (!res.ok) throw new Error(`Archive product error: ${res.status}`);
+  return res.json();
+}
+
+export async function uploadProductImage(imageBase64: string, filename?: string): Promise<{ url: string }> {
+  const res = await fetch(`${API_URL}/products/images`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json", ...(await authHeaders()) },
+    body: JSON.stringify(filename ? { imageBase64, filename } : { imageBase64 }),
+  });
+  await handleUnauthorized(res);
+  if (!res.ok) throw new Error(`Image upload error: ${res.status}`);
+  return res.json();
+}
+
 export interface PricingRule {
   actionType: "PERCENTAGE_DISCOUNT" | "FLAT_DISCOUNT" | "SET_FIXED" | "TARGET_MARGIN";
   actionValue: number;

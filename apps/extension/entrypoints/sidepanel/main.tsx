@@ -7,6 +7,7 @@ import { BusinessDetails } from "./components/BusinessDetails";
 import { ProfitCalculator } from "./components/ProfitCalculator";
 import { GstCalculator } from "./components/GstCalculator";
 import { Header } from "./components/Header";
+import { AddProduct } from "./components/AddProduct";
 import { AuthGate } from "./components/AuthGate";
 import { clearToken } from "./auth";
 import "./style.css";
@@ -18,6 +19,7 @@ async function handleLogout() {
 
 const SECTIONS = [
   { id: "autofill", label: "AI Autofill", color: "#ff90e8", node: <AIAutofill /> },
+  { id: "add-product", label: "Add Product", color: "#8bd3ff", node: <AddProduct /> },
   { id: "details", label: "Business Details", color: "#b2ff59", node: <BusinessDetails /> },
   { id: "profit", label: "Profit Calc", color: "#00e5ff", node: <ProfitCalculator /> },
   { id: "gst", label: "GST Calc", color: "#ffeb3b", node: <GstCalculator /> },
