@@ -10,8 +10,9 @@ import {
   index,
   unique,
   check,
-  sql,
 } from 'drizzle-orm/pg-core';
+
+import { sql } from 'drizzle-orm';
 
 // Seller account is the parent entity for seller-owned data.
 export const sellers = pgTable('sellers', {
