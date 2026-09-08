@@ -1,8 +1,6 @@
-# 🚀 Marketplace Adapters — Sprint Deliverable (Tasks 2 & 7)
+# Marketplace Adapters — Sprint Deliverable 
 
-**Assigned to:** Guru & Atharva  
-**Sprint Deadline:** 2 days  
-**Deliverable:** Multi-marketplace AI autofill — Amazon Seller Central & Flipkart Seller Hub  
+ 
 
 ---
 
