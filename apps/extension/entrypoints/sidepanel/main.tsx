@@ -9,6 +9,8 @@ import { GstCalculator } from "./components/GstCalculator";
 import { Header } from "./components/Header";
 import { AddProduct } from "./components/AddProduct";
 import { AuthGate } from "./components/AuthGate";
+import { ProductPicker } from "./components/ProductPicker";
+import { ManageCatalogueItemActions } from "./components/ManageCatalogue";
 import { clearToken } from "./auth";
 import "./style.css";
 
@@ -17,9 +19,32 @@ async function handleLogout() {
   window.location.reload();
 }
 
+function ManageCatalogue() {
+  const [selected, setSelected] = useState<string[]>([]);
+  const [refreshKey, setRefreshKey] = useState(0);
+
+  return (
+    <div className="p-4">
+      <h2 className="font-accent text-xl tracking-wide text-black">Manage Catalogue</h2>
+      <p className="mt-1 mb-3 font-body text-xs text-black/60">
+        Every product saved through Add Product. Edit pricing, delete, or use one as an AI Autofill reference.
+      </p>
+      <ProductPicker
+        key={refreshKey}
+        selected={selected}
+        onSelectedChange={setSelected}
+        renderItemExtra={(product) => (
+          <ManageCatalogueItemActions product={product} onChanged={() => setRefreshKey((k) => k + 1)} />
+        )}
+      />
+    </div>
+  );
+}
+
 const SECTIONS = [
   { id: "autofill", label: "AI Autofill", color: "#ff90e8", node: <AIAutofill /> },
   { id: "add-product", label: "Add Product", color: "#8bd3ff", node: <AddProduct /> },
+  { id: "manage", label: "Manage Catalogue", color: "#00e5ff", node: <ManageCatalogue /> },
   { id: "details", label: "Business Details", color: "#b2ff59", node: <BusinessDetails /> },
   { id: "profit", label: "Profit Calc", color: "#00e5ff", node: <ProfitCalculator /> },
   { id: "gst", label: "GST Calc", color: "#ffeb3b", node: <GstCalculator /> },

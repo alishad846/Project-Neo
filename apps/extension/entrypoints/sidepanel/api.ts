@@ -129,6 +129,17 @@ export async function undoPricing(txnId: number): Promise<{ restored: number }> 
   return res.json();
 }
 
+export async function resetPrices(skus?: string[]): Promise<{ txnId: number; updated: number }> {
+  const res = await fetch(`${API_URL}/pricing/reset`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json", ...(await authHeaders()) },
+    body: JSON.stringify(skus && skus.length > 0 ? { skus } : {}),
+  });
+  await handleUnauthorized(res);
+  if (!res.ok) throw new Error(`Reset error: ${res.status}`);
+  return res.json();
+}
+
 export interface ExtractResult {
   attributes: Record<string, unknown>;
   confidence: "low" | "medium" | "high";
