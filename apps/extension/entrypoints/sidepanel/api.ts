@@ -211,3 +211,17 @@ export async function undoPublish(txnId: number): Promise<{ restored: number }> 
   if (!res.ok) throw new Error(`Undo error: ${res.status}`);
   return res.json();
 }
+
+export async function scrapeMeeshoListing(): Promise<Record<string, string>> {
+  const { browser } = await import("wxt/browser");
+  const tabs = await browser.tabs.query({ active: true, currentWindow: true });
+  const tab = tabs[0];
+  if (!tab?.id) throw new Error("Could not find the active Meesho tab.");
+
+  const response = (await browser.tabs.sendMessage(tab.id, { type: "NEO_SCRAPE_MEESHO" })) as
+    | { ok: true; fields: Record<string, string> }
+    | { ok: false; error: string };
+
+  if (!response.ok) throw new Error(response.error);
+  return response.fields;
+}

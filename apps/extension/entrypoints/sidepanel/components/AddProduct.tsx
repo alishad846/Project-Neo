@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { UploadCloud, Save } from "lucide-react";
 import { PopButton } from "@neo/ui";
-import { createProduct, uploadProductImage } from "../api";
+import { createProduct, scrapeMeeshoListing, uploadProductImage } from "../api";
 
 const inputClass = "mt-1 w-full rounded-lg border-2 border-black px-2 py-1.5 font-cartoon text-xs";
 
@@ -49,6 +49,34 @@ const FIELD_DEFS: FieldDef[] = [
 
 const REQUIRED_KEYS = FIELD_DEFS.filter((f) => f.required).map((f) => f.key);
 
+// Maps Meesho's field identifiers (from meesho-mappings.js's `our_key` column)
+// to this form's FIELD_DEFS keys, for the "Import from open Meesho tab" button.
+const SCRAPE_FIELD_MAP: Record<string, string> = {
+  product_name: "title",
+  hsn_id: "hsnCode",
+  hsn_code: "hsnCode",
+  net_weight_gms: "weight",
+  brand_name: "brand",
+  brand: "brand",
+  style_code: "styleCode",
+  supplier_product_id: "styleCode",
+  description: "description",
+  comment: "description",
+  country_of_origin: "countryOfOrigin",
+  pattern: "pattern",
+  print_pattern_type: "printPatternType",
+  print_or_pattern_type: "printPatternType",
+  surface_styling: "surfaceStyling",
+  fabric: "fabric",
+  material: "fabric",
+  color: "colour",
+  colour: "colour",
+  occasion: "occasion",
+  neck: "neckType",
+  sleeve_length: "sleeveLength",
+  meesho_price: "sellingPrice",
+};
+
 export function AddProduct() {
   const [fields, setFields] = useState<Record<string, string>>({ countryOfOrigin: "India" });
   const [blousePiece, setBlousePiece] = useState(false);
@@ -57,9 +85,30 @@ export function AddProduct() {
   const [saving, setSaving] = useState(false);
   const [message, setMessage] = useState("");
   const [error, setError] = useState("");
+  const [importing, setImporting] = useState(false);
 
   function set(key: string, value: string) {
     setFields((prev) => ({ ...prev, [key]: value }));
+  }
+
+  async function importFromMeesho() {
+    setImporting(true);
+    setError("");
+    try {
+      const scraped = await scrapeMeeshoListing();
+      setFields((prev) => {
+        const next = { ...prev };
+        for (const [meeshoKey, formKey] of Object.entries(SCRAPE_FIELD_MAP)) {
+          if (scraped[meeshoKey]) next[formKey] = scraped[meeshoKey];
+        }
+        return next;
+      });
+      setMessage("Imported from the open Meesho tab — review before saving.");
+    } catch (e) {
+      setError((e as Error).message);
+    } finally {
+      setImporting(false);
+    }
   }
 
   async function handleImageFiles(files: FileList | null) {
@@ -144,6 +193,15 @@ export function AddProduct() {
       </p>
 
       <div className="mt-3 grid gap-2 rounded-xl border-2 border-black bg-white p-3 shadow-[3px_3px_0px_0px_#000]">
+        <button
+          type="button"
+          disabled={importing}
+          onClick={importFromMeesho}
+          className="rounded-lg border-2 border-black bg-[#a06bff] px-3 py-2 font-cartoon text-xs font-semibold text-white disabled:opacity-50"
+        >
+          {importing ? "Importing…" : "Import from open Meesho tab"}
+        </button>
+
         {FIELD_DEFS.map((def) => (
           <label key={def.key} className="font-cartoon text-xs font-semibold">
             {def.label}
