@@ -9,13 +9,18 @@ export class PricingController {
   constructor(private readonly pricingService: PricingService) {}
 
   @Post("dry-run")
-  dryRun(@Body() rule: PricingRuleDto) {
-    return this.pricingService.calculateDryRun(rule);
+  dryRun(@Body() body: PricingRuleDto & { skus?: string[] }) {
+    return this.pricingService.calculateDryRun(body, body.skus);
   }
 
   @Post("apply")
-  apply(@Body() body: { rule: PricingRuleDto }) {
-    return this.pricingService.applyPrices(body.rule);
+  apply(@Body() body: { rule: PricingRuleDto; skus?: string[] }) {
+    return this.pricingService.applyPrices(body.rule, body.skus);
+  }
+
+  @Post("reset")
+  reset(@Body() body: { skus?: string[] }) {
+    return this.pricingService.resetPrices(body.skus);
   }
 
   @Post("undo/:txnId")
