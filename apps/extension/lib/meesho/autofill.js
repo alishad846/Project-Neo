@@ -19,6 +19,137 @@ const log=(...a)=>console.log("[MEESHO AUTOFILL]",...a);
 const warn=(...a)=>console.warn("[MEESHO AUTOFILL]",...a);
 const error=(...a)=>console.error("[MEESHO AUTOFILL]",...a);
 
+// ---------------------------------------------------------------------------
+// Autofill overlay UX (Neo pink). As each field fills, a confetti "pop"
+// appears just above it and the page scrolls it into view — one at a time,
+// in sequence. A floating "STOP AUTOFILL" button lets the seller halt.
+// All namespaced `neo-af-` so it can't collide with the host page.
+// ---------------------------------------------------------------------------
+const STYLE_ID="neo-af-styles";
+const STOP_BTN_ID="neo-af-stop";
+const POP_CLASS="neo-af-pop";
+const CONFETTI_COLORS=["#ff90e8","#b2ff59","#00e5ff","#ffeb3b","#a06bff","#ff8a65"];
+
+// Set true by the STOP AUTOFILL button; field loops check it between fields.
+let stopRequested=false;
+
+function injectStyles(){
+  if(document.getElementById(STYLE_ID))return;
+  const style=document.createElement("style");
+  style.id=STYLE_ID;
+  style.textContent=`
+    .${POP_CLASS} {
+      position: fixed; z-index: 2147483646; transform: translateX(-50%);
+      pointer-events: none; will-change: transform, opacity;
+    }
+    .${POP_CLASS} .neo-af-pill {
+      display: inline-flex; align-items: center; gap: 6px; white-space: nowrap;
+      padding: 4px 12px; font: 700 13px/1.2 -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+      color: #000; background: #ff90e8; border: 2px solid #000; border-radius: 9999px;
+      box-shadow: 2px 2px 0 0 #000;
+      animation: neo-pop-in 0.16s cubic-bezier(.34,1.56,.64,1) forwards, neo-pop-out 0.22s ease-in 0.42s forwards;
+    }
+    .${POP_CLASS} .neo-af-confetti {
+      position: absolute; left: 50%; top: 50%; width: 7px; height: 7px; border-radius: 2px;
+      animation: neo-confetti 0.6s ease-out forwards;
+    }
+    @keyframes neo-pop-in { from { opacity: 0; transform: scale(0.6) translateY(8px); } to { opacity: 1; transform: scale(1) translateY(0); } }
+    @keyframes neo-pop-out { to { opacity: 0; transform: translateY(-12px) scale(0.95); } }
+    @keyframes neo-confetti { from { opacity: 1; transform: translate(0,0) rotate(0deg); } to { opacity: 0; transform: translate(var(--dx), var(--dy)) rotate(var(--r)); } }
+    #${STOP_BTN_ID} {
+      position: fixed; top: 16px; left: 50%; transform: translateX(-50%); z-index: 2147483647;
+      display: inline-flex; align-items: center; gap: 8px; padding: 10px 22px;
+      font: 700 15px/1 -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; letter-spacing: 0.5px;
+      color: #000; background: #ff90e8; border: 3px solid #000; border-radius: 9999px;
+      box-shadow: 4px 4px 0 0 #000; cursor: pointer; transition: transform 0.1s ease, box-shadow 0.1s ease;
+    }
+    #${STOP_BTN_ID}:hover { transform: translateX(-50%) translateY(-2px); box-shadow: 5px 6px 0 0 #000; }
+    #${STOP_BTN_ID}:active { transform: translateX(-50%) translateY(1px); box-shadow: 1px 1px 0 0 #000; }
+    #${STOP_BTN_ID} .neo-af-stopdot { width: 12px; height: 12px; background: #000; border-radius: 2px; }
+    @media (prefers-reduced-motion: reduce) {
+      .${POP_CLASS} .neo-af-pill, .${POP_CLASS} .neo-af-confetti { animation-duration: 0.001ms !important; }
+    }
+  `;
+  document.head.appendChild(style);
+}
+
+function showStopButton(){
+  if(document.getElementById(STOP_BTN_ID))return;
+  const btn=document.createElement("button");
+  btn.id=STOP_BTN_ID;
+  btn.type="button";
+  btn.innerHTML=`<span class="neo-af-stopdot"></span> STOP AUTOFILL`;
+  btn.addEventListener("click",()=>{
+    stopRequested=true;
+    btn.textContent="STOPPING…";
+  });
+  document.body.appendChild(btn);
+}
+
+function removeStopButton(){
+  document.getElementById(STOP_BTN_ID)?.remove();
+}
+
+function clearOverlays(){
+  document.querySelectorAll(`.${POP_CLASS}`).forEach(n=>n.remove());
+}
+
+// Show a one-shot confetti pop just above `el`, then let it fade. Only one
+// pop exists at a time (the previous is cleared first), so they read as a
+// sequence rather than piling up.
+function popConfetti(el,label){
+  clearOverlays();
+  if(!el||typeof el.getBoundingClientRect!=="function")return;
+  const rect=el.getBoundingClientRect();
+  const pop=document.createElement("div");
+  pop.className=POP_CLASS;
+  pop.style.left=`${rect.left+rect.width/2}px`;
+  pop.style.top=`${Math.max(8,rect.top-14)}px`;
+
+  const pill=document.createElement("div");
+  pill.className="neo-af-pill";
+  pill.textContent=`🎉 ${label}`;
+  pop.appendChild(pill);
+
+  for(let i=0;i<8;i++){
+    const piece=document.createElement("span");
+    piece.className="neo-af-confetti";
+    piece.style.background=CONFETTI_COLORS[i%CONFETTI_COLORS.length]??"#ff90e8";
+    const angle=(Math.PI*2*i)/8+Math.random()*0.5;
+    const dist=26+Math.random()*22;
+    piece.style.setProperty("--dx",`${Math.cos(angle)*dist}px`);
+    piece.style.setProperty("--dy",`${Math.sin(angle)*dist-10}px`);
+    piece.style.setProperty("--r",`${Math.round((Math.random()-0.5)*540)}deg`);
+    pop.appendChild(piece);
+  }
+
+  document.body.appendChild(pop);
+  window.setTimeout(()=>pop.remove(),750);
+}
+
+// "sleeve_length" -> "Sleeve Length".
+function prettyLabel(identifier){
+  return String(identifier??"")
+    .replace(/\[(\d+)\]$/,"")
+    .replace(/[_.]/g," ")
+    .replace(/\b\w/g,c=>c.toUpperCase())
+    .trim()||String(identifier??"");
+}
+
+// Scrolls the just-filled field into view and pops the confetti label over
+// it, then pauses briefly so the seller can actually see it happen before
+// the next field fills — this is the "one at a time" effect.
+async function announceFilled(el,identifier){
+  if(el&&typeof el.scrollIntoView==="function"){
+    try{
+      el.scrollIntoView({behavior:"smooth",block:"center"});
+    }catch(_){}
+    await sleep(180);
+  }
+  popConfetti(el,prettyLabel(identifier));
+  await sleep(360);
+}
+
 function normalizeKey(v){
   return String(v??"").trim().toLowerCase().replace(/&/g,"and").replace(/[^a-z0-9]/g,"");
 }
@@ -449,6 +580,8 @@ async function fillField(
 
   report.filled.push(identifier);
 
+  await announceFilled(field,identifier);
+
   log(
     `Filled ${identifier}:`,
     value
@@ -587,6 +720,8 @@ async function selectReactDropdown(
           identifier
         );
 
+        await announceFilled(field.element,identifier);
+
         log(
           `Selected ${identifier}:`,
           value
@@ -684,6 +819,8 @@ async function selectReactDropdown(
           report.filled.push(
             identifier
           );
+
+          await announceFilled(field.element,identifier);
 
           log(
             `Selected ${identifier}:`,
@@ -922,6 +1059,8 @@ async function selectSizes(
       "size"
     );
 
+    await announceFilled(field.element,"size");
+
     log(
       "Selected sizes:",
       wanted
@@ -975,7 +1114,7 @@ function getVariantRowValue(
     );
 }
 
-function fillVariantRows(
+async function fillVariantRows(
   rows,
   product,
   report
@@ -1146,6 +1285,13 @@ function fillVariantRows(
       report.filled.push(
         `${identifier}[${i+1}]`
       );
+
+      if(stopRequested){
+        report.stopped=true;
+        return;
+      }
+
+      await announceFilled(field,`${identifier} (${rows.length>1?`variant ${i+1}`:"variant"})`);
 
       log(
         `Filled ${identifier} row ${i+1}:`,
@@ -1319,6 +1465,8 @@ async function fillMeasurement(
           `${identifier}[${i+1}]`
         );
 
+        await announceFilled(field.element,`${identifier} (row ${i+1})`);
+
         log(
           `Filled ${identifier} row ${i+1}:`,
           value
@@ -1338,6 +1486,8 @@ async function fillMeasurement(
           report.filled.push(
             `${identifier}[${i+1}]`
           );
+
+          await announceFilled(field.element,`${identifier} (row ${i+1})`);
         }else{
           report.failed.push({
             field:
@@ -1692,6 +1842,11 @@ async function fillCommonFields(
       textFields
     )
   ){
+    if(stopRequested){
+      report.stopped=true;
+      return;
+    }
+
     if(value!==null){
       await fillField(
         key,
@@ -1775,6 +1930,11 @@ async function fillCommonFields(
     const identifier of
     common
   ){
+    if(stopRequested){
+      report.stopped=true;
+      return;
+    }
+
     const value=
       getAttributeValue(
         product,
@@ -1872,6 +2032,11 @@ async function fillDynamicAttributes(
       flattened
     )
   ){
+    if(stopRequested){
+      report.stopped=true;
+      return;
+    }
+
     if(
       rawValue===null||
       rawValue===undefined||
@@ -2010,6 +2175,8 @@ async function fillDynamicAttributes(
           report.filled.push(
             identifier
           );
+
+          await announceFilled(field.element,identifier);
 
           log(
             `Dynamic field filled: ${identifier}`,
@@ -2203,8 +2370,14 @@ async function autofillProduct(
     failed:[],
     warnings:[],
     requiredMissing:[],
-    mapped:[]
+    mapped:[],
+    stopped:false
   };
+
+  stopRequested=false;
+  injectStyles();
+  clearOverlays();
+  showStopButton();
 
   try{
     const normalized=
@@ -2271,7 +2444,7 @@ async function autofillProduct(
         );
       }
 
-      fillVariantRows(
+      await fillVariantRows(
         rows,
         normalized,
         report
@@ -2332,6 +2505,9 @@ async function autofillProduct(
       report
     );
 
+    clearOverlays();
+    removeStopButton();
+
     return{
       ...report,
       product:normalized
@@ -2346,6 +2522,9 @@ async function autofillProduct(
       "AUTOFILL FAILED:",
       err
     );
+
+    clearOverlays();
+    removeStopButton();
 
     return{
       ...report,
