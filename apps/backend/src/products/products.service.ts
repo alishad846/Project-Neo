@@ -13,11 +13,16 @@ export class ProductsService {
 
     return result[0];
   }
-  async getAllProducts() {
-  return db
+  async getAllProducts(sellerId: string) {
+    return db
     .select()
     .from(productGenome)
-    .where(eq(productGenome.isArchived, false));
+    .where(
+      and(
+        eq(productGenome.sellerId, sellerId),
+        eq(productGenome.isArchived, false),
+      ),
+    );
 }
   async getProductById(id: number) {
   const result = await db

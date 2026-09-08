@@ -7,9 +7,13 @@ import {
   ParseIntPipe,
   Patch,
   Post,
+  UseGuards,
   UsePipes,
+  Req,
 } from '@nestjs/common';
 
+import type { Request } from 'express';
+import { JwtAuthGuard } from '../auth/jwt-auth.guard';
 import { ProductsService } from './products.service';
 import { productGenome } from '../db/schema';
 import { ZodValidationPipe } from '../common/zod-validation.pipe';
@@ -26,8 +30,9 @@ export class ProductsController {
   }
 
   @Get()
-  getAllProducts() {
-    return this.productsService.getAllProducts();
+  @UseGuards(JwtAuthGuard)
+  getAllProducts(@Req() req: Request & { user: { sub: string; email: string } }) {
+    return this.productsService.getAllProducts(req.user.sub);
   }
 
   @Get(':id')
