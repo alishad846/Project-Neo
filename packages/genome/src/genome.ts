@@ -20,6 +20,7 @@ export const productGenomeInsertSchema = z.object({
   hsnCode: z.string().max(50).nullable().optional(),
   costPrice: decimalString,
   sellingPrice: decimalString,
+  basePrice: decimalString,
   images: z.unknown().optional(),
   attributes: z.unknown().optional(),
 });
