@@ -479,21 +479,33 @@ const referenceFallbackAttributes: Record<string, unknown> = {
           </p>
 
           {fillResult && (
-            <p
-              className={`mt-1 font-cartoon text-xs font-semibold ${
-                fillResult.ok
-                  ? "text-green-700"
-                  : "text-red-600"
-              }`}
-            >
-              {fillResult.ok
-                ? `Autofill completed. Filled: ${
-                    fillResult.filled?.join(", ") || "none"
-                  }.`
-                : `Autofill failed: ${
-                    fillResult.error ?? "unknown error"
-                  }`}
-            </p>
+            <div className="mt-1 font-cartoon text-xs">
+              <p
+                className={`font-semibold ${
+                  fillResult.ok ? "text-green-700" : "text-red-600"
+                }`}
+              >
+                {fillResult.ok
+                  ? `Autofill completed. Filled: ${
+                      fillResult.filled?.join(", ") || "none"
+                    }.`
+                  : `Autofill failed: ${
+                      fillResult.error ?? "unknown error"
+                    }`}
+              </p>
+              {fillResult.ok && !!fillResult.skipped?.length && (
+                <p className="mt-1 text-[#a15c00]">
+                  Not found on this page/step: {fillResult.skipped.join(", ")}.
+                  {" "}These fields may be on a later step of Meesho's wizard —
+                  advance to that step and run Autofill again.
+                </p>
+              )}
+              {fillResult.ok && !!fillResult.missing?.length && (
+                <p className="mt-1 text-red-600">
+                  Required fields still empty: {fillResult.missing.join(", ")}.
+                </p>
+              )}
+            </div>
           )}
         </div>
       )}
