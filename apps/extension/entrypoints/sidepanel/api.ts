@@ -77,6 +77,8 @@ export interface PricingRule {
   actionValue: number;
   floorPrice?: number;
   roundTo99?: boolean;
+  floorBreakeven?: boolean;
+  roundToCharm?: boolean;
 }
 
 export interface SkuDiff {
@@ -97,22 +99,22 @@ export interface DryRunResult {
   diffs: SkuDiff[];
 }
 
-export async function dryRunPricing(rule: PricingRule): Promise<DryRunResult> {
+export async function dryRunPricing(rule: PricingRule, skus?: string[]): Promise<DryRunResult> {
   const res = await fetch(`${API_URL}/pricing/dry-run`, {
     method: "POST",
     headers: { "Content-Type": "application/json", ...(await authHeaders()) },
-    body: JSON.stringify(rule),
+    body: JSON.stringify(skus && skus.length > 0 ? { ...rule, skus } : rule),
   });
   await handleUnauthorized(res);
   if (!res.ok) throw new Error(`Dry-run error: ${res.status}`);
   return res.json();
 }
 
-export async function applyPricing(rule: PricingRule): Promise<{ txnId: number; updated: number }> {
+export async function applyPricing(rule: PricingRule, skus?: string[]): Promise<{ txnId: number; updated: number }> {
   const res = await fetch(`${API_URL}/pricing/apply`, {
     method: "POST",
     headers: { "Content-Type": "application/json", ...(await authHeaders()) },
-    body: JSON.stringify({ rule }),
+    body: JSON.stringify(skus && skus.length > 0 ? { rule, skus } : { rule }),
   });
   await handleUnauthorized(res);
   if (!res.ok) throw new Error(`Apply error: ${res.status}`);

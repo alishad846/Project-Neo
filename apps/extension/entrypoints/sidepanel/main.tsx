@@ -12,6 +12,7 @@ import { AddProduct } from "./components/AddProduct";
 import { AuthGate } from "./components/AuthGate";
 import { ProductPicker } from "./components/ProductPicker";
 import { ManageCatalogueItemActions } from "./components/ManageCatalogue";
+import { AddDiscount } from "./components/AddDiscount";
 import { clearToken } from "./auth";
 import "./style.css";
 
@@ -46,6 +47,7 @@ const SECTIONS = [
   { id: "autofill", label: "AI Autofill", color: "#ff90e8", node: <AIAutofill /> },
   { id: "add-product", label: "Add Product", color: "#8bd3ff", node: <AddProduct /> },
   { id: "manage", label: "Manage Catalogue", color: "#00e5ff", node: <ManageCatalogue /> },
+  { id: "discount", label: "Add Discount", color: "#ff90e8", node: <AddDiscount /> },
   { id: "bulk", label: "Bulk Catalogue", color: "#ffeb3b", node: <BulkCatalogue /> },
   { id: "details", label: "Business Details", color: "#b2ff59", node: <BusinessDetails /> },
   { id: "profit", label: "Profit Calc", color: "#00e5ff", node: <ProfitCalculator /> },
