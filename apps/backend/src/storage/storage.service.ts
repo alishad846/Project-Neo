@@ -2,6 +2,7 @@ import { Inject, Injectable } from '@nestjs/common';
 import {
   CreateBucketCommand,
   HeadBucketCommand,
+  PutBucketPolicyCommand,
   PutObjectCommand,
 } from '@aws-sdk/client-s3';
 
@@ -25,6 +26,23 @@ export class StorageService {
     } catch {
       await this.client.send(new CreateBucketCommand({ Bucket: this.bucket }));
     }
+
+    await this.client.send(
+      new PutBucketPolicyCommand({
+        Bucket: this.bucket,
+        Policy: JSON.stringify({
+          Version: '2012-10-17',
+          Statement: [
+            {
+              Effect: 'Allow',
+              Principal: '*',
+              Action: ['s3:GetObject'],
+              Resource: [`arn:aws:s3:::${this.bucket}/*`],
+            },
+          ],
+        }),
+      }),
+    );
   }
 
   async uploadImage(imageBase64: string, sellerId: string, filename: string): Promise<string> {

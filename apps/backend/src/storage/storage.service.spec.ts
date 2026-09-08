@@ -49,6 +49,6 @@ describe('StorageService.uploadImage', () => {
     const svc = new StorageService(fakeClient);
     await svc.ensureBucket();
 
-    expect(calls).toEqual(['HeadBucketCommand', 'CreateBucketCommand']);
+    expect(calls).toEqual(['HeadBucketCommand', 'CreateBucketCommand', 'PutBucketPolicyCommand']);
   });
 });

@@ -3,7 +3,7 @@ import { UploadCloud, Save } from "lucide-react";
 import { PopButton } from "@neo/ui";
 import { createProduct, scrapeMeeshoListing, uploadProductImage } from "../api";
 
-const inputClass = "mt-1 w-full rounded-lg border-2 border-black px-2 py-1.5 font-cartoon text-xs";
+export const inputClass = "mt-1 w-full rounded-lg border-2 border-black px-2 py-1.5 font-cartoon text-xs";
 
 interface FieldDef {
   key: string;
@@ -19,7 +19,7 @@ interface FieldDef {
 // Manufacturer/Packer/Importer are deliberately excluded — those are
 // seller-level Business Details, not re-entered per product. Wrong/Defective
 // Returns Price and Group ID are excluded too (derived/system-generated).
-const FIELD_DEFS: FieldDef[] = [
+export const FIELD_DEFS: FieldDef[] = [
   { key: "title", label: "Product Name", placeholder: "e.g. Printed Cotton Kurti", required: true },
   { key: "category", label: "Category", placeholder: "e.g. Women > Kurtis", required: true },
   { key: "sku", label: "SKU", placeholder: "e.g. KURTI-001", required: true },
