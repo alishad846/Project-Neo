@@ -4,6 +4,10 @@ import { AppModule } from './app.module';
 
 async function bootstrap() {
   const app = await NestFactory.create(AppModule);
+
+app.enableCors({
+  origin: true,
+});
   // Product photos are sent as base64 JSON to /ai/extract; the default 100kb
   // body limit rejects them with 413. Raise it well above a typical phone photo.
   app.use(json({ limit: '25mb' }));
