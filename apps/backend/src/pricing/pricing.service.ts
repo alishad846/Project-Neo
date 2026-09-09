@@ -22,14 +22,14 @@ export class PricingService {
     private readonly transactions: TransactionsService,
   ) {}
 
-  async calculateDryRun(rule: PricingRule) {
-    const genomes = await this.products.getAllProducts();
+  async calculateDryRun(rule: PricingRule, sellerId: string) {
+  const genomes = await this.products.getAllProducts(sellerId);
     const skus = genomes.map(toCosting);
     return executeDryRun(rule, skus, new Date());
   }
 
-  async applyPrices(rule: PricingRule) {
-    const genomes = await this.products.getAllProducts();
+  async applyPrices(rule: PricingRule, sellerId: string) {
+  const genomes = await this.products.getAllProducts(sellerId);
     const skus = genomes.map(toCosting);
     const dry = executeDryRun(rule, skus, new Date());
 

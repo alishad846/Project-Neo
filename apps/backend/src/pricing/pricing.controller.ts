@@ -1,4 +1,14 @@
-import { Body, Controller, Param, ParseIntPipe, Post } from "@nestjs/common";
+import {
+  Body,
+  Controller,
+  Param,
+  ParseIntPipe,
+  Post,
+  Req,
+  UseGuards,
+} from "@nestjs/common";
+import type { Request } from "express";
+import { JwtAuthGuard } from "../auth/jwt-auth.guard";
 import type { PricingRuleDto } from "./pricing.dto";
 import { PricingService } from "./pricing.service";
 
@@ -7,17 +17,29 @@ export class PricingController {
   constructor(private readonly pricingService: PricingService) {}
 
   @Post("dry-run")
-  dryRun(@Body() rule: PricingRuleDto) {
-    return this.pricingService.calculateDryRun(rule);
+  @UseGuards(JwtAuthGuard)
+  dryRun(
+    @Body() rule: PricingRuleDto,
+    @Req() req: Request & { user: { sub: string; email: string } },
+  ) {
+    return this.pricingService.calculateDryRun(rule, req.user.sub);
   }
 
   @Post("apply")
-  apply(@Body() body: { rule: PricingRuleDto }) {
-    return this.pricingService.applyPrices(body.rule);
+  @UseGuards(JwtAuthGuard)
+  apply(
+    @Body() body: { rule: PricingRuleDto },
+    @Req() req: Request & { user: { sub: string; email: string } },
+  ) {
+    return this.pricingService.applyPrices(body.rule, req.user.sub);
   }
 
   @Post("undo/:txnId")
-  undo(@Param("txnId", ParseIntPipe) txnId: number) {
+  @UseGuards(JwtAuthGuard)
+  undo(
+    @Param("txnId", ParseIntPipe) txnId: number,
+    @Req() req: Request & { user: { sub: string; email: string } },
+  ) {
     return this.pricingService.undo(txnId);
   }
 }

@@ -2,18 +2,40 @@ import {
   pgTable,
   serial,
   varchar,
-  text,
   integer,
   decimal,
   jsonb,
   timestamp,
   boolean,
+  index,
+  unique,
+  check,
 } from 'drizzle-orm/pg-core';
 
-export const productGenome = pgTable('product_genome', {
+import { sql } from 'drizzle-orm';
+
+// Seller account is the parent entity for seller-owned data.
+export const sellers = pgTable('sellers', {
+  id: varchar('id', { length: 64 }).primaryKey(),
+
+  email: varchar('email', { length: 255 }).notNull().unique(),
+
+  passwordHash: varchar('password_hash', { length: 255 }).notNull(),
+
+  fullName: varchar('full_name', { length: 150 }),
+
+  shopName: varchar('shop_name', { length: 150 }),
+
+  createdAt: timestamp('created_at').defaultNow().notNull(),
+});
+
+export const productGenome = pgTable(
+  'product_genome', 
+  {
   id: serial('id').primaryKey(),
 
-  sellerId: varchar('seller_id', { length: 100 }).notNull(),
+  // FK: ensures every product belongs to a valid seller.
+  sellerId: varchar('seller_id', { length: 64 }).notNull().references(() => sellers.id),
 
   sku: varchar('sku', { length: 100 }).notNull(),
 
@@ -50,13 +72,36 @@ export const productGenome = pgTable('product_genome', {
   createdAt: timestamp('created_at').defaultNow().notNull(),
 
   updatedAt: timestamp('updated_at').defaultNow().notNull(),
-});
-export const productGenomeHistory = pgTable('product_genome_history', {
+  },
+  (table) => [
+    // Prevents duplicate SKUs for the same seller.
+    unique('product_genome_seller_sku_unique').on(
+      table.sellerId,
+      table.sku,
+    ),
+
+    // Speeds up seller-specific product queries.
+    index('product_genome_seller_id_idx').on(table.sellerId),
+
+    // Prevents invalid version and price/weight values.
+    check('product_genome_version_check', sql`${table.version} >= 1`),
+    check('product_genome_weight_check', sql`${table.weight} IS NULL OR ${table.weight} >= 0`),
+    check('product_genome_cost_price_check', sql`${table.costPrice} IS NULL OR ${table.costPrice} >= 0`),
+    check('product_genome_selling_price_check', sql`${table.sellingPrice} IS NULL OR ${table.sellingPrice} >= 0`),
+  ],
+);
+
+
+export const productGenomeHistory = pgTable(
+  'product_genome_history', 
+  {
   id: serial('id').primaryKey(),
 
-  productId: integer('product_id').notNull(),
+  // FK: keeps every history record linked to an existing product.
+  productId: integer('product_id').notNull().references(() => productGenome.id),
 
-  sellerId: varchar('seller_id', { length: 100 }).notNull(),
+  // FK: ensures historical product data belongs to a valid seller.
+  sellerId: varchar('seller_id', { length: 64 }).notNull().references(() => sellers.id),
 
   sku: varchar('sku', { length: 100 }).notNull(),
 
@@ -89,21 +134,21 @@ export const productGenomeHistory = pgTable('product_genome_history', {
   version: integer('version').notNull(),
 
   archivedAt: timestamp('archived_at').defaultNow().notNull(),
-});
+  },
+  (table) => [
+    // Speeds up history/version lookup during rollback.
+    index('product_genome_history_product_version_idx').on(
+      table.productId,
+      table.version,
+    ),
 
-export const sellers = pgTable('sellers', {
-  id: varchar('id', { length: 64 }).primaryKey(),
-
-  email: varchar('email', { length: 255 }).notNull().unique(),
-
-  passwordHash: varchar('password_hash', { length: 255 }).notNull(),
-
-  fullName: varchar('full_name', { length: 150 }),
-
-  shopName: varchar('shop_name', { length: 150 }),
-
-  createdAt: timestamp('created_at').defaultNow().notNull(),
-});
+    // Prevents invalid version and price/weight values.
+    check('product_genome_history_version_check', sql`${table.version} >= 1`),
+    check('product_genome_history_weight_check', sql`${table.weight} IS NULL OR ${table.weight} >= 0`),
+    check('product_genome_history_cost_price_check', sql`${table.costPrice} IS NULL OR ${table.costPrice} >= 0`),
+    check('product_genome_history_selling_price_check', sql`${table.sellingPrice} IS NULL OR ${table.sellingPrice} >= 0`),
+  ],
+);
 
 export const transactions = pgTable('transactions', {
   id: serial('id').primaryKey(),
