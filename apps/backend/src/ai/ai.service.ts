@@ -72,6 +72,42 @@ export class AiService {
   }
 
   private static readonly MAX_IMAGE_BYTES = 10 * 1024 * 1024;
+  private static readonly FETCH_TIMEOUT_MS = 8000;
+
+  // Blocks SSRF targets: loopback, link-local (cloud metadata), private
+  // ranges, and bare hostnames (Docker service names on the shared backend's
+  // internal network like `postgres`, `ollama`, `extractor`). Case-insensitive.
+  private isBlockedHost(hostname: string): boolean {
+    const host = hostname.toLowerCase().replace(/^\[|\]$/g, '');
+
+    if (host === 'localhost' || host === '::1') return true;
+
+    // IPv4 checks
+    const ipv4Match = host.match(/^(\d{1,3})\.(\d{1,3})\.(\d{1,3})\.(\d{1,3})$/);
+    if (ipv4Match) {
+      const octets = ipv4Match.slice(1).map(Number);
+      if (octets.some((o) => o > 255)) return true; // malformed, be safe
+      const [a, b] = octets;
+      if (a === 127) return true; // 127.0.0.0/8
+      if (a === 169 && b === 254) return true; // 169.254.0.0/16
+      if (a === 10) return true; // 10.0.0.0/8
+      if (a === 172 && b >= 16 && b <= 31) return true; // 172.16.0.0/12
+      if (a === 192 && b === 168) return true; // 192.168.0.0/16
+      return false;
+    }
+
+    // IPv6 unique-local fc00::/7 (prefixes fc/fd)
+    if (host.includes(':')) {
+      const firstGroup = host.split(':')[0];
+      if (firstGroup.startsWith('fc') || firstGroup.startsWith('fd')) return true;
+      return false;
+    }
+
+    // Bare hostname with no dot (and not an IP) — e.g. Docker service names.
+    if (!host.includes('.')) return true;
+
+    return false;
+  }
 
   // Fetches a (Meesho CDN) image URL server-side, then runs extraction on it.
   // Serves the bulk wizard's "is this link usable?" gate AND the prefill in one
@@ -88,14 +124,31 @@ export class AiService {
     if (url.protocol !== 'http:' && url.protocol !== 'https:') {
       return { fetchable: false, attributes: {} };
     }
+    if (this.isBlockedHost(url.hostname)) {
+      return { fetchable: false, attributes: {} };
+    }
 
     let base64: string;
     try {
-      const res = await fetch(imageUrl);
+      const controller = new AbortController();
+      const timer = setTimeout(() => controller.abort(), AiService.FETCH_TIMEOUT_MS);
+      let res: Response;
+      try {
+        res = await fetch(imageUrl, { signal: controller.signal });
+      } finally {
+        clearTimeout(timer);
+      }
       if (!res.ok) return { fetchable: false, attributes: {} };
       const contentType = res.headers.get('content-type') ?? '';
       if (!contentType.startsWith('image/')) {
         return { fetchable: false, attributes: {} };
+      }
+      const contentLength = res.headers.get('content-length');
+      if (contentLength) {
+        const declaredSize = Number(contentLength);
+        if (!Number.isNaN(declaredSize) && declaredSize > AiService.MAX_IMAGE_BYTES) {
+          return { fetchable: false, attributes: {} };
+        }
       }
       const buf = Buffer.from(await res.arrayBuffer());
       if (buf.byteLength === 0 || buf.byteLength > AiService.MAX_IMAGE_BYTES) {
