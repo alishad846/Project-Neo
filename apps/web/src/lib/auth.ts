@@ -68,7 +68,9 @@ async function post(path: string, body: unknown): Promise<AuthResponse> {
     } catch {
       /* non-JSON error body */
     }
-    throw new Error(message);
+    const err = new Error(message) as Error & { status?: number };
+    err.status = res.status;
+    throw err;
   }
   return res.json();
 }

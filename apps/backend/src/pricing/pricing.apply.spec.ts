@@ -94,3 +94,53 @@ describe("PricingService.applyPrices", () => {
     expect(rolledBackTxnId).toBe(99);
   });
 });
+
+describe("PricingService.resetPrices", () => {
+  it("resets sellingPrice to basePrice only for products that have one", async () => {
+    const updates: Array<{ id: number; price: string }> = [];
+    const products = {
+      getAllProducts: async () => [
+        { id: 1, sku: "K1", sellingPrice: "629.00", basePrice: "899.00" },
+        { id: 2, sku: "K2", sellingPrice: "500.00", basePrice: null },
+      ],
+      updateProduct: async (id: number, data: { sellingPrice?: string }) => {
+        updates.push({ id, price: data.sellingPrice! });
+        return { id };
+      },
+    } as unknown as ProductsService;
+
+    let captured: unknown;
+    const txns = {
+      createPriceTxn: async (snapshot: unknown) => { captured = snapshot; return { id: 55 }; },
+    } as unknown as TransactionsService;
+
+    const svc = new PricingService(products, txns);
+    const res = await svc.resetPrices();
+
+    expect(res.txnId).toBe(55);
+    expect(res.updated).toBe(1);
+    expect(captured).toEqual([{ productId: 1, previousPrice: "629.00" }]);
+    expect(updates).toEqual([{ id: 1, price: "899.00" }]);
+  });
+
+  it("scopes reset to the given skus", async () => {
+    const updates: Array<{ id: number }> = [];
+    const products = {
+      getAllProducts: async () => [
+        { id: 1, sku: "K1", sellingPrice: "629.00", basePrice: "899.00" },
+        { id: 2, sku: "K2", sellingPrice: "300.00", basePrice: "400.00" },
+      ],
+      updateProduct: async (id: number) => { updates.push({ id }); return { id }; },
+    } as unknown as ProductsService;
+
+    const txns = {
+      createPriceTxn: async () => ({ id: 56 }),
+    } as unknown as TransactionsService;
+
+    const svc = new PricingService(products, txns);
+    const res = await svc.resetPrices(["K2"]);
+
+    expect(res.updated).toBe(1);
+    expect(updates).toEqual([{ id: 2 }]);
+  });
+});

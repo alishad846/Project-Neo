@@ -7,8 +7,12 @@ import {
   ParseIntPipe,
   Patch,
   Post,
+  Req,
+  UnauthorizedException,
+  UseGuards,
   UsePipes,
 } from '@nestjs/common';
+import type { Request } from 'express';
 
 import { ProductsService } from './products.service';
 import { productGenome } from '../db/schema';
@@ -17,15 +21,37 @@ import {
   productGenomeInsertSchema,
   productGenomeUpdateSchema,
 } from '@neo/genome';
+import { productGenomeCreateSchema, productGenomeUpdateSchema } from '@neo/genome';
+import { JwtAuthGuard } from '../auth/jwt-auth.guard';
+import { StorageService } from '../storage/storage.service';
 
 @Controller('products')
+@UseGuards(JwtAuthGuard)
 export class ProductsController {
-  constructor(private readonly productsService: ProductsService) {}
+  constructor(
+    private readonly productsService: ProductsService,
+    private readonly storageService: StorageService,
+  ) {}
+
+  private sellerId(req: Request): string {
+    const sellerId = (req as Request & { user?: { sub?: string } }).user?.sub;
+    if (!sellerId) throw new UnauthorizedException('Authenticated seller identity is missing');
+    return sellerId;
+  }
 
   @Post()
-  @UsePipes(new ZodValidationPipe(productGenomeInsertSchema))
-  createProduct(@Body() data: typeof productGenome.$inferInsert) {
-    return this.productsService.createProduct(data);
+  @UsePipes(new ZodValidationPipe(productGenomeCreateSchema))
+  createProduct(@Body() data: Omit<typeof productGenome.$inferInsert, 'sellerId'>, @Req() req: Request) {
+    return this.productsService.createProduct({ ...data, sellerId: this.sellerId(req) });
+  }
+
+  @Post('images')
+  uploadImage(@Body() body: { imageBase64: string; filename?: string }, @Req() req: Request) {
+    const sellerId = (req as Request & { user?: { sub?: string } }).user?.sub;
+    if (!sellerId) throw new UnauthorizedException('Authenticated seller identity is missing');
+    return this.storageService
+      .uploadImage(body.imageBase64, sellerId, body.filename ?? 'upload.jpg')
+      .then((url) => ({ url }));
   }
 
   @Get()

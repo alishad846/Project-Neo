@@ -8,7 +8,7 @@ export class ProductsService {
   async createProduct(data: typeof productGenome.$inferInsert) {
     const result = await db
       .insert(productGenome)
-      .values(data)
+      .values({ ...data, basePrice: data.basePrice ?? data.sellingPrice ?? null })
       .returning();
 
     return result[0];
@@ -66,6 +66,7 @@ async updateProduct(
       hsnCode: current.hsnCode,
       costPrice: current.costPrice,
       sellingPrice: current.sellingPrice,
+      basePrice: current.basePrice,
       images: current.images,
       attributes: current.attributes,
       version: current.version,
@@ -138,6 +139,7 @@ async rollbackProduct(id: number, targetVersion: number) {
       hsnCode: current.hsnCode,
       costPrice: current.costPrice,
       sellingPrice: current.sellingPrice,
+      basePrice: current.basePrice,
       images: current.images,
       attributes: current.attributes,
       version: current.version,
@@ -160,6 +162,7 @@ async rollbackProduct(id: number, targetVersion: number) {
         hsnCode: target.hsnCode,
         costPrice: target.costPrice,
         sellingPrice: target.sellingPrice,
+        basePrice: target.basePrice,
         images: target.images,
         attributes: target.attributes,
         version: current.version + 1,

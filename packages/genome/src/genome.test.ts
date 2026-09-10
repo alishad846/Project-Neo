@@ -20,6 +20,16 @@ describe("productGenomeInsertSchema", () => {
     expect(result.success).toBe(false);
   });
 
+  it("accepts an optional basePrice alongside sellingPrice", () => {
+    const parsed = productGenomeInsertSchema.parse({
+      sellerId: "seller_1",
+      sku: "KURTI-001",
+      sellingPrice: "699.00",
+      basePrice: "699.00",
+    });
+    expect(parsed.basePrice).toBe("699.00");
+  });
+
   it("full schema requires id and version", () => {
     const result = productGenomeSchema.safeParse({ sellerId: "s", sku: "X" });
     expect(result.success).toBe(false);
