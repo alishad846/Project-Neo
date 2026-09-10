@@ -29,9 +29,18 @@ const TIMEOUT_MS = Number(process.env.OLLAMA_TIMEOUT_MS ?? 45000);
 const OLLAMA_FALLBACK_TIMEOUT_MS = Number(process.env.OLLAMA_FALLBACK_TIMEOUT_MS ?? 6000);
 // Keep the model resident in (V)RAM instead of Ollama's 5-minute default
 // eviction, so a seller who comes back after a break never re-pays the
-// ~45s cold-load. "-1" = never unload; override with a duration if VRAM is
-// tight (e.g. "30m").
-const OLLAMA_KEEP_ALIVE = process.env.OLLAMA_KEEP_ALIVE ?? "-1";
+// ~45s cold-load. Ollama's `keep_alive` accepts EITHER an integer number of
+// seconds (-1 = never unload) OR a duration STRING with a unit ("30m"). A
+// bare "-1" string is rejected ("missing unit in duration"), which silently
+// broke all model extraction — so numeric values must be sent as numbers.
+// Default: -1 (number). Override via OLLAMA_KEEP_ALIVE with a number ("-1",
+// "1800") or a unit'd duration ("30m").
+const OLLAMA_KEEP_ALIVE: number | string = (() => {
+  const raw = process.env.OLLAMA_KEEP_ALIVE;
+  if (raw === undefined) return -1;
+  const asNumber = Number(raw);
+  return Number.isFinite(asNumber) ? asNumber : raw;
+})();
 
 // Process-local adaptive hints. Only missing field names are retained; images
 // and seller data never enter this map.
