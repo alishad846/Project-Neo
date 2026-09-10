@@ -29,8 +29,8 @@ export class AiService {
     private readonly transactionsService: TransactionsService,
   ) {}
 
-  async extractAttributes(productId: number, imageBase64: string): Promise<ExtractResult> {
-    const genome = await this.productsService.getProductById(productId);
+  async extractAttributes(productId: number, imageBase64: string, sellerId: string,): Promise<ExtractResult> {
+    const genome = await this.productsService.getProductById(productId, sellerId);
     if (!genome) {
       throw new NotFoundException(`No product with id ${productId}`);
     }
@@ -64,9 +64,10 @@ export class AiService {
     productId: number,
     title: string,
     attributes: Record<string, unknown>,
-    genomeEdits?: { hsnCode?: string; sellingPrice?: string },
+    genomeEdits: { hsnCode?: string; sellingPrice?: string } | undefined,
+    sellerId: string,
   ): Promise<PublishResult> {
-    const current = await this.productsService.getProductById(productId);
+    const current = await this.productsService.getProductById(productId, sellerId,);
     if (!current) {
       throw new NotFoundException(`No product with id ${productId}`);
     }
@@ -110,13 +111,17 @@ export class AiService {
         },
       ],
       update,
+      sellerId,
     );
-    await this.productsService.updateProduct(productId, update);
+    await this.productsService.updateProduct(productId, update, sellerId,);
 
     return { txnId: txn.id, listing, warnings: issues.filter((i) => i.severity === 'warning') };
   }
 
-  async undo(txnId: number) {
-    return this.transactionsService.rollbackGenomeTxn(txnId);
+  async undo(txnId: number, sellerId: string) {
+    return this.transactionsService.rollbackGenomeTxn(
+      txnId,
+      sellerId,
+    );
   }
 }

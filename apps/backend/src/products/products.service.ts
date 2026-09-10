@@ -24,13 +24,14 @@ export class ProductsService {
       ),
     );
 }
-  async getProductById(id: number) {
+  async getProductById(id: number, sellerId: string) {
   const result = await db
     .select()
     .from(productGenome)
     .where(
       and(
         eq(productGenome.id, id),
+        eq(productGenome.sellerId, sellerId),
         eq(productGenome.isArchived, false),
       ),
     );
@@ -41,13 +42,19 @@ export class ProductsService {
 async updateProduct(
   id: number,
   data: Partial<typeof productGenome.$inferInsert>,
+  sellerId: string,
 ) {
   return db.transaction(async (tx) => {
     // 1. Get current product
     const existing = await tx
       .select()
       .from(productGenome)
-      .where(eq(productGenome.id, id));
+      .where(
+        and(
+          eq(productGenome.id, id),
+          eq(productGenome.sellerId, sellerId),
+        ),
+      );
 
     const current = existing[0];
 
@@ -81,28 +88,44 @@ async updateProduct(
       .update(productGenome)
       .set({
         ...data,
+        sellerId: current.sellerId,
         version: current.version + 1,
         updatedAt: new Date(),
       })
-      .where(eq(productGenome.id, id))
+      .where(
+        and(
+          eq(productGenome.id, id),
+          eq(productGenome.sellerId, sellerId),
+        ),
+      )
       .returning();
 
     return updated[0];
   });
 }
-async getProductHistory(id: number) {
+async getProductHistory(id: number, sellerId: string) {
   return db
     .select()
     .from(productGenomeHistory)
-    .where(eq(productGenomeHistory.productId, id));
+    .where(
+      and(
+        eq(productGenomeHistory.productId, id),
+        eq(productGenomeHistory.sellerId, sellerId),
+      ),
+    );
 }
-async rollbackProduct(id: number, targetVersion: number) {
+async rollbackProduct(id: number, targetVersion: number, sellerId: string,) {
   return db.transaction(async (tx) => {
     // Current product
     const currentResult = await tx
       .select()
       .from(productGenome)
-      .where(eq(productGenome.id, id));
+      .where(
+        and(
+          eq(productGenome.id, id),
+          eq(productGenome.sellerId, sellerId),
+        ),
+      );
 
     const current = currentResult[0];
 
@@ -118,6 +141,7 @@ async rollbackProduct(id: number, targetVersion: number) {
         and(
           eq(productGenomeHistory.productId, id),
           eq(productGenomeHistory.version, targetVersion),
+          eq(productGenomeHistory.sellerId, sellerId),
         ),
       );
 
@@ -152,7 +176,7 @@ async rollbackProduct(id: number, targetVersion: number) {
     const restored = await tx
       .update(productGenome)
       .set({
-        sellerId: target.sellerId,
+        sellerId: current.sellerId,
         sku: target.sku,
         title: target.title,
         brand: target.brand,
@@ -170,17 +194,27 @@ async rollbackProduct(id: number, targetVersion: number) {
         version: current.version + 1,
         updatedAt: new Date(),
       })
-      .where(eq(productGenome.id, id))
+      .where(
+        and(
+          eq(productGenome.id, id),
+          eq(productGenome.sellerId, sellerId),
+        ),
+      )
       .returning();
 
     return restored[0];
   });
 }
-async archiveProduct(id: number) {
+async archiveProduct(id: number, sellerId: string) {
   const existing = await db
     .select()
     .from(productGenome)
-    .where(eq(productGenome.id, id));
+    .where(
+      and(
+        eq(productGenome.id, id),
+        eq(productGenome.sellerId, sellerId),
+      ),
+    );
 
   const current = existing[0];
 
@@ -194,19 +228,29 @@ async archiveProduct(id: number) {
       isArchived: true,
       updatedAt: new Date(),
     })
-    .where(eq(productGenome.id, id))
+    .where(
+      and(
+        eq(productGenome.id, id),
+        eq(productGenome.sellerId, sellerId),
+      ),
+    )
     .returning();
 
   return archived[0];
 }
-async restoreProduct(id: number) {
+async restoreProduct(id: number, sellerId: string) {
   const restored = await db
     .update(productGenome)
     .set({
       isArchived: false,
       updatedAt: new Date(),
     })
-    .where(eq(productGenome.id, id))
+    .where(
+      and(
+        eq(productGenome.id, id),
+        eq(productGenome.sellerId, sellerId),
+      ),
+    )
     .returning();
 
   return restored[0] ?? null;

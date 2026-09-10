@@ -41,21 +41,21 @@ export class PricingService {
       previousPrice: genomes[i].sellingPrice ?? "0",
     }));
 
-    const txn = await this.transactions.createPriceTxn(snapshot, dry.diffs);
+    const txn = await this.transactions.createPriceTxn(snapshot, dry.diffs, sellerId,);
     try {
       for (let i = 0; i < dry.diffs.length; i++) {
         await this.products.updateProduct(genomes[i].id, {
           sellingPrice: dry.diffs[i].proposedPrice.toFixed(2),
-        });
+        },
+        sellerId,);
       }
     } catch (e) {
-      await this.transactions.rollbackPriceTxn(txn.id);
+      await this.transactions.rollbackPriceTxn(txn.id, sellerId);
       throw new Error(`apply failed for txn ${txn.id}, rolled back: ${(e as Error).message}`);
     }
     return { txnId: txn.id, updated: dry.diffs.length };
   }
 
-  async undo(txnId: number) {
-    return this.transactions.rollbackPriceTxn(txnId);
-  }
+  async undo(txnId: number, sellerId: string) {
+    return this.transactions.rollbackPriceTxn(txnId, sellerId);}
 }

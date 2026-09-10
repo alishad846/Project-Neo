@@ -21,7 +21,7 @@ describe('AiService.publish', () => {
     const transactions = { createGenomeTxn } as unknown as TransactionsService;
     const svc = new AiService({} as HttpService, products, transactions);
 
-    await expect(svc.publish(1, 'New Title', { description: 'x' })).rejects.toThrow(UnprocessableEntityException);
+    await expect(svc.publish(1, 'New Title', { description: 'x' },undefined, 's')).rejects.toThrow(UnprocessableEntityException);
     expect(updateProduct).not.toHaveBeenCalled();
     expect(createGenomeTxn).not.toHaveBeenCalled();
   });
@@ -34,7 +34,7 @@ describe('AiService.publish', () => {
     const transactions = { createGenomeTxn } as unknown as TransactionsService;
     const svc = new AiService({} as HttpService, products, transactions);
 
-    const result = await svc.publish(1, 'New Title', { description: 'A great kurti.' });
+    const result = await svc.publish(1, 'New Title', { description: 'A great kurti.' },undefined,'s',);
 
     expect(calls).toEqual(['snapshot', 'update']);
     expect(createGenomeTxn).toHaveBeenCalledWith(
@@ -44,7 +44,7 @@ describe('AiService.publish', () => {
     expect(updateProduct).toHaveBeenCalledWith(1, {
       title: 'New Title',
       attributes: { pattern: 'Printed', description: 'A great kurti.' },
-    });
+    },'s',);
     expect(result.txnId).toBe(7);
     expect(result.listing.fields.title).toBe('New Title');
   });
@@ -55,11 +55,9 @@ describe('AiService.publish', () => {
     const createGenomeTxn = jest.fn(async () => ({ id: 9 }));
     const transactions = { createGenomeTxn } as unknown as TransactionsService;
     const svc = new AiService({} as HttpService, products, transactions);
-
-    const result = await svc.publish(1, 'New Title', { description: 'A great kurti.' }, {
-      hsnCode: '6205',
+    const result = await svc.publish(1, 'New Title', { description: 'A great kurti.' }, {      hsnCode: '6205',
       sellingPrice: '799.00',
-    });
+    }, 's');
 
     expect(createGenomeTxn).toHaveBeenCalledWith(
       [
@@ -80,7 +78,7 @@ describe('AiService.publish', () => {
       attributes: { pattern: 'Printed', description: 'A great kurti.' },
       hsnCode: '6205',
       sellingPrice: '799.00',
-    });
+    }, 's');
     expect(result.txnId).toBe(9);
   });
 
@@ -91,11 +89,11 @@ describe('AiService.publish', () => {
     const transactions = { createGenomeTxn } as unknown as TransactionsService;
     const svc = new AiService({} as HttpService, products, transactions);
 
-    await svc.publish(1, 'New Title', { description: 'A great kurti.' });
+    await svc.publish(1, 'New Title', { description: 'A great kurti.' }, undefined, 's');
 
     expect(updateProduct).toHaveBeenCalledWith(1, {
       title: 'New Title',
       attributes: { pattern: 'Printed', description: 'A great kurti.' },
-    });
+    }, 's');
   });
 });

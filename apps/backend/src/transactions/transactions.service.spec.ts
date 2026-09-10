@@ -19,7 +19,7 @@ describe("TransactionsService.rollbackPriceTxn", () => {
       snapshot: [{ productId: 7, previousPrice: "799.00" }],
     });
 
-    const res = await svc.rollbackPriceTxn(1);
+    const res = await svc.rollbackPriceTxn(1, "s");
     expect(res.restored).toBe(1);
     expect(updated).toEqual([{ id: 7, price: "799.00" }]);
   });
@@ -39,7 +39,7 @@ describe("TransactionsService.rollbackGenomeTxn", () => {
       snapshot: [{ productId: 9, previous: { title: 'Old Title', attributes: { pattern: 'Printed' } } }],
     });
 
-    const res = await svc.rollbackGenomeTxn(1);
+    const res = await svc.rollbackGenomeTxn(1, "s");
     expect(res.restored).toBe(1);
     expect(updated).toEqual([{ id: 9, data: { title: 'Old Title', attributes: { pattern: 'Printed' } } }]);
   });
@@ -52,7 +52,7 @@ describe("TransactionsService.rollbackGenomeTxn", () => {
       kind: 'price',
       snapshot: [{ productId: 9, previousPrice: '100.00' }],
     });
-    const res = await svc.rollbackGenomeTxn(2);
+    const res = await svc.rollbackGenomeTxn(2, "s");
     expect(res.restored).toBe(0);
   });
 });

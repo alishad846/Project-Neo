@@ -40,6 +40,6 @@ export class PricingController {
     @Param("txnId", ParseIntPipe) txnId: number,
     @Req() req: Request & { user: { sub: string; email: string } },
   ) {
-    return this.pricingService.undo(txnId);
+    return this.pricingService.undo(txnId, req.user.sub);
   }
 }

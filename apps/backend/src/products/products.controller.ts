@@ -24,10 +24,17 @@ export class ProductsController {
   constructor(private readonly productsService: ProductsService) {}
 
   @Post()
+  @UseGuards(JwtAuthGuard)
   @UsePipes(new ZodValidationPipe(productGenomeInsertSchema))
-  createProduct(@Body() data: typeof productGenome.$inferInsert) {
-    return this.productsService.createProduct(data);
-  }
+  createProduct(
+    @Body() data: typeof productGenome.$inferInsert,
+    @Req() req: Request & { user: { sub: string; email: string } },
+  ) {
+    return this.productsService.createProduct({
+      ...data,
+    sellerId: req.user.sub,
+  });
+}
 
   @Get()
   @UseGuards(JwtAuthGuard)
@@ -36,33 +43,58 @@ export class ProductsController {
   }
 
   @Get(':id')
-  getProductById(@Param('id', ParseIntPipe) id: number) {
-    return this.productsService.getProductById(id);
+  @UseGuards(JwtAuthGuard)
+  getProductById(
+    @Param('id', ParseIntPipe) id: number,
+    @Req() req: Request & { user: { sub: string; email: string } },
+  ) {
+    return this.productsService.getProductById(id, req.user.sub);
   }
+
   @Patch(':id')
-updateProduct(
-  @Param('id', ParseIntPipe) id: number,
-  @Body() data: Partial<typeof productGenome.$inferInsert>,
-) {
-  return this.productsService.updateProduct(id, data);
-}
-@Get(':id/history')
-getProductHistory(@Param('id', ParseIntPipe) id: number) {
-  return this.productsService.getProductHistory(id);
-}
-@Post(':id/rollback/:version')
-rollbackProduct(
-  @Param('id', ParseIntPipe) id: number,
-  @Param('version', ParseIntPipe) version: number,
-) {
-  return this.productsService.rollbackProduct(id, version);
-}
-@Delete(':id')
-archiveProduct(@Param('id', ParseIntPipe) id: number) {
-  return this.productsService.archiveProduct(id);
-}
-@Post(':id/restore')
-restoreProduct(@Param('id', ParseIntPipe) id: number) {
-  return this.productsService.restoreProduct(id);
-}
+  @UseGuards(JwtAuthGuard)
+  updateProduct(
+    @Param('id', ParseIntPipe) id: number,
+    @Body() data: Partial<typeof productGenome.$inferInsert>,
+    @Req() req: Request & { user: { sub: string; email: string } },
+  ) {
+    return this.productsService.updateProduct(id, data, req.user.sub);
+  }
+
+  @Get(':id/history')
+  @UseGuards(JwtAuthGuard)
+  getProductHistory(
+    @Param('id', ParseIntPipe) id: number,
+    @Req() req: Request & { user: { sub: string; email: string } },
+  ) {
+    return this.productsService.getProductHistory(id, req.user.sub);
+  }
+
+  @Post(':id/rollback/:version')
+  @UseGuards(JwtAuthGuard)
+  rollbackProduct(
+    @Param('id', ParseIntPipe) id: number,
+    @Param('version', ParseIntPipe) version: number,
+    @Req() req: Request & { user: { sub: string; email: string } },
+  ) {
+    return this.productsService.rollbackProduct(id, version, req.user.sub);
+  }
+
+  @Delete(':id')
+  @UseGuards(JwtAuthGuard)
+  archiveProduct(
+    @Param('id', ParseIntPipe) id: number,
+    @Req() req: Request & { user: { sub: string; email: string } },
+  ) {
+    return this.productsService.archiveProduct(id, req.user.sub);
+  }
+
+  @Post(':id/restore')
+  @UseGuards(JwtAuthGuard)
+  restoreProduct(
+    @Param('id', ParseIntPipe) id: number,
+    @Req() req: Request & { user: { sub: string; email: string } },
+  ) {
+    return this.productsService.restoreProduct(id, req.user.sub);
+  }
 }

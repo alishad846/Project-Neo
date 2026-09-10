@@ -152,10 +152,16 @@ export const productGenomeHistory = pgTable(
 
 export const transactions = pgTable('transactions', {
   id: serial('id').primaryKey(),
+  sellerId: varchar('seller_id', { length: 64 }).notNull().references(() => sellers.id),
   adapterId: varchar('adapter_id', { length: 50 }).notNull().default('internal'),
   kind: varchar('kind', { length: 50 }).notNull(),
   snapshot: jsonb('snapshot').notNull(),
   diff: jsonb('diff'),
   result: varchar('result', { length: 20 }).notNull().default('success'),
   createdAt: timestamp('created_at').defaultNow().notNull(),
-});
+},
+(table) => [
+    // Speeds up seller-scoped transaction lookups.
+    index('transactions_seller_id_idx').on(table.sellerId),
+  ],
+);
