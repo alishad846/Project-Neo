@@ -3,6 +3,7 @@ import { useState } from "react";
 import { inspectTemplate } from "../../fill";
 import { extractFromUrl } from "../../api";
 import { mapPrefillToSchema } from "./assemble";
+import { LinkPillInput } from "./LinkPillInput";
 import type { SkuDraft, TemplateSchema } from "./types";
 
 const inputClass = "mt-1 w-full rounded-lg border-2 border-black px-2 py-1.5 font-cartoon text-xs";
@@ -24,7 +25,7 @@ export function Step1Inputs(props: {
   onTemplateBytes?: (meta: { base64: string; name: string; type: string }) => void;
 }) {
   const [templateFile, setTemplateFile] = useState<File | null>(null);
-  const [linksText, setLinksText] = useState("");
+  const [links, setLinks] = useState<string[]>([]);
   const [busy, setBusy] = useState(false);
   const [status, setStatus] = useState("");
   const [badLinks, setBadLinks] = useState<string[]>([]);
@@ -33,7 +34,6 @@ export function Step1Inputs(props: {
     setBusy(true); setBadLinks([]); setStatus("");
     try {
       if (!templateFile) { setStatus("Select the Meesho Excel template first."); return; }
-      const links = linksText.split(/\r?\n/).map((l) => l.trim()).filter(Boolean);
       if (!links.length) { setStatus("Paste at least one product image link."); return; }
 
       setStatus("Reading the template…");
@@ -81,10 +81,15 @@ export function Step1Inputs(props: {
       </div>
 
       <div className="grid gap-2 rounded-xl border-2 border-black bg-white p-3 shadow-[3px_3px_0px_0px_#000]">
-        <p className="font-accent text-sm text-[#ff90e8]">2. Product image links (one per line = one SKU)</p>
-        <textarea className={inputClass} rows={6}
-          placeholder="https://upload.meeshosupplyassets.com/cataloging/.../a.png"
-          value={linksText} onChange={(e) => setLinksText(e.target.value)} />
+        <p className="font-accent text-sm text-[#ff90e8]">2. Product image links — each becomes one SKU</p>
+        <LinkPillInput
+          value={links}
+          onChange={setLinks}
+          placeholder="Paste image link(s)…"
+        />
+        <p className="font-cartoon text-[11px] text-black/50">
+          Paste one or more Meesho image links; each is captured as its own SKU pill.
+        </p>
       </div>
 
       {badLinks.length > 0 && (

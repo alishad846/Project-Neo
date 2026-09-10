@@ -27,9 +27,17 @@ const COMPOSE = `docker compose -f infra/docker-compose.yml`;
 const SERVICES = 'postgres redis minio ollama extractor';
 const SEED_SENTINEL = join(root, '.neo-seeded');
 
-const log = (m) => console.log(`\n\x1b[1m\x1b[36m▶ ${m}\x1b[0m`);
+// Quiet by default — setup output (image pulls, build layers, migrations,
+// Turbo build) is suppressed so `pnpm start` shows only concise status and the
+// URLs. Pass `--verbose` (or NEO_VERBOSE=1) to stream everything for debugging.
+const VERBOSE = process.argv.includes('--verbose') || process.env.NEO_VERBOSE === '1';
+
+const log = (m) => console.log(`\x1b[1m\x1b[36m▶ ${m}\x1b[0m`);
 const ok = (m) => console.log(`\x1b[32m  ✓ ${m}\x1b[0m`);
-const run = (cmd) => execSync(cmd, { cwd: root, stdio: 'inherit' });
+// `step` streams only in verbose mode; otherwise it stays silent unless it fails
+// (execSync throws, and we surface that in the top-level catch).
+const step = (cmd) => execSync(cmd, { cwd: root, stdio: VERBOSE ? 'inherit' : 'pipe' });
+const run = step;
 const quiet = (cmd) => execSync(cmd, { cwd: root, stdio: 'pipe' });
 // Blocking sleep with no extra deps: a node process stays alive until its timer fires.
 const sleep = (ms) => { try { execSync(`node -e "setTimeout(()=>{}, ${ms})"`); } catch {} };
@@ -105,15 +113,27 @@ function buildAll() {
 }
 
 function serve() {
-  log('Starting the backend API and the marketing website');
-  console.log('\n\x1b[1m  Backend  → http://localhost:3000');
+  console.log('\n\x1b[1m\x1b[32m✓ Project Neo is up\x1b[0m');
+  console.log('\x1b[1m  Backend  → http://localhost:3000');
   console.log('  Website  → http://localhost:4173');
   console.log('  Extension→ load unpacked from apps/extension/.output/chrome-mv3\x1b[0m');
-  console.log('\n  (Press Ctrl+C to stop these two. Run "pnpm stop" to also stop Docker.)\n');
+  console.log('\n  Ctrl+C stops the API + website. "pnpm stop" also stops Docker.');
+  if (!VERBOSE) console.log('  (server logs hidden — run "pnpm start --verbose" to see them)\n');
+  else console.log('');
 
-  const opts = { cwd: root, stdio: 'inherit', shell: true };
+  // In quiet mode the child logs are suppressed so the terminal stays clean;
+  // stderr is still captured and only surfaced if a child exits unexpectedly.
+  const opts = { cwd: root, stdio: VERBOSE ? 'inherit' : ['ignore', 'ignore', 'pipe'], shell: true };
   const backend = spawn('node', ['apps/backend/dist/src/main.js'], opts);
   const web = spawn('pnpm', ['--filter', '@neo/web', 'exec', 'vite', 'preview', '--port', '4173'], opts);
+
+  const tail = (child) => {
+    let buf = '';
+    if (child.stderr) child.stderr.on('data', (d) => { buf = (buf + d.toString()).slice(-2000); });
+    return () => buf.trim();
+  };
+  const backendErr = tail(backend);
+  const webErr = tail(web);
 
   const shutdown = () => {
     console.log('\n\x1b[33m▶ Stopping backend + website…\x1b[0m');
@@ -123,8 +143,12 @@ function serve() {
   };
   process.on('SIGINT', shutdown);
   process.on('SIGTERM', shutdown);
-  backend.on('exit', (c) => { if (c) console.error(`backend exited (${c})`); });
-  web.on('exit', (c) => { if (c) console.error(`website exited (${c})`); });
+  backend.on('exit', (c) => {
+    if (c) console.error(`\n\x1b[31m✗ backend exited (${c})\x1b[0m${backendErr() ? `\n${backendErr()}` : ''}`);
+  });
+  web.on('exit', (c) => {
+    if (c) console.error(`\n\x1b[31m✗ website exited (${c})\x1b[0m${webErr() ? `\n${webErr()}` : ''}`);
+  });
 }
 
 try {

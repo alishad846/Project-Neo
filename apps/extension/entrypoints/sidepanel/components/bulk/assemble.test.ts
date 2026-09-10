@@ -5,6 +5,7 @@ import {
   optionalGroupStatus,
   deriveVariantAxes,
   mapPrefillToSchema,
+  parseImageLinks,
 } from "./assemble";
 import type { SkuDraft, TemplateColumn, TemplateSchema, VariantRow } from "./types";
 
@@ -131,5 +132,32 @@ describe("mapPrefillToSchema", () => {
   it("ignores null/empty values", () => {
     const out = mapPrefillToSchema({ color: "", neckType: null as unknown as string }, schema);
     expect(out).toEqual({});
+  });
+});
+
+describe("parseImageLinks", () => {
+  it("splits newline-separated links", () => {
+    expect(parseImageLinks("https://a.com/1.jpg\nhttps://b.com/2.jpg")).toEqual([
+      "https://a.com/1.jpg", "https://b.com/2.jpg",
+    ]);
+  });
+  it("splits space/comma-separated links", () => {
+    expect(parseImageLinks("https://a.com/1.jpg, https://b.com/2.jpg")).toEqual([
+      "https://a.com/1.jpg", "https://b.com/2.jpg",
+    ]);
+  });
+  it("splits links pasted back-to-back with no separator", () => {
+    expect(parseImageLinks("https://a.com/1.jpghttps://b.com/2.jpg")).toEqual([
+      "https://a.com/1.jpg", "https://b.com/2.jpg",
+    ]);
+  });
+  it("de-duplicates, preserving order", () => {
+    expect(parseImageLinks("https://a.com/1.jpg https://a.com/1.jpg")).toEqual([
+      "https://a.com/1.jpg",
+    ]);
+  });
+  it("returns [] for text with no links", () => {
+    expect(parseImageLinks("just some words")).toEqual([]);
+    expect(parseImageLinks("")).toEqual([]);
   });
 });

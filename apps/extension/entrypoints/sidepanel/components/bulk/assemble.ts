@@ -61,6 +61,25 @@ export function mapPrefillToSchema(
   return prefill;
 }
 
+// Extracts image URLs from arbitrary pasted text. Handles links separated by
+// newlines/spaces/commas AND links pasted back-to-back with no separator
+// (e.g. "https://a/x.jpghttps://b/y.jpg" → two links) by splitting at each
+// `http(s)://` boundary. De-duplicates, preserving first-seen order.
+export function parseImageLinks(text: string): string[] {
+  if (!text) return [];
+  const matches = text.match(/https?:\/\/[^\s]*?(?=https?:\/\/|\s|$)/gi) ?? [];
+  const seen = new Set<string>();
+  const out: string[] = [];
+  for (const raw of matches) {
+    const url = raw.trim().replace(/[.,;]+$/, "");
+    if (url && !seen.has(url)) {
+      seen.add(url);
+      out.push(url);
+    }
+  }
+  return out;
+}
+
 export function newVariantRow(): VariantRow {
   return {
     id: `v-${Math.random().toString(36).slice(2)}`,
