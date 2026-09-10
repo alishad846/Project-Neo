@@ -46,10 +46,10 @@ services:
     depends_on: [ollama]
     environment:
       OLLAMA_URL: http://ollama:11434
-      # Quality-first default (7B); a lightweight 3B model is raced in
-      # automatically behind it for sellers on slow/CPU-only hardware — see
-      # services/extractor/src/server.ts. Override either via .env if needed.
-      OLLAMA_MODEL: ${OLLAMA_MODEL:-qwen2.5vl:7b}
+      # Lightweight 3B by default: only colour/pattern are usefully extracted
+      # from a product photo, so the heavier 7B buys almost nothing here and
+      # just costs latency/VRAM. Override via .env (OLLAMA_MODEL) if desired.
+      OLLAMA_MODEL: ${OLLAMA_MODEL:-qwen2.5vl:3b}
       OLLAMA_FALLBACK_MODEL: ${OLLAMA_FALLBACK_MODEL:-qwen2.5vl:3b}
       PORT: 8000
     ports: ["8000:8000"]

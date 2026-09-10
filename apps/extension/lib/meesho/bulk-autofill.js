@@ -2998,6 +2998,19 @@ const row = {
             continue;
           }
 
+          // Importer details carry a "required" asterisk in the template, but
+          // Meesho only actually requires them for imported goods. They are
+          // validated conditionally by the country-of-origin block below
+          // (required when origin != India, all-or-nothing when India), so do
+          // NOT hard-flag them as unconditionally required here.
+          if (
+            column.field === "importer_name" ||
+            column.field === "importer_address" ||
+            column.field === "importer_pincode"
+          ) {
+            continue;
+          }
+
           const value =
             getRowField(
               row,
@@ -3021,6 +3034,20 @@ const row = {
           const column of
           schema.columns
         ) {
+          // Seller-defined identifiers are not a fixed allow-list even if the
+          // validation sheet happens to list example values -- Group ID is
+          // seller-assigned to group size/colour variants into one listing, and
+          // SKU / style / product ids are the seller's own codes. Never reject
+          // a seller-generated value for these.
+          if (
+            column.field === "group_id" ||
+            column.field === "sku_id" ||
+            column.field === "supplier_sku_id" ||
+            column.field === "product_id_style_id"
+          ) {
+            continue;
+          }
+
           const value =
             getRowField(
               row,
@@ -3134,20 +3161,38 @@ const row = {
             row.country_of_origin
           );
 
+        const importerFields = [
+          "importer_name",
+          "importer_address",
+          "importer_pincode"
+        ];
+        const importerFilled = importerFields.filter(
+          (field) => clean(row[field]) !== ""
+        ).length;
+
         if (
           country ===
           "india"
         ) {
+          // Importer is "Not Required" for India-origin goods, but it is still
+          // all-or-nothing: a partially-filled importer block fails Meesho QC.
+          if (
+            importerFilled > 0 &&
+            importerFilled < importerFields.length
+          ) {
+            problems.push({
+              row: rowNumber,
+              field: "Importer",
+              error:
+                "Fill all three importer fields (Name, Address, Pincode) or leave them all blank."
+            });
+          }
         } else if (
           options.requireImporterForNonIndia !==
           false
         ) {
           for (
-            const field of [
-              "importer_name",
-              "importer_address",
-              "importer_pincode"
-            ]
+            const field of importerFields
           ) {
             if (
               clean(

@@ -15,12 +15,12 @@ describe("assembled shape for the engine", () => {
     const a = assembleProduct(sku({
       imageUrl: "https://cdn/a.png",
       variants: [
-        { id: "1", variation: "S", color: "Red", length: "", meesho_price: "499", mrp: "999", inventory: "5", wrong_defective_returns_price: "300", measurements: {} },
-        { id: "2", variation: "M", color: "Red", length: "", meesho_price: "499", mrp: "999", inventory: "5", wrong_defective_returns_price: "300", measurements: {} },
+        { id: "1", variation: "S", color: "Red", length: "", meesho_price: "499", mrp: "999", inventory: "5", wrong_defective_returns_price: "300", measurements: {}, images: [] },
+        { id: "2", variation: "M", color: "Red", length: "", meesho_price: "499", mrp: "999", inventory: "5", wrong_defective_returns_price: "300", measurements: {}, images: [] },
       ],
     }), 0);
     const b = assembleProduct(sku({ imageUrl: "https://cdn/b.png", variants: [
-      { id: "3", variation: "Free Size", color: "Blue", length: "", meesho_price: "699", mrp: "1299", inventory: "3", wrong_defective_returns_price: "400", measurements: {} },
+      { id: "3", variation: "Free Size", color: "Blue", length: "", meesho_price: "699", mrp: "1299", inventory: "3", wrong_defective_returns_price: "400", measurements: {}, images: [] },
     ] }), 1);
 
     expect(a.group_id).toBe("PN-G1");

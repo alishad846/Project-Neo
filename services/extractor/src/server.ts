@@ -12,12 +12,14 @@ const app = express();
 app.use(express.json({ limit: "10mb" }));
 
 const OLLAMA_URL = process.env.OLLAMA_URL ?? "http://ollama:11434";
-// Quality-first default: Qwen2.5-VL 7B extracts fashion attributes more
-// reliably than the 3B tier. Sellers without a capable GPU never wait for
-// it though — see OLLAMA_FALLBACK_MODEL/OLLAMA_FALLBACK_TIMEOUT_MS below.
-const OLLAMA_MODEL = process.env.OLLAMA_MODEL ?? "qwen2.5vl:7b";
-// Lightweight tier, raced in behind the quality model so a slow/CPU-only
-// Ollama install never makes a seller wait the full timeout for a result.
+// Lightweight-by-default: only a couple of *visual* attributes (colour,
+// pattern) are usefully extractable from a product photo — the rest of a
+// Meesho listing is commercial/product data the seller supplies. So the fast
+// 3B tier is the primary; the heavier 7B buys almost nothing here and just
+// costs latency/VRAM. Override with OLLAMA_MODEL if you want the larger model.
+const OLLAMA_MODEL = process.env.OLLAMA_MODEL ?? "qwen2.5vl:3b";
+// Same tier as the primary by default, so there is no second racing model to
+// wait on. (Kept configurable in case someone sets a heavier primary.)
 const OLLAMA_FALLBACK_MODEL = process.env.OLLAMA_FALLBACK_MODEL ?? "qwen2.5vl:3b";
 // Warmed image inference on GPU is ~1-3s, CPU ~8-20s. Cold starts (model load)
 // can take up to ~45s.

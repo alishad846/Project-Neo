@@ -12,6 +12,9 @@ export interface VariantRow {
   inventory: string;
   wrong_defective_returns_price: string;
   measurements: Record<string, string>;
+  // Per-variant image links: index 0 = Front (required by Meesho), 1-3 =
+  // optional Image 2/3/4. Empty front falls back to the SKU's pasted link.
+  images: string[];
 }
 
 export interface SkuDraft {

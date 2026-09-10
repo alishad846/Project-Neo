@@ -73,6 +73,7 @@ export function Step2SkuForm(props: {
           colourOptions={axes.colourOptions}
           lengthOptions={axes.lengthOptions}
           measurementColumns={measurementColumns}
+          skuImageUrl={sku.imageUrl}
         />
       </div>
     </div>

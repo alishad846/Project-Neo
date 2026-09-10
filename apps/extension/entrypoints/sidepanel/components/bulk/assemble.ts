@@ -85,7 +85,7 @@ export function newVariantRow(): VariantRow {
     id: `v-${Math.random().toString(36).slice(2)}`,
     variation: "", color: "", length: "",
     meesho_price: "", mrp: "", inventory: "",
-    wrong_defective_returns_price: "", measurements: {},
+    wrong_defective_returns_price: "", measurements: {}, images: [],
   };
 }
 
@@ -99,17 +99,27 @@ export function assembleProduct(sku: SkuDraft, groupIndex: number): AssembledPro
   const shared = sku.shared;
   const groupId = (shared.group_id ?? "").trim() || `PN-G${groupIndex + 1}`;
 
-  const variants = sku.variants.map((v) => ({
-    variation: v.variation,
-    color: v.color,
-    meesho_price: v.meesho_price,
-    mrp: v.mrp,
-    inventory: v.inventory,
-    wrong_defective_returns_price: v.wrong_defective_returns_price,
-    ...(v.length ? { length: v.length } : {}),
-    ...v.measurements,
-    attributes: { ...(v.length ? { length: v.length } : {}), ...v.measurements },
-  }));
+  const variants = sku.variants.map((v) => {
+    const imgs = v.images ?? [];
+    // Front image (required) falls back to the SKU's pasted link when the
+    // seller didn't set a per-variant one; images 2-4 are optional.
+    const front = (imgs[0] ?? "").trim() || sku.imageUrl;
+    return {
+      variation: v.variation,
+      color: v.color,
+      meesho_price: v.meesho_price,
+      mrp: v.mrp,
+      inventory: v.inventory,
+      wrong_defective_returns_price: v.wrong_defective_returns_price,
+      ...(front ? { image_1_front: front } : {}),
+      ...(imgs[1] ? { image_2: imgs[1] } : {}),
+      ...(imgs[2] ? { image_3: imgs[2] } : {}),
+      ...(imgs[3] ? { image_4: imgs[3] } : {}),
+      ...(v.length ? { length: v.length } : {}),
+      ...v.measurements,
+      attributes: { ...(v.length ? { length: v.length } : {}), ...v.measurements },
+    };
+  });
 
   return {
     ...shared,

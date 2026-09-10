@@ -13,7 +13,7 @@ function variant(over: Partial<VariantRow> = {}): VariantRow {
   return {
     id: "v1", variation: "M", color: "Red", length: "",
     meesho_price: "499", mrp: "999", inventory: "10",
-    wrong_defective_returns_price: "300", measurements: {}, ...over,
+    wrong_defective_returns_price: "300", measurements: {}, images: [], ...over,
   };
 }
 function sku(over: Partial<SkuDraft> = {}): SkuDraft {
@@ -51,6 +51,22 @@ describe("assembleProduct", () => {
     );
     expect(out.variants[0].meesho_price).toBe("550");
     expect(out.variants[0].bust_size).toBe("38");
+  });
+
+  it("front image falls back to the SKU link; extra images map to image_2/3/4", () => {
+    const withImgs = assembleProduct(
+      sku({ imageUrl: "https://cdn/sku.png", variants: [variant({ images: ["https://cdn/f.png", "https://cdn/b.png"] })] }),
+      0,
+    );
+    expect(withImgs.variants[0].image_1_front).toBe("https://cdn/f.png");
+    expect(withImgs.variants[0].image_2).toBe("https://cdn/b.png");
+    expect(withImgs.variants[0].image_3).toBeUndefined();
+
+    const noImgs = assembleProduct(
+      sku({ imageUrl: "https://cdn/sku.png", variants: [variant({ images: [] })] }),
+      0,
+    );
+    expect(noImgs.variants[0].image_1_front).toBe("https://cdn/sku.png"); // fallback
   });
 });
 

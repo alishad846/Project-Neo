@@ -10,16 +10,25 @@ export function LinkPillInput(props: {
   value: string[];
   onChange: (next: string[]) => void;
   placeholder?: string;
+  // Optional cap on how many links may be added (e.g. 4 image slots).
+  max?: number;
+  // Optional custom pill label per index (default: "SKU {i+1}").
+  labelFor?: (index: number, url: string) => string;
 }) {
   const [draft, setDraft] = useState("");
+  const atMax = props.max !== undefined && props.value.length >= props.max;
 
-  // Extract any links from `text` and append the new ones. Returns whether any
-  // were added.
+  // Extract any links from `text` and append the new ones (respecting `max`).
+  // Returns whether any were added.
   function addFrom(text: string): boolean {
     const found = parseImageLinks(text);
     if (found.length === 0) return false;
     const merged = [...props.value];
-    for (const url of found) if (!merged.includes(url)) merged.push(url);
+    for (const url of found) {
+      if (props.max !== undefined && merged.length >= props.max) break;
+      if (!merged.includes(url)) merged.push(url);
+    }
+    if (merged.length === props.value.length) return false;
     props.onChange(merged);
     return true;
   }
@@ -45,7 +54,7 @@ export function LinkPillInput(props: {
           className="inline-flex max-w-full items-center gap-1 rounded-full border-2 border-black bg-[#ff90e8] px-2 py-0.5 font-cartoon text-[11px] font-semibold shadow-[2px_2px_0px_0px_#000]"
         >
           <span className="max-w-[170px] truncate" title={url}>
-            SKU {i + 1}: {shortLabel(url)}
+            {(props.labelFor ? props.labelFor(i, url) : `SKU ${i + 1}`)}: {shortLabel(url)}
           </span>
           <button
             type="button"
@@ -58,6 +67,7 @@ export function LinkPillInput(props: {
         </span>
       ))}
 
+      {!atMax && (
       <input
         className="min-w-[130px] flex-1 bg-transparent px-1 py-0.5 font-cartoon text-xs outline-none"
         value={draft}
@@ -87,6 +97,7 @@ export function LinkPillInput(props: {
         }}
         onBlur={commitDraft}
       />
+      )}
     </div>
   );
 }
