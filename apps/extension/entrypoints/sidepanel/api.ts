@@ -183,6 +183,19 @@ export async function extractFromImage(imageBase64: string, category?: string): 
   return res.json();
 }
 
+export async function extractFromUrl(
+  imageUrl: string,
+): Promise<{ fetchable: boolean; attributes: Record<string, unknown> }> {
+  const res = await fetch(`${API_URL}/ai/extract-url`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json", ...(await authHeaders()) },
+    body: JSON.stringify({ imageUrl }),
+  });
+  await handleUnauthorized(res);
+  if (!res.ok) throw new Error(`Extract-url error: ${res.status}`);
+  return res.json();
+}
+
 // Pre-warms the vision model so the seller's first extraction is fast. Called
 // when the AI Autofill tab mounts; fire-and-forget, never throws (a failure
 // just means the first extract pays the cold-load, as before).
