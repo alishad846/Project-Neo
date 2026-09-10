@@ -4,6 +4,7 @@ import {
   applySameAsPrevious,
   optionalGroupStatus,
   deriveVariantAxes,
+  mapPrefillToSchema,
 } from "./assemble";
 import type { SkuDraft, TemplateColumn, TemplateSchema, VariantRow } from "./types";
 
@@ -95,5 +96,40 @@ describe("deriveVariantAxes", () => {
     expect(axes.sizeOptions).toEqual(["S", "M", "L"]);
     expect(axes.colourOptions).toEqual(["Red", "Blue"]);
     expect(axes.lengthOptions).toEqual([]);
+  });
+});
+
+describe("mapPrefillToSchema", () => {
+  const schema: TemplateSchema = {
+    version: "x", fillSheet: "f", validationSheet: "v", dataStartRow: 5,
+    columns: [
+      { index: 0, column: "A", header: "Color", field: "color", type: "optional", required: false, system: false, recommended: false, optional: true, allowedValues: [] },
+      { index: 1, column: "B", header: "Neck", field: "neck", type: "optional", required: false, system: false, recommended: false, optional: true, allowedValues: [] },
+      { index: 2, column: "C", header: "Sleeve Length", field: "sleeve_length", type: "optional", required: false, system: false, recommended: false, optional: true, allowedValues: [] },
+      { index: 3, column: "D", header: "Print or Pattern Type", field: "print_or_pattern_type", type: "optional", required: false, system: false, recommended: false, optional: true, allowedValues: [] },
+    ],
+  };
+
+  it("maps model attribute keys onto the template's actual field names via synonyms", () => {
+    const out = mapPrefillToSchema(
+      { color: "Dark Green", neckType: "Round Neck", sleeveLength: "Half Sleeve", pattern: "Solid" },
+      schema,
+    );
+    expect(out).toEqual({
+      color: "Dark Green",
+      neck: "Round Neck",
+      sleeve_length: "Half Sleeve",
+      print_or_pattern_type: "Solid",
+    });
+  });
+
+  it("drops extracted attributes with no matching template column", () => {
+    const out = mapPrefillToSchema({ blousePiece: "true", occasion: "Casual" }, schema);
+    expect(out).toEqual({}); // neither blousePiece nor occasion exists in this schema
+  });
+
+  it("ignores null/empty values", () => {
+    const out = mapPrefillToSchema({ color: "", neckType: null as unknown as string }, schema);
+    expect(out).toEqual({});
   });
 });

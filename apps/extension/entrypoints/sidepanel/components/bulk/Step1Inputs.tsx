@@ -2,6 +2,7 @@
 import { useState } from "react";
 import { inspectTemplate } from "../../fill";
 import { extractFromUrl } from "../../api";
+import { mapPrefillToSchema } from "./assemble";
 import type { SkuDraft, TemplateSchema } from "./types";
 
 const inputClass = "mt-1 w-full rounded-lg border-2 border-black px-2 py-1.5 font-cartoon text-xs";
@@ -47,10 +48,9 @@ export function Step1Inputs(props: {
         setStatus(`Checking image ${i + 1} of ${links.length}…`);
         const res = await extractFromUrl(url);
         if (!res.fetchable) { failed.push(url); continue; }
-        const prefill: Record<string, string> = {};
-        for (const [k, v] of Object.entries(res.attributes)) {
-          if (v != null && v !== "") prefill[k.toLowerCase().replace(/\s+/g, "_")] = String(v);
-        }
+        // Map extracted attributes onto the template's actual field names so
+        // prefill lands in the right form fields (neckType→neck, etc.).
+        const prefill = mapPrefillToSchema(res.attributes, schema);
         skus.push({
           id: `sku-${i}-${Math.random().toString(36).slice(2)}`,
           imageUrl: url, prefill,
