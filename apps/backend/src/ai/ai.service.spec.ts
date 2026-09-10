@@ -1,9 +1,16 @@
 import { NotFoundException, BadGatewayException } from '@nestjs/common';
 import { of, throwError } from 'rxjs';
 import type { HttpService } from '@nestjs/axios';
+import { promises as dnsPromises } from 'node:dns';
 import { AiService } from './ai.service';
 import { ProductsService } from '../products/products.service';
 import { TransactionsService } from '../transactions/transactions.service';
+
+jest.mock('node:dns', () => ({
+  promises: { lookup: jest.fn() },
+}));
+
+const mockLookup = dnsPromises.lookup as jest.Mock;
 
 const genome = { id: 1, category: 'Women > Kurtis' } as any;
 
@@ -32,6 +39,13 @@ describe('AiService.extractAttributes', () => {
 
 describe('AiService.extractFromUrl', () => {
   const realFetch = globalThis.fetch;
+
+  beforeEach(() => {
+    mockLookup.mockReset();
+    // Default: any hostname resolves to a public IP, so existing tests that
+    // never touch DNS behavior still see a normal, unblocked target.
+    mockLookup.mockResolvedValue([{ address: '203.0.113.5', family: 4 }]);
+  });
 
   afterEach(() => {
     globalThis.fetch = realFetch;
@@ -150,5 +164,92 @@ describe('AiService.extractFromUrl', () => {
     const svc = new AiService({} as HttpService, products, {} as TransactionsService);
     const out = await svc.extractFromUrl('https://upload.meeshosupplyassets.com/huge.png');
     expect(out).toEqual({ fetchable: false, attributes: {} });
+  });
+
+  it('blocks a public hostname whose DNS resolves to the cloud metadata IP, without fetching it', async () => {
+    mockLookup.mockResolvedValue([{ address: '169.254.169.254', family: 4 }]);
+    const fetchSpy = jest.fn();
+    globalThis.fetch = fetchSpy as never;
+    const products = {} as unknown as ProductsService;
+    const svc = new AiService({} as HttpService, products, {} as TransactionsService);
+    const out = await svc.extractFromUrl('https://sneaky.example.com/x.png');
+    expect(out).toEqual({ fetchable: false, attributes: {} });
+    expect(fetchSpy).not.toHaveBeenCalled();
+  });
+
+  it('blocks the IPv4-mapped-IPv6 literal for cloud metadata (::ffff:169.254.169.254)', async () => {
+    const fetchSpy = jest.fn();
+    globalThis.fetch = fetchSpy as never;
+    const products = {} as unknown as ProductsService;
+    const svc = new AiService({} as HttpService, products, {} as TransactionsService);
+    const out = await svc.extractFromUrl('http://[::ffff:169.254.169.254]/x.png');
+    expect(out).toEqual({ fetchable: false, attributes: {} });
+    expect(fetchSpy).not.toHaveBeenCalled();
+  });
+
+  it('blocks the IPv4-mapped-IPv6 literal for loopback (::ffff:127.0.0.1)', async () => {
+    const fetchSpy = jest.fn();
+    globalThis.fetch = fetchSpy as never;
+    const products = {} as unknown as ProductsService;
+    const svc = new AiService({} as HttpService, products, {} as TransactionsService);
+    const out = await svc.extractFromUrl('http://[::ffff:127.0.0.1]/x.png');
+    expect(out).toEqual({ fetchable: false, attributes: {} });
+    expect(fetchSpy).not.toHaveBeenCalled();
+  });
+
+  it('blocks 0.0.0.0', async () => {
+    const fetchSpy = jest.fn();
+    globalThis.fetch = fetchSpy as never;
+    const products = {} as unknown as ProductsService;
+    const svc = new AiService({} as HttpService, products, {} as TransactionsService);
+    const out = await svc.extractFromUrl('http://0.0.0.0/x.png');
+    expect(out).toEqual({ fetchable: false, attributes: {} });
+    expect(fetchSpy).not.toHaveBeenCalled();
+  });
+
+  it('blocks a redirect whose Location points at the cloud metadata IP, without ever fetching it as an image', async () => {
+    const fetchSpy = jest.fn(async (input: unknown) => {
+      const url = String(input);
+      if (url === 'https://cdn.example.com/redirector') {
+        return {
+          ok: false,
+          status: 302,
+          headers: { get: (h: string) => (h === 'location' ? 'http://169.254.169.254/x' : null) },
+        };
+      }
+      // Should never be reached: the internal redirect target must be blocked
+      // before a second fetch is issued.
+      return {
+        ok: true,
+        status: 200,
+        headers: { get: (h: string) => (h === 'content-type' ? 'image/png' : null) },
+        arrayBuffer: async () => new Uint8Array([1, 2, 3]).buffer,
+      };
+    });
+    globalThis.fetch = fetchSpy as never;
+    const products = {} as unknown as ProductsService;
+    const svc = new AiService({} as HttpService, products, {} as TransactionsService);
+    const out = await svc.extractFromUrl('https://cdn.example.com/redirector');
+    expect(out).toEqual({ fetchable: false, attributes: {} });
+    expect(fetchSpy).toHaveBeenCalledTimes(1);
+  });
+
+  it('still returns fetchable:true for a normal public image whose hostname resolves to a public IP', async () => {
+    mockLookup.mockResolvedValue([{ address: '198.51.100.7', family: 4 }]);
+    globalThis.fetch = (async () => ({
+      ok: true,
+      status: 200,
+      headers: { get: (h: string) => (h === 'content-type' ? 'image/png' : null) },
+      arrayBuffer: async () => new Uint8Array([1, 2, 3]).buffer,
+    })) as never;
+    const products = {} as unknown as ProductsService;
+    const svc = new AiService({} as HttpService, products, {} as TransactionsService);
+    (svc as any).extractFromImage = async () => ({
+      attributes: { color: 'Green' },
+      confidence: 'high',
+      source: 'model',
+    });
+    const out = await svc.extractFromUrl('https://cdn.example.com/normal.png');
+    expect(out).toEqual({ fetchable: true, attributes: { color: 'Green' } });
   });
 });

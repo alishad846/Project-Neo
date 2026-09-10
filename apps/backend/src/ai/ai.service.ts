@@ -1,6 +1,7 @@
 import { BadGatewayException, Injectable, NotFoundException, UnprocessableEntityException } from '@nestjs/common';
 import { HttpService } from '@nestjs/axios';
 import { firstValueFrom } from 'rxjs';
+import * as dns from 'node:dns';
 import { compile, validate } from '@neo/adapter-meesho';
 import type { CompiledListing, ValidationIssue } from '@neo/adapter';
 import type { ProductGenome } from '@neo/genome';
@@ -73,14 +74,54 @@ export class AiService {
 
   private static readonly MAX_IMAGE_BYTES = 10 * 1024 * 1024;
   private static readonly FETCH_TIMEOUT_MS = 8000;
+  private static readonly MAX_REDIRECTS = 3;
+  private static readonly REDIRECT_STATUSES = new Set([301, 302, 303, 307, 308]);
 
-  // Blocks SSRF targets: loopback, link-local (cloud metadata), private
-  // ranges, and bare hostnames (Docker service names on the shared backend's
-  // internal network like `postgres`, `ollama`, `extractor`). Case-insensitive.
+  // Blocks SSRF targets by literal string: loopback, link-local (cloud
+  // metadata), private ranges, IPv4-mapped IPv6, and bare hostnames (Docker
+  // service names on the shared backend's internal network like `postgres`,
+  // `ollama`, `extractor`). Case-insensitive. Cheap fast-path; DNS-resolved
+  // targets are additionally checked via resolvesToBlockedIp.
   private isBlockedHost(hostname: string): boolean {
     const host = hostname.toLowerCase().replace(/^\[|\]$/g, '');
 
-    if (host === 'localhost' || host === '::1') return true;
+    if (host === 'localhost') return true;
+    if (this.isBlockedIp(host)) return true;
+
+    // Bare hostname with no dot and no colon (and not an IP) — e.g. Docker
+    // service names like `postgres`.
+    if (!host.includes('.') && !host.includes(':')) return true;
+
+    return false;
+  }
+
+  // Checks a single IP literal (v4 or v6, already lowercased/unbracketed) for
+  // loopback / private / link-local / unspecified / unique-local ranges,
+  // including IPv4-mapped IPv6 addresses (::ffff:a.b.c.d).
+  private isBlockedIp(ip: string): boolean {
+    let host = ip;
+    const pct = host.indexOf('%');
+    if (pct !== -1) host = host.slice(0, pct); // strip zone id
+
+    // IPv4-mapped IPv6: ::ffff:a.b.c.d — check the embedded IPv4.
+    const mappedDottedMatch = host.match(/^::ffff:(\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3})$/);
+    if (mappedDottedMatch) {
+      host = mappedDottedMatch[1];
+    }
+
+    // IPv4-mapped IPv6, hex-group form: ::ffff:xxxx:yyyy (the WHATWG URL
+    // parser normalizes ::ffff:a.b.c.d into this form), each 16-bit group
+    // holding two IPv4 octets.
+    const mappedHexMatch = host.match(/^::ffff:([0-9a-f]{1,4}):([0-9a-f]{1,4})$/);
+    if (mappedHexMatch) {
+      const g1 = mappedHexMatch[1].padStart(4, '0');
+      const g2 = mappedHexMatch[2].padStart(4, '0');
+      const a = parseInt(g1.slice(0, 2), 16);
+      const b = parseInt(g1.slice(2, 4), 16);
+      const c = parseInt(g2.slice(0, 2), 16);
+      const d = parseInt(g2.slice(2, 4), 16);
+      host = `${a}.${b}.${c}.${d}`;
+    }
 
     // IPv4 checks
     const ipv4Match = host.match(/^(\d{1,3})\.(\d{1,3})\.(\d{1,3})\.(\d{1,3})$/);
@@ -88,6 +129,7 @@ export class AiService {
       const octets = ipv4Match.slice(1).map(Number);
       if (octets.some((o) => o > 255)) return true; // malformed, be safe
       const [a, b] = octets;
+      if (a === 0) return true; // 0.0.0.0/8 (unspecified/"this network")
       if (a === 127) return true; // 127.0.0.0/8
       if (a === 169 && b === 254) return true; // 169.254.0.0/16
       if (a === 10) return true; // 10.0.0.0/8
@@ -96,16 +138,38 @@ export class AiService {
       return false;
     }
 
-    // IPv6 unique-local fc00::/7 (prefixes fc/fd)
+    // IPv6 checks
     if (host.includes(':')) {
+      if (host === '::1') return true; // loopback
+      if (host === '::') return true; // unspecified
       const firstGroup = host.split(':')[0];
-      if (firstGroup.startsWith('fc') || firstGroup.startsWith('fd')) return true;
+      if (firstGroup.startsWith('fc') || firstGroup.startsWith('fd')) return true; // unique-local fc00::/7
+      if (/^fe[89ab][0-9a-f]$/.test(firstGroup)) return true; // link-local fe80::/10
       return false;
     }
 
-    // Bare hostname with no dot (and not an IP) — e.g. Docker service names.
-    if (!host.includes('.')) return true;
+    return false;
+  }
 
+  // Resolves a hostname via DNS and checks every returned address. Fails
+  // safe: an unresolvable hostname (or an empty answer) is treated as
+  // blocked so the fetch gate never opens on an unknown target.
+  private async resolvesToBlockedIp(hostname: string): Promise<boolean> {
+    try {
+      const results = await dns.promises.lookup(hostname, { all: true });
+      if (!results || results.length === 0) return true;
+      return results.some((r) => this.isBlockedIp(r.address.toLowerCase()));
+    } catch {
+      return true;
+    }
+  }
+
+  // Combined literal + DNS check used for both the initial URL and every
+  // redirect hop target.
+  private async isTargetBlocked(url: URL): Promise<boolean> {
+    if (url.protocol !== 'http:' && url.protocol !== 'https:') return true;
+    if (this.isBlockedHost(url.hostname)) return true;
+    if (await this.resolvesToBlockedIp(url.hostname)) return true;
     return false;
   }
 
@@ -115,30 +179,57 @@ export class AiService {
   async extractFromUrl(
     imageUrl: string,
   ): Promise<{ fetchable: boolean; attributes: Record<string, unknown> }> {
-    let url: URL;
+    let initialUrl: URL;
     try {
-      url = new URL(imageUrl);
+      initialUrl = new URL(imageUrl);
     } catch {
       return { fetchable: false, attributes: {} };
     }
-    if (url.protocol !== 'http:' && url.protocol !== 'https:') {
-      return { fetchable: false, attributes: {} };
-    }
-    if (this.isBlockedHost(url.hostname)) {
+    if (await this.isTargetBlocked(initialUrl)) {
       return { fetchable: false, attributes: {} };
     }
 
     let base64: string;
+    // One timeout budget covers DNS-validated redirect hops AND the body
+    // read — it is only cleared once the body has been fully drained (or the
+    // whole operation bails out), never right after the headers arrive.
+    const controller = new AbortController();
+    const timer = setTimeout(() => controller.abort(), AiService.FETCH_TIMEOUT_MS);
     try {
-      const controller = new AbortController();
-      const timer = setTimeout(() => controller.abort(), AiService.FETCH_TIMEOUT_MS);
-      let res: Response;
-      try {
-        res = await fetch(imageUrl, { signal: controller.signal });
-      } finally {
-        clearTimeout(timer);
+      let currentUrl = initialUrl;
+      let res: Response | undefined;
+      for (let hop = 0; ; hop++) {
+        let r: Response;
+        try {
+          r = await fetch(currentUrl.toString(), { signal: controller.signal, redirect: 'manual' });
+        } catch {
+          return { fetchable: false, attributes: {} };
+        }
+        const status = (r as unknown as { status?: number }).status;
+        if (status !== undefined && AiService.REDIRECT_STATUSES.has(status)) {
+          if (hop >= AiService.MAX_REDIRECTS) {
+            return { fetchable: false, attributes: {} };
+          }
+          const location = r.headers.get('location');
+          if (!location) {
+            return { fetchable: false, attributes: {} };
+          }
+          let nextUrl: URL;
+          try {
+            nextUrl = new URL(location, currentUrl);
+          } catch {
+            return { fetchable: false, attributes: {} };
+          }
+          if (await this.isTargetBlocked(nextUrl)) {
+            return { fetchable: false, attributes: {} };
+          }
+          currentUrl = nextUrl;
+          continue;
+        }
+        res = r;
+        break;
       }
-      if (!res.ok) return { fetchable: false, attributes: {} };
+      if (!res || !res.ok) return { fetchable: false, attributes: {} };
       const contentType = res.headers.get('content-type') ?? '';
       if (!contentType.startsWith('image/')) {
         return { fetchable: false, attributes: {} };
@@ -150,13 +241,44 @@ export class AiService {
           return { fetchable: false, attributes: {} };
         }
       }
-      const buf = Buffer.from(await res.arrayBuffer());
+
+      let buf: Buffer;
+      const body = res.body as unknown as { getReader?: () => ReadableStreamDefaultReader<Uint8Array> } | null;
+      if (body && typeof body.getReader === 'function') {
+        // Stream + enforce the cap while reading so we never buffer an
+        // unbounded body before checking its size.
+        const reader = body.getReader();
+        const chunks: Uint8Array[] = [];
+        let total = 0;
+        for (;;) {
+          const { done, value } = await reader.read();
+          if (done) break;
+          if (value) {
+            total += value.byteLength;
+            if (total > AiService.MAX_IMAGE_BYTES) {
+              try {
+                await reader.cancel();
+              } catch {
+                /* best-effort cancel */
+              }
+              return { fetchable: false, attributes: {} };
+            }
+            chunks.push(value);
+          }
+        }
+        buf = Buffer.concat(chunks.map((c) => Buffer.from(c)));
+      } else {
+        // Fallback for fetch implementations/mocks without a streamable body.
+        buf = Buffer.from(await res.arrayBuffer());
+      }
       if (buf.byteLength === 0 || buf.byteLength > AiService.MAX_IMAGE_BYTES) {
         return { fetchable: false, attributes: {} };
       }
       base64 = buf.toString('base64');
     } catch {
       return { fetchable: false, attributes: {} };
+    } finally {
+      clearTimeout(timer);
     }
 
     try {
