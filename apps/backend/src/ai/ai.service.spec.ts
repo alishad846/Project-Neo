@@ -29,3 +29,59 @@ describe('AiService.extractAttributes', () => {
     await expect(svc.extractAttributes(1, 'abc')).rejects.toThrow(BadGatewayException);
   });
 });
+
+describe('AiService.extractFromUrl', () => {
+  const realFetch = globalThis.fetch;
+
+  afterEach(() => {
+    globalThis.fetch = realFetch;
+  });
+
+  it('returns fetchable:false for a non-image / failed fetch', async () => {
+    globalThis.fetch = (async () => ({ ok: false, status: 404 })) as never;
+    const products = {} as unknown as ProductsService;
+    const svc = new AiService({} as HttpService, products, {} as TransactionsService);
+    const out = await svc.extractFromUrl('https://x/y.png');
+    expect(out).toEqual({ fetchable: false, attributes: {} });
+  });
+
+  it('returns fetchable:true with attributes when fetch + extract succeed', async () => {
+    globalThis.fetch = (async () => ({
+      ok: true,
+      headers: { get: (h: string) => (h === 'content-type' ? 'image/png' : null) },
+      arrayBuffer: async () => new Uint8Array([1, 2, 3]).buffer,
+    })) as never;
+    const products = {} as unknown as ProductsService;
+    const svc = new AiService({} as HttpService, products, {} as TransactionsService);
+    (svc as any).extractFromImage = async () => ({
+      attributes: { color: 'Red' },
+      confidence: 'high',
+      source: 'model',
+    });
+    const out = await svc.extractFromUrl('https://x/y.png');
+    expect(out.fetchable).toBe(true);
+    expect(out.attributes).toEqual({ color: 'Red' });
+  });
+
+  it('returns fetchable:true attributes:{} when image ok but extractor fails', async () => {
+    globalThis.fetch = (async () => ({
+      ok: true,
+      headers: { get: () => 'image/jpeg' },
+      arrayBuffer: async () => new Uint8Array([1]).buffer,
+    })) as never;
+    const products = {} as unknown as ProductsService;
+    const svc = new AiService({} as HttpService, products, {} as TransactionsService);
+    (svc as any).extractFromImage = async () => {
+      throw new Error('extractor down');
+    };
+    const out = await svc.extractFromUrl('https://x/y.jpg');
+    expect(out).toEqual({ fetchable: true, attributes: {} });
+  });
+
+  it('rejects non-http(s) urls as not fetchable', async () => {
+    const products = {} as unknown as ProductsService;
+    const svc = new AiService({} as HttpService, products, {} as TransactionsService);
+    const out = await svc.extractFromUrl('file:///etc/passwd');
+    expect(out).toEqual({ fetchable: false, attributes: {} });
+  });
+});

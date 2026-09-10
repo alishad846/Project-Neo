@@ -15,6 +15,8 @@ const extractRequestSchema = z.object({
   imageBase64: z.string().min(1),
 });
 
+const extractUrlSchema = z.object({ imageUrl: z.string().url() });
+
 const publishRequestSchema = z.object({
   productId: z.number().int(),
   title: z.string().min(1),
@@ -46,6 +48,12 @@ export class AiController {
     }
     const sellerId = (req as Request & { user?: { sub?: string } }).user?.sub;
     return this.aiService.extractFromImage(body.imageBase64, body.category, sellerId);
+  }
+
+  @Post('extract-url')
+  @UsePipes(new ZodValidationPipe(extractUrlSchema))
+  extractUrl(@Body() body: { imageUrl: string }) {
+    return this.aiService.extractFromUrl(body.imageUrl);
   }
 
   @Post('publish')

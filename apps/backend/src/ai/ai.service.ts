@@ -71,6 +71,50 @@ export class AiService {
     }
   }
 
+  private static readonly MAX_IMAGE_BYTES = 10 * 1024 * 1024;
+
+  // Fetches a (Meesho CDN) image URL server-side, then runs extraction on it.
+  // Serves the bulk wizard's "is this link usable?" gate AND the prefill in one
+  // call. Never throws: an unfetchable link is a normal result, not an error.
+  async extractFromUrl(
+    imageUrl: string,
+  ): Promise<{ fetchable: boolean; attributes: Record<string, unknown> }> {
+    let url: URL;
+    try {
+      url = new URL(imageUrl);
+    } catch {
+      return { fetchable: false, attributes: {} };
+    }
+    if (url.protocol !== 'http:' && url.protocol !== 'https:') {
+      return { fetchable: false, attributes: {} };
+    }
+
+    let base64: string;
+    try {
+      const res = await fetch(imageUrl);
+      if (!res.ok) return { fetchable: false, attributes: {} };
+      const contentType = res.headers.get('content-type') ?? '';
+      if (!contentType.startsWith('image/')) {
+        return { fetchable: false, attributes: {} };
+      }
+      const buf = Buffer.from(await res.arrayBuffer());
+      if (buf.byteLength === 0 || buf.byteLength > AiService.MAX_IMAGE_BYTES) {
+        return { fetchable: false, attributes: {} };
+      }
+      base64 = buf.toString('base64');
+    } catch {
+      return { fetchable: false, attributes: {} };
+    }
+
+    try {
+      const result = await this.extractFromImage(base64);
+      return { fetchable: true, attributes: result.attributes ?? {} };
+    } catch {
+      // Image is usable (gate passes) but extraction failed — prefill is optional.
+      return { fetchable: true, attributes: {} };
+    }
+  }
+
   // Fire-and-forget model warmup. The extension calls this when the seller
   // opens the AI Autofill tab so the vision model is loading into (V)RAM while
   // they pick a photo — turning the ~45s cold-load into a no-op by the time
