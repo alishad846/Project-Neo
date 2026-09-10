@@ -133,11 +133,14 @@ label {
    ========================================================================== */
 .font-loud { font-family: "Magic Cookie", system-ui, sans-serif; }
 .font-display { font-family: "Whoa Sauce", "Impact", system-ui, sans-serif; }
-/* Hogfish is the site's default body/small-text/number face. */
+/* Hogfish is the site's default body/small-text/number face. Its glyphs sit
+   tight, which turns mushy in small/cramped spots (badges, table cells, chips),
+   so we open the tracking slightly for a clearer read everywhere. */
 .font-cartoon,
 .font-body,
 .font-accent {
   font-family: "Hogfish", system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+  letter-spacing: 0.02em;
 }
 
 /* ============================================================================

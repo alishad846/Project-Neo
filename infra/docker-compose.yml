@@ -59,6 +59,8 @@ services:
         condition: service_healthy
       extractor:
         condition: service_started
+      minio:
+        condition: service_started
     environment:
       DATABASE_URL: postgres://neo:neo@postgres:5432/neo
       REDIS_URL: redis://redis:6379
@@ -66,6 +68,11 @@ services:
       # container "localhost" is the container itself, not the extractor.
       EXTRACTOR_URL: http://extractor:8000
       PORT: 3000
+      MINIO_ENDPOINT: http://minio:9000
+      MINIO_ACCESS_KEY: neo
+      MINIO_SECRET_KEY: neominio
+      MINIO_BUCKET: neo-products
+      MINIO_PUBLIC_URL: http://localhost:9000
     ports: ["3000:3000"]
 
 volumes:

@@ -22,20 +22,26 @@ export class PricingService {
     private readonly transactions: TransactionsService,
   ) {}
 
-  async calculateDryRun(rule: PricingRule) {
+  // skus omitted/empty => every product (unchanged default behavior);
+  // present => only those SKUs.
+  private async scopedGenomes(skus?: string[]) {
     const genomes = await this.products.getAllProducts();
-    const skus = genomes.map(toCosting);
-    return executeDryRun(rule, skus, new Date());
+    if (!skus || skus.length === 0) return genomes;
+    const wanted = new Set(skus);
+    return genomes.filter((g) => wanted.has(g.sku));
   }
 
-  async applyPrices(rule: PricingRule) {
-    const genomes = await this.products.getAllProducts();
-    const skus = genomes.map(toCosting);
-    const dry = executeDryRun(rule, skus, new Date());
+  async calculateDryRun(rule: PricingRule, skus?: string[]) {
+    const genomes = await this.scopedGenomes(skus);
+    const costs = genomes.map(toCosting);
+    return executeDryRun(rule, costs, new Date());
+  }
 
-    // dry.diffs[i] corresponds to genomes[i] (executeDryRun preserves input order),
-    // so correlate by index rather than a sku-keyed Map: productGenome.sku has no
-    // uniqueness constraint and duplicate skus would silently collapse in a Map.
+  async applyPrices(rule: PricingRule, skus?: string[]) {
+    const genomes = await this.scopedGenomes(skus);
+    const costs = genomes.map(toCosting);
+    const dry = executeDryRun(rule, costs, new Date());
+
     const snapshot = dry.diffs.map((d, i) => ({
       productId: genomes[i].id,
       previousPrice: genomes[i].sellingPrice ?? "0",
@@ -53,6 +59,32 @@ export class PricingService {
       throw new Error(`apply failed for txn ${txn.id}, rolled back: ${(e as Error).message}`);
     }
     return { txnId: txn.id, updated: dry.diffs.length };
+  }
+
+  // Sets sellingPrice back to basePrice for matching products. Products
+  // with no basePrice recorded (created before this feature, or never
+  // saved through a path that sets it) are skipped, not zeroed.
+  async resetPrices(skus?: string[]) {
+    const all = await this.scopedGenomes(skus);
+    const withBase = all.filter((g) => (g as { basePrice?: string | null }).basePrice != null);
+
+    const snapshot = withBase.map((g) => ({
+      productId: g.id,
+      previousPrice: g.sellingPrice ?? "0",
+    }));
+
+    const txn = await this.transactions.createPriceTxn(snapshot);
+    try {
+      for (const g of withBase) {
+        await this.products.updateProduct(g.id, {
+          sellingPrice: (g as { basePrice?: string | null }).basePrice!,
+        });
+      }
+    } catch (e) {
+      await this.transactions.rollbackPriceTxn(txn.id);
+      throw new Error(`reset failed for txn ${txn.id}, rolled back: ${(e as Error).message}`);
+    }
+    return { txnId: txn.id, updated: withBase.length };
   }
 
   async undo(txnId: number) {

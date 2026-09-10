@@ -39,6 +39,8 @@ export const productGenome = pgTable('product_genome', {
 
   sellingPrice: decimal('selling_price', { precision: 10, scale: 2 }),
 
+  basePrice: decimal('base_price', { precision: 10, scale: 2 }),
+
   images: jsonb('images'),
 
   attributes: jsonb('attributes'),
@@ -81,6 +83,8 @@ export const productGenomeHistory = pgTable('product_genome_history', {
   costPrice: decimal('cost_price', { precision: 10, scale: 2 }),
 
   sellingPrice: decimal('selling_price', { precision: 10, scale: 2 }),
+
+  basePrice: decimal('base_price', { precision: 10, scale: 2 }),
 
   images: jsonb('images'),
 
