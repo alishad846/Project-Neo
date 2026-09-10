@@ -222,6 +222,45 @@ async function activeMeeshoTabId(chrome: any): Promise<number | null> {
   return active?.[0]?.id ?? null;
 }
 
+// Sends a message to the Meesho tab's content script and returns its response.
+// If there's no receiver (the tab was open before the extension loaded, so the
+// declarative content script never ran there), it injects the content script
+// once and retries — the same resilience the autofill senders (sendFill /
+// sendMeeshoAutofill) already have. Returns null only if there's genuinely no
+// receiver even after injection.
+async function sendToMeeshoTab<T>(chrome: any, tabId: number, message: unknown): Promise<T | null> {
+  const trySend = () =>
+    new Promise<T | null>((resolve) => {
+      chrome.tabs.sendMessage(tabId, message, (response: T | undefined) => {
+        const lastError = chrome.runtime?.lastError;
+        if (lastError || response === undefined) {
+          resolve(null);
+          return;
+        }
+        resolve(response);
+      });
+    });
+
+  let result = await trySend();
+  if (result !== null) return result;
+
+  if (chrome.scripting?.executeScript) {
+    try {
+      await chrome.scripting.executeScript({
+        target: { tabId },
+        files: ["content-scripts/content.js"],
+      });
+      await new Promise((r) => setTimeout(r, 300));
+      result = await trySend();
+      if (result !== null) return result;
+    } catch {
+      // fall through — genuinely no receiver
+    }
+  }
+
+  return null;
+}
+
 export async function inspectTemplate(
   templateBase64: string,
   templateName: string,
@@ -230,17 +269,13 @@ export async function inspectTemplate(
   const chrome = (globalThis as { chrome?: any }).chrome;
   const tabId = chrome && (await activeMeeshoTabId(chrome));
   if (!tabId) throw new Error(NO_RECEIVER_HINT);
-  const result: any = await new Promise((resolve) => {
-    chrome.tabs.sendMessage(
-      tabId,
-      { type: "PROJECT_NEO_INSPECT_MEESHO_TEMPLATE", templateBase64, templateName, templateType },
-      (r: unknown) => {
-        void chrome.runtime?.lastError;
-        resolve(r);
-      },
-    );
-  });
-  if (!result?.success) throw new Error(result?.error || "Could not read the Meesho template.");
+  const result = await sendToMeeshoTab<{ success: boolean; schema?: TemplateSchema; error?: string }>(
+    chrome,
+    tabId,
+    { type: "PROJECT_NEO_INSPECT_MEESHO_TEMPLATE", templateBase64, templateName, templateType },
+  );
+  if (result === null) throw new Error(NO_RECEIVER_HINT);
+  if (!result.success) throw new Error(result.error || "Could not read the Meesho template.");
   return result.schema as TemplateSchema;
 }
 
@@ -256,11 +291,11 @@ export async function generateBulk(
   const chrome = (globalThis as { chrome?: any }).chrome;
   const tabId = chrome && (await activeMeeshoTabId(chrome));
   if (!tabId) throw new Error(NO_RECEIVER_HINT);
-  return new Promise((resolve) => {
-    chrome.tabs.sendMessage(
-      tabId,
-      { type: "PROJECT_NEO_GENERATE_MEESHO_BULK", templateBase64, templateName, templateType, products },
-      (r: BulkGenerateResponse) => { void chrome.runtime?.lastError; resolve(r); },
-    );
-  });
+  const result = await sendToMeeshoTab<BulkGenerateResponse>(
+    chrome,
+    tabId,
+    { type: "PROJECT_NEO_GENERATE_MEESHO_BULK", templateBase64, templateName, templateType, products },
+  );
+  if (result === null) throw new Error(NO_RECEIVER_HINT);
+  return result;
 }

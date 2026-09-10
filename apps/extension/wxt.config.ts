@@ -3,7 +3,9 @@ import tailwindcss from "@tailwindcss/vite";
 
 export default defineConfig({
   modules: ["@wxt-dev/module-react"],
-  vite: () => ({ plugins: [tailwindcss()] }),
+  // sourcemap: true so runtime errors in the built bundle map back to real
+  // source (readable stack in chrome://extensions → Errors and in devtools).
+  vite: () => ({ plugins: [tailwindcss()], build: { sourcemap: true } }),
   manifest: {
     name: "Project Neo",
     short_name: "Neo",
