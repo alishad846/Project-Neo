@@ -1,4 +1,5 @@
 import type { MeeshoConfigId } from "@neo/adapter-meesho";
+import type { TemplateSchema } from "./components/bulk/types";
 
 export interface FillValues {
   title: string;
@@ -211,4 +212,34 @@ export async function sendMeeshoAutofill(
       error: err instanceof Error ? err.message : String(err),
     };
   }
+}
+
+async function activeMeeshoTabId(chrome: any): Promise<number | null> {
+  const allTabs = await chrome.tabs.query({});
+  const target = allTabs.find((t: any) => t.url && TARGET_URL_PATTERN.test(t.url));
+  if (target?.id) return target.id;
+  const active = await chrome.tabs.query({ active: true, currentWindow: true });
+  return active?.[0]?.id ?? null;
+}
+
+export async function inspectTemplate(
+  templateBase64: string,
+  templateName: string,
+  templateType: string,
+): Promise<TemplateSchema> {
+  const chrome = (globalThis as { chrome?: any }).chrome;
+  const tabId = chrome && (await activeMeeshoTabId(chrome));
+  if (!tabId) throw new Error(NO_RECEIVER_HINT);
+  const result: any = await new Promise((resolve) => {
+    chrome.tabs.sendMessage(
+      tabId,
+      { type: "PROJECT_NEO_INSPECT_MEESHO_TEMPLATE", templateBase64, templateName, templateType },
+      (r: unknown) => {
+        void chrome.runtime?.lastError;
+        resolve(r);
+      },
+    );
+  });
+  if (!result?.success) throw new Error(result?.error || "Could not read the Meesho template.");
+  return result.schema as TemplateSchema;
 }

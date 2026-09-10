@@ -28,6 +28,13 @@ interface MeeshoBulkGenerationMessage {
   products: unknown[];
 }
 
+interface MeeshoInspectTemplateMessage {
+  type: "PROJECT_NEO_INSPECT_MEESHO_TEMPLATE";
+  templateBase64: string;
+  templateName?: string;
+  templateType?: string;
+}
+
 interface FillResponse {
   ok: boolean;
   filled: string[];
@@ -153,6 +160,52 @@ function requestMeeshoBulkGeneration(payload: {
         templateName: payload.templateName,
         templateType: payload.templateType,
         products: payload.products,
+      },
+      "*",
+    );
+  });
+}
+
+function requestMeeshoInspect(payload: {
+  templateBase64: string;
+  templateName?: string;
+  templateType?: string;
+}): Promise<unknown> {
+  return new Promise((resolve, reject) => {
+    const requestId = `neo-inspect-${Date.now()}-${Math.random().toString(36).slice(2)}`;
+
+    const handler = (event: MessageEvent) => {
+      if (
+        event.source !== window ||
+        event.data?.source !== "PROJECT_NEO_MEESHO_MAIN" ||
+        event.data?.type !== "PROJECT_NEO_INSPECT_RESULT" ||
+        event.data?.requestId !== requestId
+      ) {
+        return;
+      }
+
+      window.removeEventListener("message", handler);
+
+      const result = event.data?.result;
+
+      if (result?.success === false && result?.error) {
+        reject(new Error(result.error));
+        return;
+      }
+
+      resolve(result);
+    };
+
+    window.addEventListener("message", handler);
+
+    window.postMessage(
+      {
+        source: "PROJECT_NEO_EXTENSION",
+        type: "PROJECT_NEO_INSPECT_MEESHO_TEMPLATE",
+        requestId,
+        templateBase64: payload.templateBase64,
+        templateName: payload.templateName,
+        templateType: payload.templateType,
       },
       "*",
     );
@@ -569,6 +622,7 @@ export default defineContentScript({
   | FillMessage
   | MeeshoAutofillMessage
   | MeeshoBulkGenerationMessage
+  | MeeshoInspectTemplateMessage
   | { type: "NEO_SCRAPE_MEESHO" },
         _sender: unknown,
         sendResponse: (
@@ -601,6 +655,17 @@ if (message.type === "PROJECT_NEO_GENERATE_MEESHO_BULK") {
       });
     });
 
+  return true;
+}
+
+if (message.type === "PROJECT_NEO_INSPECT_MEESHO_TEMPLATE") {
+  requestMeeshoInspect({
+    templateBase64: (message as any).templateBase64,
+    templateName: (message as any).templateName,
+    templateType: (message as any).templateType,
+  })
+    .then((result: any) => sendResponse(result))
+    .catch((err) => sendResponse({ success: false, error: err instanceof Error ? err.message : String(err) }));
   return true;
 }
 

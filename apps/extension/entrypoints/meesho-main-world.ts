@@ -167,6 +167,35 @@ export default defineUnlistedScript(() => {
         return;
       }
 
+      if (event.data?.type === "PROJECT_NEO_INSPECT_MEESHO_TEMPLATE") {
+        const { requestId, templateBase64, templateName, templateType } = event.data;
+        try {
+          const bulkApi = (window as any).meeshoBulkAutofill;
+          if (!bulkApi?.inspectBulkTemplateFile) {
+            throw new Error("Meesho bulk template inspector is unavailable.");
+          }
+          const bytes = base64ToUint8Array(templateBase64);
+          const buffer = new ArrayBuffer(bytes.byteLength);
+          new Uint8Array(buffer).set(bytes);
+          const file = new File([buffer], templateName || "meesho-template.xlsx", {
+            type: templateType || "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+          });
+          const schema = await bulkApi.inspectBulkTemplateFile(file);
+          window.postMessage(
+            { source: "PROJECT_NEO_MEESHO_MAIN", type: "PROJECT_NEO_INSPECT_RESULT", requestId,
+              result: { success: true, schema } },
+            "*",
+          );
+        } catch (error) {
+          window.postMessage(
+            { source: "PROJECT_NEO_MEESHO_MAIN", type: "PROJECT_NEO_INSPECT_RESULT", requestId,
+              result: { success: false, error: error instanceof Error ? error.message : String(error) } },
+            "*",
+          );
+        }
+        return;
+      }
+
       if (
         event.data?.type !==
         "PROJECT_NEO_GENERATE_MEESHO_BULK"
