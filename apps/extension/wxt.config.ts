@@ -15,6 +15,12 @@ export default defineConfig({
     // localhost:3000 = backend API. meesho.com = the live Add-Product page the
     // content script fills.
     host_permissions: ["http://localhost:3000/*", "*://*.meesho.com/*"],
+    web_accessible_resources: [
+      {
+        resources: ["meesho-main-world.js"],
+        matches: ["*://*.meesho.com/*"],
+      },
+    ],
     side_panel: { default_path: "sidepanel/index.html" },
     action: {},
     content_security_policy: {

@@ -1,7 +1,7 @@
 import { useMemo, useState } from "react";
 import { Check, Undo2 } from "lucide-react";
 import { PopButton } from "@neo/ui";
-import { computeCost, computeProposedPrice, resolveRuleSet, type SkuCosting } from "@neo/rules-engine";
+import { computeCost, computeProposedPrice, type RuleSet, type SkuCosting } from "@neo/rules-engine";
 import { PRICE_ROWS, type PriceRow } from "../data";
 import { useReveal } from "../hooks/useReveal";
 import { SectionBg } from "../components/SectionBg";
@@ -10,6 +10,15 @@ import { SectionBg } from "../components/SectionBg";
 // live sample of 13 real SKUs; the rule conceptually hits all 500.
 const TOTAL_SKUS = 500;
 const GST_RATES = [0, 5, 12, 18] as const;
+// The landing-page preview explains the direct seller calculation only:
+// selling price minus manufacturing cost. Marketplace fees belong in the
+// detailed calculator, not in this simple price-floor demonstration.
+const SELLER_COST_RULES: RuleSet = {
+  effectiveFrom: "2024-01-01",
+  margin: { packagingFee: 0, returnShippingCost: 0, defectRate: 0, shippingGstRate: 0, feeGstRate: 0 },
+  categories: [{ category: "*", gstRate: 0, defaultReturnRate: 0, commissionRate: 0 }],
+  shipping: [{ maxWeightKg: Infinity, charge: 0 }],
+};
 
 interface Settings {
   discount: number; // % off the current base price
@@ -23,10 +32,6 @@ const INITIAL_SETTINGS: Settings = { discount: 0, gst: 0, roundCharm: false, flo
 // A demo row's manufacturing cost, derived from its listed margin off the
 // *original* list price — a stable number that doesn't move as `base` moves,
 // so repeated Apply cycles don't drift the implied cost.
-function costFrom(row: PriceRow): number {
-  return Math.round(row.oldPrice * (1 - row.margin / 100));
-}
-
 // Builds the SkuCosting the engine needs to price this row from its current
 // committed base — never from the original list price, so a discount always
 // applies to what's live right now, not to some stale reference point.
@@ -34,7 +39,7 @@ function skuFrom(row: PriceRow, base: number): SkuCosting {
   return {
     sku: row.sku,
     currentPrice: base,
-    baseCost: costFrom(row),
+    baseCost: row.costPrice,
     weightKg: 0.5,
     category: "*",
   };
@@ -54,14 +59,10 @@ export function PriceShowcase() {
   const [undoStack, setUndoStack] = useState<Record<string, number>[]>([]);
   const [justApplied, setJustApplied] = useState(false);
 
-  const rules = useMemo(() => resolveRuleSet(new Date()), []);
-
   const rows = useMemo(
     () =>
       PRICE_ROWS.map((row) => {
         const base = bases[row.sku] ?? row.oldPrice;
-        const original = row.oldPrice;
-        const mfg = costFrom(row);
         const preview = Math.round(
           computeProposedPrice(
             {
@@ -71,26 +72,26 @@ export function PriceShowcase() {
               floorBreakeven: settings.floorBE,
             },
             skuFrom(row, base),
-            rules,
+            SELLER_COST_RULES,
           ),
         );
         const { netProfit, gstComponent, marginPct } = computeCost(
-          { sellingPrice: preview, manufacturingCost: mfg, gstRate: settings.gst / 100 },
-          rules,
+          { sellingPrice: preview, manufacturingCost: row.costPrice, gstRate: settings.gst / 100 },
+          SELLER_COST_RULES,
         );
         return {
           sku: row.sku,
           name: row.name,
           margin: Math.round(marginPct),
-          original,
           base,
+          costPrice: row.costPrice,
           preview,
           changed: preview !== base,
           netProfit,
           gstComponent,
         };
       }),
-    [settings, bases, rules],
+    [settings, bases],
   );
 
   const pendingChange = settings.discount > 0;
@@ -141,12 +142,13 @@ export function PriceShowcase() {
               </span>
             </div>
             <div className="overflow-x-auto">
-              <table className="w-full min-w-[560px] border-collapse font-body text-sm">
+              <table className="w-full min-w-[680px] border-collapse font-body text-sm">
                 <thead>
                   <tr className="border-b-2 border-black text-left">
                     <th className="px-3 py-2">SKU</th>
                     <th className="px-3 py-2">Product</th>
-                    <th className="px-3 py-2">Old → New</th>
+                    <th className="px-3 py-2">Cost price</th>
+                    <th className="px-3 py-2">Selling price</th>
                     <th className="px-3 py-2">Margin</th>
                     <th className="px-3 py-2">Status</th>
                   </tr>
@@ -157,18 +159,12 @@ export function PriceShowcase() {
                       <td className="px-3 py-2.5 font-bold">{row.sku}</td>
                       <td className="px-3 py-2.5">
                         {row.name}
-                        {row.base < row.original && (
-                          <div className="mt-1 inline-block border border-black/30 bg-[#ff2fb0]/10 px-1.5 py-0.5 text-[10px] font-bold uppercase tracking-wide text-[#ff2fb0]">
-                            −{Math.round((1 - row.base / row.original) * 100)}% from ₹{row.original}
-                          </div>
-                        )}
                       </td>
                       <td className="px-3 py-2.5 tabular-nums">
-                        <span className="text-black/40 line-through">₹{row.base}</span>{" "}
-                        <span className="text-black">→</span>{" "}
-                        <span className={`font-bold ${row.changed ? "text-[#ff2fb0]" : "text-black"}`}>
-                          ₹{row.preview}
-                        </span>
+                        <span className="font-bold text-black">₹{row.costPrice}</span>
+                      </td>
+                      <td className="px-3 py-2.5 tabular-nums">
+                        <span className={`font-bold ${row.changed ? "text-[#ff2fb0]" : "text-black"}`}>₹{row.preview}</span>
                       </td>
                       <td className="px-3 py-2.5 tabular-nums">{row.margin}%</td>
                       <td className="px-3 py-2.5 tabular-nums">

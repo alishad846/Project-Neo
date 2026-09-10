@@ -128,4 +128,39 @@ describe("computeProposedPrice floorBreakeven + roundToCharm", () => {
     expect(Math.round(p) % 10).toBe(9);
     expect(p).toBeGreaterThanOrEqual(be - 0.001);
   });
+
+  it("never raises an already-unviable SKU when a discount is guarded", () => {
+    const lowPriceSku: SkuCosting = { sku: "LOW", currentPrice: 10, baseCost: 8, weightKg: 0.5, category: "*" };
+    const be = computeBreakeven(lowPriceSku, rules);
+    expect(be).toBeGreaterThan(99);
+    expect(
+      computeProposedPrice(
+        { actionType: "PERCENTAGE_DISCOUNT", actionValue: 20, roundToCharm: true },
+        lowPriceSku,
+        rules,
+      ),
+    ).toBe(10);
+  });
+
+  it("rounds a discounted price down instead of undoing the discount", () => {
+    const discounted = computeProposedPrice(
+      { actionType: "PERCENTAGE_DISCOUNT", actionValue: 7, roundToCharm: true, floorBreakeven: false },
+      { ...sku, currentPrice: 699 },
+      rules,
+    );
+    expect(discounted).toBe(599);
+    expect(discounted).toBeLessThanOrEqual(699);
+  });
+
+  it("continues through charm tiers until a high break-even is covered", () => {
+    const highCostSku: SkuCosting = { sku: "HIGH", currentPrice: 10, baseCost: 250, weightKg: 0.5, category: "*" };
+    const be = computeBreakeven(highCostSku, rules);
+    const p = computeProposedPrice(
+      { actionType: "SET_FIXED", actionValue: 1, roundToCharm: true },
+      highCostSku,
+      rules,
+    );
+    expect(p).toBeGreaterThanOrEqual(be);
+    expect(p).toBe(399);
+  });
 });

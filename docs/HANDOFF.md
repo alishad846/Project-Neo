@@ -53,7 +53,7 @@ all sharing typed contracts.
 - `ai` — extraction/publish/undo, talking to the local extractor (no paid APIs).
 
 ### AI extractor (`services/extractor`, Dockerised)
-- Local, **free** vision extraction (Ollama + `moondream`) with a heuristic fallback.
+- Local, **free** vision extraction (Ollama + `qwen2.5vl:3b`) with a heuristic fallback.
   No third-party paid API is ever called.
 
 ### Shared packages (`packages/*`)
@@ -79,7 +79,7 @@ all sharing typed contracts.
                     │ /ai/extract
                     ▼
              ┌──────────────────────┐
-             │ services/extractor   │  (Ollama + moondream, local, free)
+             │ services/extractor   │  (Ollama + qwen2.5vl:3b, local, free)
              └──────────────────────┘
 ```
 
@@ -187,8 +187,11 @@ Then in Chrome: `chrome://extensions` → enable **Developer mode** → **Load u
 - **Migrations fail** → make sure the Postgres container is healthy
   (`docker exec infra-postgres-1 pg_isready -U neo`) and `.env` points at `:5433`.
 - **AI extraction returns heuristic-only** → the `ollama`/`extractor` containers
-  aren't up, or the `moondream` model isn't pulled (`ollama pull moondream`). The
-  heuristic fallback still works without them.
+  aren't up, or neither model is pulled: `ollama pull qwen2.5vl:7b` (quality,
+  needs a GPU with ~8GB VRAM for good speed) and `ollama pull qwen2.5vl:3b`
+  (fast fallback, CPU-friendly — the extractor races the two automatically,
+  see `services/extractor/src/server.ts`, so pull both). The heuristic
+  fallback still works without either.
 
 ---
 

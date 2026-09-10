@@ -46,7 +46,11 @@ services:
     depends_on: [ollama]
     environment:
       OLLAMA_URL: http://ollama:11434
-      OLLAMA_MODEL: moondream
+      # Quality-first default (7B); a lightweight 3B model is raced in
+      # automatically behind it for sellers on slow/CPU-only hardware — see
+      # services/extractor/src/server.ts. Override either via .env if needed.
+      OLLAMA_MODEL: ${OLLAMA_MODEL:-qwen2.5vl:7b}
+      OLLAMA_FALLBACK_MODEL: ${OLLAMA_FALLBACK_MODEL:-qwen2.5vl:3b}
       PORT: 8000
     ports: ["8000:8000"]
 

@@ -24,7 +24,10 @@ export async function getProducts(): Promise<ProductGenome[]> {
   const res = await fetch(`${API_URL}/products`, { headers: await authHeaders() });
   await handleUnauthorized(res);
   if (!res.ok) throw new Error(`Product API error: ${res.status}`);
-  return res.json();
+  const data = await res.json();
+  if (Array.isArray(data)) return data;
+  if (Array.isArray(data?.value)) return data.value;
+  throw new Error("Invalid products API response.");
 }
 
 export type ProductGenomeCreate = Omit<ProductGenome, "id" | "sellerId" | "version" | "isArchived" | "createdAt" | "updatedAt">;
@@ -178,6 +181,17 @@ export async function extractFromImage(imageBase64: string, category?: string): 
   await handleUnauthorized(res);
   if (!res.ok) throw new Error(`Extract error: ${res.status}`);
   return res.json();
+}
+
+// Pre-warms the vision model so the seller's first extraction is fast. Called
+// when the AI Autofill tab mounts; fire-and-forget, never throws (a failure
+// just means the first extract pays the cold-load, as before).
+export async function warmupExtractor(): Promise<void> {
+  try {
+    await fetch(`${API_URL}/ai/warmup`, { headers: await authHeaders() });
+  } catch {
+    // Best-effort only.
+  }
 }
 
 export async function publishListing(

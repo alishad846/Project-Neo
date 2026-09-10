@@ -149,9 +149,7 @@ export interface PriceRow {
   sku: string;
   name: string;
   oldPrice: number;
-  newPrice: number;
-  margin: number; // new margin, %
-  breakeven: boolean; // false if the new price would fall below break-even
+  costPrice: number; // product manufacturing cost per unit
 }
 
 export const PRICE_RULES = [
@@ -161,17 +159,17 @@ export const PRICE_RULES = [
 ] as const;
 
 export const PRICE_ROWS: PriceRow[] = [
-  { sku: "KURTI-001", name: "Printed Cotton Kurti", oldPrice: 699, newPrice: 629, margin: 34, breakeven: true },
-  { sku: "KURTI-007", name: "Rayon A-Line Kurti", oldPrice: 549, newPrice: 494, margin: 29, breakeven: true },
-  { sku: "TOP-003", name: "Cotton Crop Top", oldPrice: 349, newPrice: 314, margin: 22, breakeven: true },
-  { sku: "DRESS-011", name: "Floral Midi Dress", oldPrice: 899, newPrice: 809, margin: 31, breakeven: true },
-  { sku: "LEG-002", name: "Ankle-Length Leggings", oldPrice: 299, newPrice: 269, margin: 8, breakeven: false },
-  { sku: "SAREE-014", name: "Banarasi Art Silk Saree", oldPrice: 1499, newPrice: 1349, margin: 30, breakeven: true },
-  { sku: "KURTI-032", name: "Anarkali Flared Kurti", oldPrice: 1199, newPrice: 1079, margin: 33, breakeven: true },
-  { sku: "DUP-021", name: "Chiffon Printed Dupatta", oldPrice: 399, newPrice: 359, margin: 26, breakeven: true },
-  { sku: "TOP-018", name: "Ribbed Knit Tank Top", oldPrice: 299, newPrice: 269, margin: 18, breakeven: true },
-  { sku: "NGT-004", name: "Cotton Nightwear Set", oldPrice: 649, newPrice: 584, margin: 7, breakeven: false },
-  { sku: "ACC-010", name: "Silicone Phone Grip", oldPrice: 10, newPrice: 8, margin: 20, breakeven: false },
-  { sku: "ACC-100", name: "Cotton Handkerchief", oldPrice: 100, newPrice: 90, margin: 15, breakeven: true },
-  { sku: "ACC-150", name: "Beaded Hair Clip Set", oldPrice: 150, newPrice: 135, margin: 18, breakeven: true },
+  { sku: "KURTI-001", name: "Printed Cotton Kurti", oldPrice: 699, costPrice: 450 },
+  { sku: "KURTI-007", name: "Rayon A-Line Kurti", oldPrice: 549, costPrice: 325 },
+  { sku: "TOP-003", name: "Cotton Crop Top", oldPrice: 349, costPrice: 175 },
+  { sku: "DRESS-011", name: "Floral Midi Dress", oldPrice: 899, costPrice: 540 },
+  { sku: "LEG-002", name: "Ankle-Length Leggings", oldPrice: 299, costPrice: 165 },
+  { sku: "SAREE-014", name: "Banarasi Art Silk Saree", oldPrice: 1499, costPrice: 930 },
+  { sku: "KURTI-032", name: "Anarkali Flared Kurti", oldPrice: 1199, costPrice: 710 },
+  { sku: "DUP-021", name: "Chiffon Printed Dupatta", oldPrice: 399, costPrice: 210 },
+  { sku: "TOP-018", name: "Ribbed Knit Tank Top", oldPrice: 299, costPrice: 160 },
+  { sku: "NGT-004", name: "Cotton Nightwear Set", oldPrice: 649, costPrice: 390 },
+  { sku: "ACC-010", name: "Silicone Phone Grip", oldPrice: 10, costPrice: 8 },
+  { sku: "ACC-100", name: "Cotton Handkerchief", oldPrice: 100, costPrice: 35 },
+  { sku: "ACC-150", name: "Beaded Hair Clip Set", oldPrice: 150, costPrice: 55 },
 ];

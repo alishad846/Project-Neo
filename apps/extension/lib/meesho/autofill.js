@@ -142,7 +142,10 @@ function prettyLabel(identifier){
 async function announceFilled(el,identifier){
   if(el&&typeof el.scrollIntoView==="function"){
     try{
-      el.scrollIntoView({behavior:"smooth",block:"center"});
+      // "auto" (instant) scroll, not "smooth" -- getBoundingClientRect()
+      // right after must reflect the element's FINAL resting position, or
+      // the fixed-position pop-up renders wherever the element was mid-animation.
+      el.scrollIntoView({behavior:"auto",block:"center"});
     }catch(_){}
     await sleep(180);
   }
@@ -552,6 +555,16 @@ async function fillField(
     return false;
   }
 
+  // A disabled/read-only input (e.g. Meesho locks Importer Name/Address/Pincode
+  // for India-origin products -- placeholder "Not Required") will happily accept
+  // a JS-set .value that React then wipes on its next render, producing a false
+  // "filled". Detect it up front and skip honestly instead.
+  if(field.disabled||field.readOnly){
+    report.skipped.push(identifier);
+    warn(`Field is locked/not-required, skipped: ${identifier}`);
+    return false;
+  }
+
   setInputValue(
     field,
     value
@@ -567,6 +580,19 @@ async function fillField(
     2500,
     100
   );
+
+  // Re-read after a short settle so a value React reverts (a field that isn't
+  // truly accepting input) is caught as failed rather than reported filled.
+  if(verified){
+    await sleep(250);
+    if(!valuesMatch(getCurrentFieldValueByIdentifier(identifier),value)){
+      report.failed.push({
+        field:identifier,
+        error:`Field reverted "${value}" (not accepting input)`
+      });
+      return false;
+    }
+  }
 
   if(!verified){
     report.failed.push({

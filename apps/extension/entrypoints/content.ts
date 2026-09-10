@@ -503,7 +503,9 @@ async function fillForm(
       continue;
     }
 
-    el.scrollIntoView({ behavior: "smooth", block: "center" });
+    // "auto" (instant), not "smooth" -- popConfetti reads getBoundingClientRect()
+    // right after, which must be the element's final position, not mid-scroll.
+    el.scrollIntoView({ behavior: "auto", block: "center" });
     await sleep(220);
     el.focus();
     setNativeValue(el, vals[key]);
@@ -606,10 +608,18 @@ if (message.type === "PROJECT_NEO_GENERATE_MEESHO_BULK") {
         if (message.type === "NEO_MEESHO_AUTOFILL") {
   requestMeeshoAutofill(message.product)
     .then((result: any) => {
+      // `result.failed` holds fields the engine found and wrote but which
+      // never verified (e.g. business-details fields Meesho's own onChange
+      // handling rejected or reformatted) -- fold them into `missing` so the
+      // seller sees them instead of the run silently reporting success.
+      const failedFields: string[] = Array.isArray(result?.failed)
+        ? result.failed.map((f: any) => f?.field).filter(Boolean)
+        : [];
+
       sendResponse({
         ok: true,
         filled: result?.filled ?? [],
-        missing: result?.requiredMissing ?? [],
+        missing: [...(result?.requiredMissing ?? []), ...failedFields],
         skipped: result?.skipped ?? [],
         submitFocused: false,
         stopped: result?.stopped ?? false,

@@ -34,22 +34,33 @@ export class AiService {
     if (!genome) {
       throw new NotFoundException(`No product with id ${productId}`);
     }
-    return this.callExtractor(imageBase64, genome.category ?? undefined);
+    const priors = genome.sellerId
+      ? await this.productsService.getSellerPriors(genome.sellerId, genome.category ?? undefined)
+      : undefined;
+    return this.callExtractor(imageBase64, genome.category ?? undefined, priors);
   }
 
   // Image-first extraction used by the production extension: no seeded product
   // needed, just the photo and an optional category hint (the Meesho category
-  // the seller is listing under, which sharpens moondream's prompt).
-  async extractFromImage(imageBase64: string, category?: string): Promise<ExtractResult> {
-    return this.callExtractor(imageBase64, category);
+  // the seller is listing under, which sharpens the vision model's prompt).
+  async extractFromImage(imageBase64: string, category?: string, sellerId?: string): Promise<ExtractResult> {
+    const priors = sellerId ? await this.productsService.getSellerPriors(sellerId, category) : undefined;
+    return this.callExtractor(imageBase64, category, priors);
   }
 
-  private async callExtractor(imageBase64: string, category?: string): Promise<ExtractResult> {
+  private async callExtractor(
+    imageBase64: string,
+    category?: string,
+    sellerPriors?: Record<string, unknown>,
+  ): Promise<ExtractResult> {
     try {
+      const hint: Record<string, unknown> = {};
+      if (category) hint.category = category;
+      if (sellerPriors) hint.sellerPriors = sellerPriors;
       const response = await firstValueFrom(
         this.httpService.post<ExtractResult>(`${this.extractorUrl}/api/extract`, {
           imageBase64,
-          hint: category ? { category } : {},
+          hint,
         }),
       );
       return response.data;
@@ -57,6 +68,20 @@ export class AiService {
       // Fail safe: if the extraction service is unreachable, surface that
       // clearly. Never silently write a fabricated product to the catalogue.
       throw new BadGatewayException('Could not reach the attribute extraction service.');
+    }
+  }
+
+  // Fire-and-forget model warmup. The extension calls this when the seller
+  // opens the AI Autofill tab so the vision model is loading into (V)RAM while
+  // they pick a photo — turning the ~45s cold-load into a no-op by the time
+  // they hit Analyze. Never throws: a cold model just means the first extract
+  // is slow, exactly as before.
+  async warmup(): Promise<{ ok: boolean }> {
+    try {
+      await firstValueFrom(this.httpService.post(`${this.extractorUrl}/api/warmup`, {}));
+      return { ok: true };
+    } catch {
+      return { ok: false };
     }
   }
 

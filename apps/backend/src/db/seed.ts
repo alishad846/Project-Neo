@@ -1,9 +1,15 @@
-import "dotenv/config";
+import "../env";
 import { eq } from "drizzle-orm";
 import { db } from "./database";
 import { productGenome } from "./schema";
 
 const SELLER_ID = "seller_demo";
+
+// Demo seeding is intentionally disabled: sellers should only ever see the
+// SKUs they add themselves. Running this script now just purges any leftover
+// demo rows from earlier seeds. The sample catalogue below is kept only as a
+// reference of the genome shape and is never inserted.
+const SEED_DEMO = false;
 
 const rows = [
   {
@@ -169,11 +175,17 @@ const rows = [
 ];
 
 async function main() {
-  // Idempotent: clear any prior demo seed for this seller before inserting fresh rows,
-  // so re-running the seed doesn't accumulate duplicates.
-  await db.delete(productGenome).where(eq(productGenome.sellerId, SELLER_ID));
-  await db.insert(productGenome).values(rows);
-  console.log(`Seeded ${rows.length} products`);
+  // Always purge the old demo catalogue so no seller sees products they didn't add.
+  const purged = await db.delete(productGenome).where(eq(productGenome.sellerId, SELLER_ID));
+  console.log(`Removed demo seed rows for ${SELLER_ID}.`);
+
+  if (SEED_DEMO) {
+    await db.insert(productGenome).values(rows);
+    console.log(`Seeded ${rows.length} products`);
+  } else {
+    console.log("Demo seeding disabled — sellers start with an empty catalogue.");
+    void purged;
+  }
   process.exit(0);
 }
 main().catch((e) => {
