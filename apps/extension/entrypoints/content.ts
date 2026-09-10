@@ -1,4 +1,16 @@
-import { SELECTOR_CONFIGS, type MeeshoConfigId, type MeeshoSelectorMap } from "@neo/adapter-meesho";
+import {
+  SELECTOR_CONFIGS as MEESHO_SELECTORS,
+  type MeeshoConfigId,
+  type MeeshoSelectorMap,
+} from "@neo/adapter-meesho";
+
+import {
+  SELECTOR_CONFIGS as FLIPKART_SELECTORS,
+  type FlipkartConfigId,
+  type FlipkartSelectorMap,
+} from "@neo/adapter-flipkart";
+
+import type { MarketplaceId } from "@neo/adapter";
 import { injectScript, type ScriptPublicPath } from "#imports";
 
 export interface FillValues {
@@ -10,7 +22,8 @@ export interface FillValues {
 
 interface FillMessage {
   type: "NEO_FILL";
-  config: MeeshoConfigId;
+  marketplace?: MarketplaceId;
+  config: string;
   values: FillValues;
   fields?: Record<string, string>;
 }
@@ -26,6 +39,10 @@ interface MeeshoBulkGenerationMessage {
   templateName?: string;
   templateType?: string;
   products: unknown[];
+}
+interface FlipkartBulkFillMessage {
+  type: "PROJECT_NEO_FILL_FLIPKART_BULK";
+  rows: Array<Record<string, string>>;
 }
 
 interface FillResponse {
@@ -298,6 +315,142 @@ function setNativeValue(el: HTMLInputElement | HTMLTextAreaElement, value: strin
   el.dispatchEvent(new Event("input", { bubbles: true }));
   el.dispatchEvent(new Event("change", { bubbles: true }));
 }
+function setAngularValue(
+  el: HTMLInputElement | HTMLTextAreaElement,
+  value: string,
+) {
+  setNativeValue(el, value);
+
+  // Flipkart uses Angular reactive forms.
+  // Blur helps Angular commit the updated form-control value.
+  el.dispatchEvent(new Event("blur", { bubbles: true }));
+}
+function normalizeFlipkartHeader(value: string): string {
+  return value
+    .toLowerCase()
+    .replace(/[^a-z0-9]/g, "");
+}
+
+function getFlipkartColumnMap(): Record<string, number> {
+  let headers = Array.from(
+    document.querySelectorAll<HTMLElement>('[role="columnheader"]'),
+  );
+
+  if (headers.length === 0) {
+    headers = Array.from(
+      document.querySelectorAll<HTMLElement>("th"),
+    );
+  }
+
+  const aliases: Record<string, string[]> = {
+    skuId: ["sku", "skuid", "seller sku", "seller sku id"],
+    productName: ["product name", "product title", "title"],
+    brand: ["brand"],
+    mrp: ["mrp", "maximum retail price"],
+    sellingPrice: ["selling price", "sale price", "price"],
+    hsnCode: ["hsn", "hsn code"],
+    procurementSla: ["procurement sla", "sla"],
+    stockCount: ["stock", "stock count", "inventory", "quantity"],
+    shippingDays: ["shipping days", "shipping time"],
+  };
+
+  const map: Record<string, number> = {};
+
+  headers.forEach((header, index) => {
+    const headerText = normalizeFlipkartHeader(
+      header.textContent ?? "",
+    );
+
+    for (const [field, names] of Object.entries(aliases)) {
+      const matched = names.some((name) => {
+        const normalizedName = normalizeFlipkartHeader(name);
+
+        return (
+          headerText === normalizedName ||
+          headerText.includes(normalizedName)
+        );
+      });
+
+      if (matched && map[field] === undefined) {
+        map[field] = index;
+      }
+    }
+  });
+
+  return map;
+}
+
+async function fillFlipkartGridRow(
+  row: Element,
+  values: Record<string, string>,
+  columnMap: Record<string, number>,
+): Promise<{ filled: string[]; missing: string[] }> {
+  const cells = row.querySelectorAll('[role="gridcell"]');
+
+  const filled: string[] = [];
+  const missing: string[] = [];
+
+  for (const [field, value] of Object.entries(values)) {
+    if (!value) continue;
+
+    const columnIndex = columnMap[field];
+
+    if (columnIndex === undefined) {
+      missing.push(field);
+      continue;
+    }
+
+    const cell = cells[columnIndex];
+
+    if (!cell) {
+      missing.push(field);
+      continue;
+    }
+
+    let input =
+      cell.querySelector<HTMLInputElement | HTMLTextAreaElement>(
+        "input, textarea",
+      );
+
+    if (!input) {
+      (cell as HTMLElement).click();
+      await sleep(150);
+
+      input =
+        cell.querySelector<HTMLInputElement | HTMLTextAreaElement>(
+          "input, textarea",
+        );
+    }
+
+    if (input) {
+      input.focus();
+      setAngularValue(input, value);
+      filled.push(field);
+    } else {
+      const editable =
+        cell.querySelector<HTMLElement>("[contenteditable]");
+
+      if (editable) {
+        editable.focus();
+        editable.textContent = value;
+        editable.dispatchEvent(
+          new Event("input", { bubbles: true }),
+        );
+        editable.dispatchEvent(
+          new Event("blur", { bubbles: true }),
+        );
+
+        filled.push(field);
+      } else {
+        missing.push(field);
+      }
+    }
+
+    await sleep(150);
+  }
+
+  return { filled, missing };
+}
 
 function isDropdown(el: HTMLInputElement): boolean {
   return (
@@ -392,7 +545,10 @@ async function fillDropdown(el: HTMLInputElement, value: string): Promise<boolea
   }
 }
 
-async function fillByName(fields: Record<string, string>): Promise<FillResponse> {
+async function fillByName(
+  fields: Record<string, string>,
+  marketplace: MarketplaceId = "meesho",
+): Promise<FillResponse> {
   const filled: string[] = [];
   const missing: string[] = [];
   const skipped: string[] = [];
@@ -430,14 +586,22 @@ async function fillByName(fields: Record<string, string>): Promise<FillResponse>
     let ok = true;
 
     if (el instanceof HTMLInputElement && isDropdown(el)) {
-      ok = await fillDropdown(el, value);
-    } else {
-      el.focus();
-      setNativeValue(
-        el as HTMLInputElement | HTMLTextAreaElement,
-        value,
-      );
-    }
+  ok = await fillDropdown(el, value);
+} else if (marketplace === "flipkart") {
+  el.focus();
+
+  setAngularValue(
+    el as HTMLInputElement | HTMLTextAreaElement,
+    value,
+  );
+} else {
+  el.focus();
+
+  setNativeValue(
+    el as HTMLInputElement | HTMLTextAreaElement,
+    value,
+  );
+}
 
     if (ok) {
       popConfetti(el, `${labelFromName(name)} filled`);
@@ -543,15 +707,117 @@ async function fillForm(
     stopped,
   };
 }
+async function fillFlipkartForm(
+  map: FlipkartSelectorMap,
+  vals: FillValues & Record<string, string>,
+): Promise<FillResponse> {
+  const fieldOrder: Array<[string, string]> = [
+    ["productName", map.productName],
+    ["description", map.description],
+    ["brand", map.brand],
+    ["mrp", map.mrp],
+    ["sellingPrice", map.sellingPrice],
+    ["hsnCode", map.hsnCode],
+    ["skuId", map.skuId],
+    ["procurementSla", map.procurementSla],
+    ["stockCount", map.stockCount],
+    ["shippingDays", map.shippingDays],
+  ];
+
+  const filled: string[] = [];
+  const missing: string[] = [];
+  const skipped: string[] = [];
+
+  let stopped = false;
+
+  stopRequested = false;
+  injectStyles();
+  clearOverlays();
+  showStopButton();
+
+  for (const [key, selector] of fieldOrder) {
+    if (stopRequested) {
+      stopped = true;
+      break;
+    }
+
+    if (!selector) {
+      skipped.push(key);
+      continue;
+    }
+
+    const value = vals[key] ?? "";
+
+    if (!value) {
+      skipped.push(key);
+      continue;
+    }
+
+    const el = document.querySelector<
+      HTMLInputElement | HTMLTextAreaElement
+    >(selector);
+
+    if (!el) {
+      missing.push(key);
+      continue;
+    }
+
+    clearOverlays();
+
+    el.scrollIntoView({
+      behavior: "auto",
+      block: "center",
+    });
+
+    await sleep(120);
+
+    el.focus();
+    setAngularValue(el, value);
+
+    popConfetti(el, `${labelFromName(key)} filled`);
+
+    filled.push(key);
+
+    await sleep(360);
+  }
+
+  clearOverlays();
+  removeStopButton();
+
+  return {
+    ok: true,
+    filled,
+    missing,
+    skipped,
+    submitFocused: false,
+    stopped,
+  };
+}
+function detectMarketplace(): MarketplaceId {
+  const host = window.location.hostname;
+
+  if (/seller\.flipkart\.com$/i.test(host)) {
+    return "flipkart";
+  }
+
+  return "meesho";
+}
 
 export default defineContentScript({
-  matches: ["*://*.meesho.com/*"],
+  matches: [
+  "*://*.meesho.com/*",
+  "*://*.seller.flipkart.com/*",
+],
 
   async main() {
     // Inject the main-world script that exposes window.meeshoAutofill.
-    await injectScript("/meesho-main-world.js" as ScriptPublicPath, {
-      keepInDom: true,
-    });
+    const marketplace = detectMarketplace();
+
+if (marketplace === "meesho") {
+  await injectScript("/meesho-main-world.js" as ScriptPublicPath, {
+    keepInDom: true,
+  });
+}
 
     // Readiness marker so the side panel (or a test probe) can detect that the
     // declarative content script actually injected into this page.
@@ -567,6 +833,7 @@ export default defineContentScript({
   | FillMessage
   | MeeshoAutofillMessage
   | MeeshoBulkGenerationMessage
+  | FlipkartBulkFillMessage
   | { type: "NEO_SCRAPE_MEESHO" },
         _sender: unknown,
         sendResponse: (
@@ -578,7 +845,69 @@ export default defineContentScript({
 ) => void,
       ) => {
         if (!message) return false;
+if (message.type === "PROJECT_NEO_FILL_FLIPKART_BULK") {
+  const run = async () => {
+    if (detectMarketplace() !== "flipkart") {
+      throw new Error(
+        "Open the Flipkart Seller Hub bulk catalogue page first.",
+      );
+    }
 
+    const columnMap = getFlipkartColumnMap();
+
+    if (Object.keys(columnMap).length === 0) {
+      throw new Error(
+        "Could not detect Flipkart bulk catalogue columns.",
+      );
+    }
+
+    const gridRows = Array.from(
+      document.querySelectorAll('[role="row"]'),
+    ).filter(
+      (row) =>
+        row.querySelectorAll('[role="gridcell"]').length > 0,
+    );
+
+    if (gridRows.length === 0) {
+      throw new Error(
+        "Could not find editable Flipkart catalogue rows.",
+      );
+    }
+
+    const rowsToFill = Math.min(
+      message.rows.length,
+      gridRows.length,
+    );
+
+    for (let index = 0; index < rowsToFill; index++) {
+      await fillFlipkartGridRow(
+        gridRows[index],
+        message.rows[index],
+        columnMap,
+      );
+    }
+
+    return {
+      success: true,
+    };
+  };
+
+  run()
+    .then((result) => {
+      sendResponse(result);
+    })
+    .catch((err) => {
+      sendResponse({
+        success: false,
+        error:
+          err instanceof Error
+            ? err.message
+            : String(err),
+      });
+    });
+
+  return true;
+}
 if (message.type === "PROJECT_NEO_GENERATE_MEESHO_BULK") {
   requestMeeshoBulkGeneration({
     templateBase64: message.templateBase64,
@@ -639,9 +968,12 @@ if (message.type === "PROJECT_NEO_GENERATE_MEESHO_BULK") {
         }
 
         // Existing generic/fixture autofill path.
-        if (message.type !== "NEO_FILL") return false;
+if (message.type !== "NEO_FILL") return false;
 
-        const done = (result: FillResponse) => sendResponse(result);
+const marketplace =
+  message.marketplace ?? detectMarketplace();
+
+const done = (result: FillResponse) => sendResponse(result);
 
         const fail = (err: unknown) => {
           removeStopButton();
@@ -656,14 +988,40 @@ if (message.type === "PROJECT_NEO_GENERATE_MEESHO_BULK") {
         };
 
         if (message.fields) {
-          fillByName(message.fields)
-            .then(done)
-            .catch(fail);
+  fillByName(message.fields, marketplace)
+    .then(done)
+    .catch(fail);
 
-          return true;
-        }
+  return true;
+}
+if (marketplace === "flipkart") {
+  const map =
+    FLIPKART_SELECTORS[
+      message.config as FlipkartConfigId
+    ];
 
-        const map = SELECTOR_CONFIGS[message.config];
+  if (!map) {
+    sendResponse({
+      ok: false,
+      error: `Unknown Flipkart selector config: ${message.config}`,
+    });
+
+    return true;
+  }
+
+  fillFlipkartForm(
+    map,
+    message.values as FillValues & Record<string, string>,
+  )
+    .then(done)
+    .catch(fail);
+
+  return true;
+}
+        const map =
+  MEESHO_SELECTORS[
+    message.config as MeeshoConfigId
+  ];
 
         if (!map) {
           sendResponse({

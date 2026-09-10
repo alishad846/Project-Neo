@@ -6,7 +6,15 @@ import {
   getProducts,
   type ExtractResult,
 } from "../api";
-import { sendMeeshoAutofill, type FillResult } from "../fill";
+import {
+  sendFill,
+  sendMeeshoAutofill,
+  type FillResult,
+  type FillValues,
+} from "../fill";
+
+import { compile as compileFlipkart } from "@neo/adapter-flipkart";
+import type { ProductGenome } from "@neo/genome";
 import {
   getBusinessDetails,
   businessDetailsToFields,
@@ -276,9 +284,115 @@ const referenceFallbackAttributes: Record<string, unknown> = {
 },
     };
 
-    const result = await sendMeeshoAutofill(product);
+    const chrome = (globalThis as { chrome?: any }).chrome;
 
-    setFillResult(result);
+const tabs = chrome?.tabs?.query
+  ? await chrome.tabs.query({})
+  : [];
+
+const flipkartTab = tabs.find(
+  (tab: { url?: string }) =>
+    tab.url &&
+    /^https?:\/\/([^/]*\.)?seller\.flipkart\.com\//i.test(tab.url),
+);
+
+let result: FillResult;
+
+if (flipkartTab) {
+  const now = new Date();
+
+  const genome: ProductGenome = {
+    id: referenceProduct?.id ?? 0,
+    sellerId: referenceProduct?.sellerId ?? "local",
+    sku: referenceProduct?.sku ?? "",
+    title: productName || referenceProduct?.title || "",
+    brand: business?.brand ?? referenceProduct?.brand ?? "",
+    category: category || referenceProduct?.category || "",
+    colour:
+      String(
+        attrs.color ??
+          attrs.colour ??
+          referenceProduct?.colour ??
+          "",
+      ) || null,
+    fabric:
+      String(
+        attrs.fabric ??
+          referenceProduct?.fabric ??
+          "",
+      ) || null,
+    sizes: referenceProduct?.sizes ?? [],
+    weight:
+      referenceProduct?.weight != null
+        ? String(referenceProduct.weight)
+        : null,
+    dimensions: referenceProduct?.dimensions ?? null,
+    hsnCode:
+      referenceProduct?.hsnCode ??
+      String(attrs.hsn_id ?? ""),
+    costPrice:
+      referenceProduct?.costPrice != null
+        ? String(referenceProduct.costPrice)
+        : null,
+    sellingPrice:
+      referenceProduct?.sellingPrice != null
+        ? String(referenceProduct.sellingPrice)
+        : null,
+    basePrice:
+      referenceProduct?.basePrice != null
+        ? String(referenceProduct.basePrice)
+        : null,
+    images: referenceProduct?.images ?? [],
+    attributes: {
+      ...referenceFallbackAttributes,
+      ...attrs,
+      description,
+      procurementSla: 3,
+      shippingDays: 3,
+    },
+    version: referenceProduct?.version ?? 1,
+    isArchived: referenceProduct?.isArchived ?? false,
+    createdAt: referenceProduct?.createdAt
+      ? new Date(referenceProduct.createdAt)
+      : now,
+    updatedAt: referenceProduct?.updatedAt
+      ? new Date(referenceProduct.updatedAt)
+      : now,
+  };
+
+  const compiled = compileFlipkart(
+    genome,
+    category || referenceProduct?.category || "general",
+  );
+
+  const fields = compiled.fields as Record<string, unknown>;
+
+  const flipkartValues: FillValues & Record<string, string> = {
+    title: String(fields.productName ?? productName ?? ""),
+    productName: String(fields.productName ?? productName ?? ""),
+    description: String(fields.description ?? description ?? ""),
+    brand: String(fields.brand ?? ""),
+    mrp: String(fields.mrp ?? ""),
+    sellingPrice: String(fields.sellingPrice ?? ""),
+    hsnCode: String(fields.hsnCode ?? ""),
+    skuId: String(fields.skuId ?? referenceProduct?.sku ?? ""),
+    procurementSla: String(fields.procurementSla ?? "3"),
+    stockCount: String(fields.stockCount ?? ""),
+    shippingDays: String(fields.shippingDays ?? "3"),
+  };
+
+  result = await sendFill(
+    flipkartValues,
+    "live",
+    undefined,
+    "flipkart",
+  );
+} else {
+  result = await sendMeeshoAutofill(product);
+}
+
+setFillResult(result);
+
   } catch (e) {
     setError((e as Error).message);
   } finally {
@@ -296,8 +410,8 @@ const referenceFallbackAttributes: Record<string, unknown> = {
       </div>
 
       <p className="mt-1 font-body text-xs text-black/60">
-        Open your Meesho “Add Product” page, upload the product photo here,
-        review, then Autofill.
+        Open your Meesho or Flipkart Add Product page, upload the product photo here,
+review, then Autofill.
       </p>
 
       {businessEmpty && (
@@ -462,7 +576,7 @@ const referenceFallbackAttributes: Record<string, unknown> = {
 
           <div className="mt-2">
             <PopButton
-              text={busy ? "Filling…" : "Autofill Meesho"}
+              text={busy ? "Filling…" : "Autofill Marketplace"}
               color="#ff8a65"
               icon={Wand2}
               onClick={() => {
@@ -473,8 +587,8 @@ const referenceFallbackAttributes: Record<string, unknown> = {
           </div>
 
           <p className="font-cartoon text-[11px] text-black/60">
-            A pink “STOP AUTOFILL” button appears on the Meesho
-            tab so you can halt anytime. Neo never clicks Submit —
+            A pink “STOP AUTOFILL” button appears on the marketplace
+tab so you can halt anytime. Neo never clicks Submit —
             you review and submit yourself.
           </p>
 

@@ -1,6 +1,9 @@
 import React, { useEffect, useState } from "react";
 import { browser } from "wxt/browser";
 import { getProducts } from "../api";
+import { sendFill, type FillValues } from "../fill";
+import { compile as compileFlipkart } from "@neo/adapter-flipkart";
+import type { ProductGenome } from "@neo/genome";
 import {
   getBusinessDetails,
   businessDetailsToFields,
@@ -40,6 +43,9 @@ function arrayBufferToBase64(buffer: ArrayBuffer): string {
 }
 
 export function BulkCatalogue() {
+  const [marketplace, setMarketplace] = useState<
+  "meesho" | "flipkart"
+>("meesho");
 
   const [businessFields, setBusinessFields] = useState<
     Record<string, string>
@@ -92,6 +98,109 @@ export function BulkCatalogue() {
         );
       });
   }, []);
+  async function autofillFlipkartBulk() {
+  setError("");
+
+  const selectedProducts = productsList.filter((product) =>
+    selectedSkus.includes(product.sku),
+  );
+
+  if (selectedProducts.length === 0) {
+    setError("Please select at least one product.");
+    return;
+  }
+
+  setStatus("Preparing Flipkart catalogue...");
+
+  try {
+    const rows = selectedProducts.map((product) => {
+      const compiled = compileFlipkart(
+        product as ProductGenome,
+        product.category || "general",
+      );
+
+      const fields = compiled.fields as Record<string, unknown>;
+
+      return {
+        skuId: String(fields.skuId || product.sku || ""),
+        productName: String(
+          fields.productName || product.title || "",
+        ),
+        brand: String(fields.brand || product.brand || ""),
+        mrp: String(fields.mrp || ""),
+        sellingPrice: String(fields.sellingPrice || ""),
+        hsnCode: String(
+          fields.hsnCode || product.hsnCode || "",
+        ),
+        procurementSla: String(
+          fields.procurementSla || "3",
+        ),
+        stockCount: String(fields.stockCount || ""),
+        shippingDays: String(
+          fields.shippingDays || "3",
+        ),
+      };
+    });
+
+    const tabs = await browser.tabs.query({});
+
+    const flipkartTab = tabs.find(
+      (tab) =>
+        tab.url &&
+        /^https?:\/\/([^/]*\.)?seller\.flipkart\.com\//i.test(
+          tab.url,
+        ),
+    );
+
+    if (!flipkartTab?.id) {
+      throw new Error(
+        "Open the Flipkart Seller Hub bulk catalogue page first.",
+      );
+    }
+
+    setStatus(
+      `Autofilling ${rows.length} Flipkart product(s)...`,
+    );
+
+    const response = (await browser.tabs.sendMessage(
+      flipkartTab.id,
+      {
+        type: "PROJECT_NEO_FILL_FLIPKART_BULK",
+        rows,
+      },
+    )) as {
+      success: boolean;
+      error?: string;
+    };
+
+    if (!response?.success) {
+      throw new Error(
+        response?.error || "Flipkart bulk autofill failed.",
+      );
+    }
+
+    setStatus(
+      `Flipkart autofill completed for ${rows.length} product(s)`,
+    );
+  } catch (err) {
+    console.error(
+      "[PROJECT NEO] Flipkart bulk autofill failed:",
+      err,
+    );
+
+    setStatus("Flipkart autofill failed");
+
+    setError(
+      err instanceof Error
+        ? err.message
+        : "Unknown error occurred.",
+    );
+  }
+}
+    
+
+    
+
 
   async function generateBulkExcel() {
     setError("");
@@ -445,8 +554,7 @@ importer_details:
       );
     }
   }
-
-  return (
+return (
     <div
       style={{
         padding: 16,
@@ -461,8 +569,50 @@ importer_details:
           marginBottom: 6,
         }}
       >
-        Meesho Catalogue
+        Bulk Catalogue
       </h1>
+
+      <div
+        style={{
+          display: "flex",
+          gap: 8,
+          marginBottom: 14,
+        }}
+      >
+        <button
+          type="button"
+          onClick={() => setMarketplace("meesho")}
+          style={{
+            flex: 1,
+            padding: "8px 10px",
+            borderRadius: 8,
+            border: "2px solid #000",
+            fontWeight: 600,
+            background:
+              marketplace === "meesho" ? "#ffeb3b" : "#fff",
+            cursor: "pointer",
+          }}
+        >
+          Meesho
+        </button>
+
+        <button
+          type="button"
+          onClick={() => setMarketplace("flipkart")}
+          style={{
+            flex: 1,
+            padding: "8px 10px",
+            borderRadius: 8,
+            border: "2px solid #000",
+            fontWeight: 600,
+            background:
+              marketplace === "flipkart" ? "#ffeb3b" : "#fff",
+            cursor: "pointer",
+          }}
+        >
+          Flipkart
+        </button>
+      </div>
 
       <p
         style={{
@@ -471,9 +621,61 @@ importer_details:
           marginBottom: 20,
         }}
       >
-        Select your catalogue products and use a
-        Meesho template to generate a bulk catalogue.
+        {marketplace === "meesho"
+          ? "Select your catalogue products and use a Meesho template to generate a bulk catalogue."
+          : "Select catalogue products and autofill them into Flipkart Seller Hub."}
       </p>
+
+      {marketplace === "meesho" && (
+        <section
+          style={{
+            border: "1px solid #ddd",
+            borderRadius: 8,
+            padding: 14,
+            marginBottom: 16,
+          }}
+        >
+          <h2
+            style={{
+              fontSize: 14,
+              fontWeight: 600,
+              marginBottom: 10,
+            }}
+          >
+            1. Meesho Excel Template
+          </h2>
+
+          <input
+            type="file"
+            accept=".xlsx,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+            onChange={(event) => {
+              const file = event.target.files?.[0] ?? null;
+
+              setTemplateFile(file);
+              setError("");
+
+              if (file) {
+                setStatus(`Template selected: ${file.name}`);
+              }
+            }}
+            style={{
+              width: "100%",
+            }}
+          />
+
+          {templateFile && (
+            <div
+              style={{
+                marginTop: 8,
+                fontSize: 12,
+                color: "#555",
+              }}
+            >
+              Selected: {templateFile.name}
+            </div>
+          )}
+        </section>
+      )}
 
       <section
         style={{
@@ -490,59 +692,21 @@ importer_details:
             marginBottom: 10,
           }}
         >
-          1. Meesho Excel Template
+          {marketplace === "meesho"
+            ? "2. Select Catalogue Products"
+            : "1. Select Catalogue Products"}
         </h2>
 
-        <input
-          type="file"
-          accept=".xlsx,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
-          onChange={(event) => {
-            const file =
-              event.target.files?.[0] ??
-              null;
-
-            setTemplateFile(file);
-            setError("");
-
-            if (file) {
-              setStatus(
-                `Template selected: ${file.name}`,
-              );
-            }
-          }}
+        <p
           style={{
-            width: "100%",
+            fontSize: 12,
+            color: "#666",
+            marginBottom: 10,
           }}
-        />
-
-        {templateFile && (
-          <div
-            style={{
-              marginTop: 8,
-              fontSize: 12,
-              color: "#555",
-            }}
-          >
-            Selected: {templateFile.name}
-          </div>
-        )}
-      </section>
-
-      <section
-        style={{
-          border: "1px solid #ddd",
-          borderRadius: 8,
-          padding: 14,
-          marginBottom: 16,
-        }}
-      >
-        <h2 style={{ fontSize: 14, fontWeight: 600, marginBottom: 10 }}>
-          2. Select Catalogue Products
-        </h2>
-
-        <p style={{ fontSize: 12, color: "#666", marginBottom: 10 }}>
-          Select the SKUs you want to include in the bulk catalogue. Optionally pick a reference SKU per product to
-          backfill missing fields from a similar past listing.
+        >
+          Select the SKUs you want to include in the bulk catalogue.
+          Optionally pick a reference SKU per product to backfill missing
+          fields from a similar past listing.
         </p>
 
         <ProductPicker
@@ -553,10 +717,16 @@ importer_details:
               value={referenceSkus[product.sku] ?? ""}
               onChange={(event) => {
                 const value = event.target.value;
+
                 setReferenceSkus((current) => {
                   const next = { ...current };
-                  if (value) next[product.sku] = value;
-                  else delete next[product.sku];
+
+                  if (value) {
+                    next[product.sku] = value;
+                  } else {
+                    delete next[product.sku];
+                  }
+
                   return next;
                 });
               }}
@@ -572,10 +742,16 @@ importer_details:
               }}
             >
               <option value="">No reference SKU</option>
+
               {productsList
                 .filter((reference) => {
-                  if (reference.sku === product.sku) return false;
-                  if (!product.category || !reference.category) return true;
+                  if (reference.sku === product.sku) {
+                    return false;
+                  }
+
+                  if (!product.category || !reference.category) {
+                    return true;
+                  }
 
                   const normalizeWords = (value: string) =>
                     value
@@ -585,36 +761,61 @@ importer_details:
                       .trim()
                       .split(" ")
                       .filter(Boolean)
-                      .map((word) => (word.endsWith("s") && word.length > 3 ? word.slice(0, -1) : word));
+                      .map((word) =>
+                        word.endsWith("s") && word.length > 3
+                          ? word.slice(0, -1)
+                          : word,
+                      );
 
                   const currentWords = normalizeWords(product.category);
-                  const referenceWords = normalizeWords(reference.category);
+                  const referenceWords = normalizeWords(
+                    reference.category,
+                  );
 
                   return (
-                    referenceWords.every((word) => currentWords.includes(word)) ||
-                    currentWords.every((word) => referenceWords.includes(word))
+                    referenceWords.every((word) =>
+                      currentWords.includes(word),
+                    ) ||
+                    currentWords.every((word) =>
+                      referenceWords.includes(word),
+                    )
                   );
                 })
                 .map((reference) => (
-                  <option key={reference.id} value={reference.sku}>
-                    {reference.sku} — {reference.title || "Untitled"}
+                  <option
+                    key={reference.id}
+                    value={reference.sku}
+                  >
+                    {reference.sku} —{" "}
+                    {reference.title || "Untitled"}
                   </option>
                 ))}
             </select>
           )}
         />
 
-        <div style={{ marginTop: 10, fontSize: 12, color: "#555" }}>
-          <strong>Selected:</strong> {selectedSkus.length} product(s)
+        <div
+          style={{
+            marginTop: 10,
+            fontSize: 12,
+            color: "#555",
+          }}
+        >
+          <strong>Selected:</strong>{" "}
+          {selectedSkus.length} product(s)
         </div>
       </section>
 
       <button
         type="button"
-        onClick={generateBulkExcel}
+        onClick={
+          marketplace === "flipkart"
+            ? autofillFlipkartBulk
+            : generateBulkExcel
+        }
         disabled={
-          !templateFile ||
-          selectedSkus.length === 0
+          selectedSkus.length === 0 ||
+          (marketplace === "meesho" && !templateFile)
         }
         style={{
           width: "100%",
@@ -622,24 +823,26 @@ importer_details:
           borderRadius: 8,
           border: "2px solid #000",
           background:
-            templateFile &&
-            selectedSkus.length > 0
+            selectedSkus.length > 0 &&
+            (marketplace === "flipkart" || templateFile)
               ? "#ffeb3b"
               : "#eee",
           fontWeight: 600,
           cursor:
-            templateFile &&
-            selectedSkus.length > 0
+            selectedSkus.length > 0 &&
+            (marketplace === "flipkart" || templateFile)
               ? "pointer"
               : "not-allowed",
           opacity:
-            templateFile &&
-            selectedSkus.length > 0
+            selectedSkus.length > 0 &&
+            (marketplace === "flipkart" || templateFile)
               ? 1
               : 0.5,
         }}
       >
-        Generate Meesho Bulk Excel
+        {marketplace === "flipkart"
+          ? "Autofill Flipkart Catalogue"
+          : "Generate Meesho Bulk Excel"}
       </button>
 
       <div
@@ -648,8 +851,7 @@ importer_details:
           fontSize: 13,
         }}
       >
-        <strong>Status:</strong>{" "}
-        {status}
+        <strong>Status:</strong> {status}
       </div>
 
       {error && (
@@ -670,4 +872,7 @@ importer_details:
       )}
     </div>
   );
+ 
+
+     
 }

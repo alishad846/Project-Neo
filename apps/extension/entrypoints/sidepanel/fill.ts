@@ -1,4 +1,6 @@
+import type { MarketplaceId } from "@neo/adapter";
 import type { MeeshoConfigId } from "@neo/adapter-meesho";
+import type { FlipkartConfigId } from "@neo/adapter-flipkart";
 
 export interface FillValues {
   title: string;
@@ -19,28 +21,41 @@ export interface FillResult {
   submitFocused?: boolean;
 }
 
-const NO_RECEIVER_HINT =
-  "Open your Meesho Add-Product page in a tab, then click Autofill.";
+type ConfigId = MeeshoConfigId | FlipkartConfigId;
 
-const TARGET_URL_PATTERN = /^https?:\/\/([^/]*\.)?meesho\.com\//i;
+const MARKETPLACE_PATTERNS: Record<MarketplaceId, RegExp> = {
+  meesho: /^https?:\/\/([^/]*\.)?meesho\.com\//i,
+  amazon_in: /^https?:\/\/([^/]*\.)?sellercentral\.amazon\.(in|com)\//i,
+  flipkart: /^https?:\/\/([^/]*\.)?seller\.flipkart\.com\//i,
+};
+
+const NO_RECEIVER_HINTS: Record<MarketplaceId, string> = {
+  meesho: "Open your Meesho Add-Product page in a tab, then click Autofill.",
+  amazon_in:
+    "Open your Amazon Seller Central Add-Product page in a tab, then click Autofill.",
+  flipkart:
+    "Open your Flipkart Seller Hub listing page in a tab, then click Autofill.",
+};
+
+function detectMarketplaceFromUrl(url: string): MarketplaceId | null {
+  for (const [marketplace, pattern] of Object.entries(MARKETPLACE_PATTERNS)) {
+    if (pattern.test(url)) {
+      return marketplace as MarketplaceId;
+    }
+  }
+
+  return null;
+}
 
 /**
- * Sends a fill request to the declarative content script (see
- * `entrypoints/content.ts`) running on the target tab, via
- * `chrome.tabs.sendMessage`. The content script itself performs the DOM
- * writes and focuses (never clicks) the submit control.
- *
- * Tab selection: prefer a tab whose URL matches Meesho/localhost/127.0.0.1
- * (the demo or live target) over whatever tab happens to be active, since
- * the side panel itself lives in a different "tab" context.
+ * Sends a generic fill request to the content script.
+ * Supports Meesho and Flipkart marketplace routing.
  */
 export async function sendFill(
   values: FillValues,
-  configId: MeeshoConfigId,
-  // Live Meesho: a map of Meesho field `name` -> value, filled generically by
-  // the content script (category-agnostic). When omitted, the content script
-  // uses the fixed fixture selector map instead.
+  configId: ConfigId = "live",
   fields?: Record<string, string>,
+  marketplace?: MarketplaceId,
 ): Promise<FillResult> {
   const chrome = (globalThis as { chrome?: any }).chrome;
 
@@ -49,57 +64,210 @@ export async function sendFill(
   }
 
   try {
-    const allTabs: Array<{ id?: number; url?: string; active?: boolean; windowId?: number }> =
-      await chrome.tabs.query({});
-    const targetTab = allTabs.find((t) => t.url && TARGET_URL_PATTERN.test(t.url));
+    const allTabs: Array<{
+      id?: number;
+      url?: string;
+      active?: boolean;
+      windowId?: number;
+    }> = await chrome.tabs.query({});
+
+    const targetTab = allTabs.find((t) => {
+  if (!t.url) return false;
+
+  if (marketplace) {
+    return MARKETPLACE_PATTERNS[marketplace].test(t.url);
+  }
+
+  return Object.values(MARKETPLACE_PATTERNS).some((pattern) =>
+    pattern.test(t.url!),
+  );
+});
 
     let tabId = targetTab?.id;
+
+    const detectedMarketplace = targetTab?.url
+      ? detectMarketplaceFromUrl(targetTab.url)
+      : null;
+
     if (!tabId) {
-      const activeTabs = await chrome.tabs.query({ active: true, currentWindow: true });
+      const activeTabs = await chrome.tabs.query({
+        active: true,
+        currentWindow: true,
+      });
+
       tabId = activeTabs?.[0]?.id;
     }
 
+    const selectedMarketplace =
+      marketplace ?? detectedMarketplace ?? "meesho";
+
     if (!tabId) {
-      return { ok: false, error: NO_RECEIVER_HINT };
+      return {
+        ok: false,
+        error: NO_RECEIVER_HINTS[selectedMarketplace],
+      };
     }
 
-    const message = { type: "NEO_FILL", config: configId, values, ...(fields ? { fields } : {}) };
+    const message = {
+      type: "NEO_FILL",
+      marketplace: selectedMarketplace,
+      config: configId,
+      values,
+      ...(fields ? { fields } : {}),
+    };
 
     const trySend = () =>
       new Promise<FillResult | null>((resolve) => {
-        chrome.tabs.sendMessage(tabId, message, (response: FillResult | undefined) => {
-          // Reading lastError swallows the "no receiver" console error.
-          const lastError = chrome.runtime?.lastError;
-          if (lastError || !response) {
-            resolve(null);
-            return;
-          }
-          resolve(response);
-        });
+        chrome.tabs.sendMessage(
+          tabId,
+          message,
+          (response: FillResult | undefined) => {
+            const lastError = chrome.runtime?.lastError;
+
+            if (lastError || !response) {
+              resolve(null);
+              return;
+            }
+
+            resolve(response);
+          },
+        );
       });
 
-    // First attempt: talk to the declarative content script if it's there.
     let result = await trySend();
-    if (result) return result;
 
-    // No receiver — the tab was open before the extension loaded. Inject the
-    // content script programmatically, then retry once.
+    if (result) {
+      return result;
+    }
+
     if (chrome.scripting?.executeScript) {
       try {
         await chrome.scripting.executeScript({
           target: { tabId },
           files: ["content-scripts/content.js"],
         });
+
         await new Promise((r) => setTimeout(r, 300));
+
         result = await trySend();
-        if (result) return result;
+
+        if (result) {
+          return result;
+        }
       } catch {
-        // fall through to the hint below
+        // Fall through to marketplace-specific receiver hint.
       }
     }
 
-    return { ok: false, error: NO_RECEIVER_HINT };
+    return {
+      ok: false,
+      error: NO_RECEIVER_HINTS[selectedMarketplace],
+    };
   } catch (err) {
-    return { ok: false, error: err instanceof Error ? err.message : String(err) };
+    return {
+      ok: false,
+      error: err instanceof Error ? err.message : String(err),
+    };
+  }
+}
+
+/**
+ * Existing Meesho-specific autofill.
+ * Kept for compatibility with AIAutofill.tsx.
+ */
+export async function sendMeeshoAutofill(
+  product: Record<string, unknown>,
+): Promise<FillResult> {
+  const chrome = (globalThis as { chrome?: any }).chrome;
+
+  if (!chrome?.tabs?.query || !chrome?.tabs?.sendMessage) {
+    return { ok: false, error: "chrome.tabs APIs unavailable" };
+  }
+
+  try {
+    const allTabs: Array<{
+      id?: number;
+      url?: string;
+    }> = await chrome.tabs.query({});
+
+    const targetTab = allTabs.find(
+      (t) => t.url && MARKETPLACE_PATTERNS.meesho.test(t.url),
+    );
+
+    let tabId = targetTab?.id;
+
+    if (!tabId) {
+      const activeTabs = await chrome.tabs.query({
+        active: true,
+        currentWindow: true,
+      });
+
+      tabId = activeTabs?.[0]?.id;
+    }
+
+    if (!tabId) {
+      return {
+        ok: false,
+        error: NO_RECEIVER_HINTS.meesho,
+      };
+    }
+
+    const message = {
+      type: "NEO_MEESHO_AUTOFILL",
+      product,
+    };
+
+    const trySend = () =>
+      new Promise<FillResult | null>((resolve) => {
+        chrome.tabs.sendMessage(
+          tabId,
+          message,
+          (response: FillResult | undefined) => {
+            const lastError = chrome.runtime?.lastError;
+
+            if (lastError || !response) {
+              resolve(null);
+              return;
+            }
+
+            resolve(response);
+          },
+        );
+      });
+
+    let result = await trySend();
+
+    if (result) {
+      return result;
+    }
+
+    if (chrome.scripting?.executeScript) {
+      try {
+        await chrome.scripting.executeScript({
+          target: { tabId },
+          files: ["content-scripts/content.js"],
+        });
+
+        await new Promise((r) => setTimeout(r, 300));
+
+        result = await trySend();
+
+        if (result) {
+          return result;
+        }
+      } catch {
+        // Fall through to receiver hint.
+      }
+    }
+
+    return {
+      ok: false,
+      error: NO_RECEIVER_HINTS.meesho,
+    };
+  } catch (err) {
+    return {
+      ok: false,
+      error: err instanceof Error ? err.message : String(err),
+    };
   }
 }

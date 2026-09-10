@@ -16,6 +16,8 @@
     "postinstall": "wxt prepare"
   },
   "dependencies": {
+    "@neo/adapter": "workspace:*",
+    "@neo/adapter-flipkart": "workspace:*",
     "@neo/adapter-meesho": "workspace:*",
     "@neo/genome": "workspace:*",
     "@neo/rules-engine": "workspace:*",
@@ -23,6 +25,7 @@
     "@tailwindcss/vite": "^4.3.3",
     "@tanstack/react-query": "^5.59.0",
     "gsap": "^3.12.0",
+    "jszip": "^3.10.2",
     "lucide-react": "^0.400.0",
     "react": "^19.2.8",
     "react-dom": "^19.2.8",

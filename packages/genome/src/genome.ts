@@ -32,8 +32,6 @@ export const productGenomeSchema = productGenomeInsertSchema.extend({
   createdAt: z.coerce.date(),
   updatedAt: z.coerce.date(),
 });
-export const productGenomeUpdateSchema =
-  productGenomeInsertSchema.partial();
 
 export const productGenomeUpdateSchema = productGenomeInsertSchema.partial();
 export const productGenomeCreateSchema = productGenomeInsertSchema.omit({ sellerId: true });
