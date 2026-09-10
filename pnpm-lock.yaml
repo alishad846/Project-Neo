@@ -205,6 +205,9 @@ importers:
       vite:
         specifier: ^6.3.5
         version: 6.4.3(@types/node@24.13.3)(jiti@2.7.0)(lightningcss@1.32.0)(terser@5.51.2)(tsx@4.23.12)
+      vitest:
+        specifier: ^2.1.0
+        version: 2.1.9(@types/node@24.13.3)(jsdom@25.0.1)(lightningcss@1.32.0)(terser@5.51.2)
       web-ext:
         specifier: ^10.5.0
         version: 10.6.0(express@5.2.1)(jiti@2.7.0)

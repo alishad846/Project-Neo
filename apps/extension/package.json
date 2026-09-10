@@ -13,7 +13,8 @@
     "zip:firefox": "wxt zip -b firefox",
     "compile": "tsc --noEmit",
     "typecheck": "tsc --noEmit",
-    "postinstall": "wxt prepare"
+    "postinstall": "wxt prepare",
+    "test": "vitest run"
   },
   "dependencies": {
     "@neo/adapter-meesho": "workspace:*",
@@ -35,6 +36,7 @@
     "@wxt-dev/module-react": "1.1.5",
     "typescript": "^5.9.3",
     "vite": "^6.3.5",
+    "vitest": "^2.1.0",
     "web-ext": "^10.5.0",
     "wxt": "^0.21.3"
   }
