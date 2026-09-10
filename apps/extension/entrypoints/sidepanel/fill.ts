@@ -243,3 +243,24 @@ export async function inspectTemplate(
   if (!result?.success) throw new Error(result?.error || "Could not read the Meesho template.");
   return result.schema as TemplateSchema;
 }
+
+export interface BulkGenerateResponse {
+  success: boolean; filename?: string; rows?: number;
+  validationProblems?: Array<{ row: number; field: string; error: string; value?: unknown }>;
+  blobBytes?: ArrayBuffer; blobType?: string; error?: string;
+}
+
+export async function generateBulk(
+  templateBase64: string, templateName: string, templateType: string, products: unknown[],
+): Promise<BulkGenerateResponse> {
+  const chrome = (globalThis as { chrome?: any }).chrome;
+  const tabId = chrome && (await activeMeeshoTabId(chrome));
+  if (!tabId) throw new Error(NO_RECEIVER_HINT);
+  return new Promise((resolve) => {
+    chrome.tabs.sendMessage(
+      tabId,
+      { type: "PROJECT_NEO_GENERATE_MEESHO_BULK", templateBase64, templateName, templateType, products },
+      (r: BulkGenerateResponse) => { void chrome.runtime?.lastError; resolve(r); },
+    );
+  });
+}

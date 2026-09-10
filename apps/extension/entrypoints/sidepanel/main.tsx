@@ -3,7 +3,7 @@ import { createRoot } from "react-dom/client";
 import { QueryClientProvider } from "@tanstack/react-query";
 import { queryClient } from "./lib/queryClient";
 import { AIAutofill } from "./components/AIAutofill";
-import { BulkCatalogue } from "./components/BulkCatalogue";
+import { BulkWizard } from "./components/bulk/BulkWizard";
 import { BusinessDetails } from "./components/BusinessDetails";
 import { ProfitCalculator } from "./components/ProfitCalculator";
 import { GstCalculator } from "./components/GstCalculator";
@@ -48,7 +48,7 @@ const SECTIONS = [
   { id: "add-product", label: "Add Product", color: "#8bd3ff", node: <AddProduct /> },
   { id: "manage", label: "Manage Catalogue", color: "#00e5ff", node: <ManageCatalogue /> },
   { id: "discount", label: "Add Discount", color: "#ff90e8", node: <AddDiscount /> },
-  { id: "bulk", label: "Bulk Catalogue", color: "#ffeb3b", node: <BulkCatalogue /> },
+  { id: "bulk", label: "Bulk Catalogue", color: "#ffeb3b", node: <BulkWizard /> },
   { id: "details", label: "Business Details", color: "#b2ff59", node: <BusinessDetails /> },
   { id: "profit", label: "Profit Calc", color: "#00e5ff", node: <ProfitCalculator /> },
   { id: "gst", label: "GST Calc", color: "#ffeb3b", node: <GstCalculator /> },
