@@ -103,3 +103,49 @@ export async function sendFill(
     return { ok: false, error: err instanceof Error ? err.message : String(err) };
   }
 }
+export async function sendMeeshoAutofill(
+  product: Record<string, any>,
+): Promise<FillResult> {
+  const values: FillValues = {
+    title: String(product.title ?? product.product_name ?? product.productName ?? ""),
+    description: String(product.description ?? ""),
+    hsnCode: String(
+      product.hsnCode ??
+        product.attributes?.hsn_id ??
+        "",
+    ),
+    sellingPrice: String(product.sellingPrice ?? product.price ?? ""),
+  };
+
+  const fields: Record<string, string> = {};
+
+  for (const [key, value] of Object.entries(product)) {
+    if (key === "attributes" || value == null) continue;
+
+    if (typeof value === "string" || typeof value === "number") {
+      fields[key] = String(value);
+    }
+  }
+
+  if (product.attributes && typeof product.attributes === "object") {
+    for (const [key, value] of Object.entries(product.attributes)) {
+      if (value == null) continue;
+
+      if (Array.isArray(value)) {
+        fields[key] = value.join(", ");
+      } else if (
+        typeof value === "string" ||
+        typeof value === "number" ||
+        typeof value === "boolean"
+      ) {
+        fields[key] = String(value);
+      }
+    }
+  }
+
+  return sendFill(
+    values,
+    "live",
+    fields,
+  );
+}

@@ -1,8 +1,6 @@
 import JSZip from "jszip";
 
-import "../lib/meesho/meesho-mappings.js";
 import "../lib/meesho/autofill.js";
-import "../lib/meesho/bulk-autofill.js";
 
 function base64ToUint8Array(
   base64: string
