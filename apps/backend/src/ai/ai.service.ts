@@ -230,8 +230,25 @@ export class AiService {
         break;
       }
       if (!res || !res.ok) return { fetchable: false, attributes: {} };
-      const contentType = res.headers.get('content-type') ?? '';
-      if (!contentType.startsWith('image/')) {
+      // Content-type gate is intentionally lenient: Meesho's CDN (Google Cloud
+      // Storage) serves images as `application/octet-stream`, not `image/*`, so
+      // a strict image/* check wrongly rejected every valid link. Accept image/*,
+      // octet-stream, or an absent content-type, or a URL that ends in a known
+      // image extension. Only reject content-types that are clearly NOT images
+      // (HTML/JSON error pages). SSRF is already handled by the host/IP checks;
+      // the body never returns to the caller (only to the local extractor), so
+      // this gate's job is just "don't feed an obvious error page to the model".
+      const contentType = (res.headers.get('content-type') ?? '').toLowerCase();
+      const looksLikeImage =
+        contentType.startsWith('image/') ||
+        contentType.startsWith('application/octet-stream') ||
+        contentType === '' ||
+        /\.(jpe?g|png|webp|gif|bmp|avif)(?:$|\?)/i.test(currentUrl.pathname);
+      const isNonImageDocument =
+        contentType.startsWith('text/') ||
+        contentType.startsWith('application/json') ||
+        contentType.startsWith('application/xml');
+      if (!looksLikeImage || isNonImageDocument) {
         return { fetchable: false, attributes: {} };
       }
       const contentLength = res.headers.get('content-length');

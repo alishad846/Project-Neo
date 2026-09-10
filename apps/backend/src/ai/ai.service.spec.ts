@@ -99,6 +99,35 @@ describe('AiService.extractFromUrl', () => {
     expect(out).toEqual({ fetchable: false, attributes: {} });
   });
 
+  it('accepts application/octet-stream image bodies (Meesho CDN serves images this way)', async () => {
+    globalThis.fetch = (async () => ({
+      ok: true,
+      headers: { get: (h: string) => (h === 'content-type' ? 'application/octet-stream' : null) },
+      arrayBuffer: async () => new Uint8Array([1, 2, 3]).buffer,
+    })) as never;
+    const products = {} as unknown as ProductsService;
+    const svc = new AiService({} as HttpService, products, {} as TransactionsService);
+    (svc as any).extractFromImage = async () => ({
+      attributes: { color: 'Dark Blue' },
+      confidence: 'high',
+      source: 'model',
+    });
+    const out = await svc.extractFromUrl('https://upload.meeshosupplyassets.com/cataloging/1/DarkBlue.jpg');
+    expect(out).toEqual({ fetchable: true, attributes: { color: 'Dark Blue' } });
+  });
+
+  it('rejects a text/html error page even at an image URL', async () => {
+    globalThis.fetch = (async () => ({
+      ok: true,
+      headers: { get: (h: string) => (h === 'content-type' ? 'text/html; charset=utf-8' : null) },
+      arrayBuffer: async () => new Uint8Array([60, 33]).buffer,
+    })) as never;
+    const products = {} as unknown as ProductsService;
+    const svc = new AiService({} as HttpService, products, {} as TransactionsService);
+    const out = await svc.extractFromUrl('https://cdn.example.com/notfound.jpg');
+    expect(out).toEqual({ fetchable: false, attributes: {} });
+  });
+
   it('blocks cloud metadata (link-local) hosts without calling fetch', async () => {
     const fetchSpy = jest.fn();
     globalThis.fetch = fetchSpy as never;
