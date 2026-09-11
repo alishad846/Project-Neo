@@ -16,21 +16,18 @@ export default defineConfig({
     permissions: ["sidePanel", "storage", "tabs", "activeTab", "scripting"],
     // localhost:3000 = backend API. meesho.com = the live Add-Product page the
     // content script fills.
-<<<<<<< HEAD
     host_permissions: [
       "http://localhost:3000/*",
       "*://*.meesho.com/*",
       "*://*.sellercentral.amazon.in/*",
       "*://*.sellercentral.amazon.com/*",
       "*://*.seller.flipkart.com/*",
-=======
-    host_permissions: ["http://localhost:3000/*", "*://*.meesho.com/*"],
+    ],
     web_accessible_resources: [
       {
         resources: ["meesho-main-world.js"],
         matches: ["*://*.meesho.com/*"],
       },
->>>>>>> c7923eab97cb209bcbe3876ee06576439151e2d9
     ],
     side_panel: { default_path: "sidepanel/index.html" },
     action: {},
