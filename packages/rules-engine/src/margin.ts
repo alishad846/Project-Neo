@@ -30,6 +30,24 @@ export function roundToCharm(price: number): number {
   return Math.round(price / 100) * 100 - 1;            // nearest ₹__99
 }
 
+// Discounts must never become a price increase just because the nearest charm
+// price happens to sit above the discounted value. This selects the closest
+// charm value at or below the candidate price instead.
+function roundDownToCharm(price: number): number {
+  if (!Number.isFinite(price) || price <= 0) return price;
+  if (price < 10) return price;
+  if (price < 100) return Math.floor((price + 1) / 10) * 10 - 1;
+  return Math.floor((price + 1) / 100) * 100 - 1;
+}
+
+// Return the next charm-price tier after an already rounded value. The tier
+// after ₹99 is ₹199; adding ₹10 and rounding again would return ₹99 forever.
+function nextCharmPrice(price: number): number {
+  if (price < 19) return 19;
+  if (price < 99) return Math.floor(price / 10) * 10 + 19;
+  return Math.floor(price / 100) * 100 + 199;
+}
+
 function categoryFor(category: string, rules: RuleSet): CategoryRule {
   let best: CategoryRule | undefined;
   for (const c of rules.categories) {
@@ -94,19 +112,33 @@ export function computeProposedPrice(rule: PricingRule, sku: SkuCosting, rules: 
     default: price = sku.currentPrice;
   }
 
-  if (rule.floorPrice != null && price < rule.floorPrice) price = rule.floorPrice;
+  const isDiscount = rule.actionType === "PERCENTAGE_DISCOUNT" || rule.actionType === "FLAT_DISCOUNT";
+  const priceCeiling = isDiscount ? sku.currentPrice : Infinity;
+
+  if (rule.floorPrice != null && price < rule.floorPrice) price = Math.min(rule.floorPrice, priceCeiling);
   const floor = rule.floorBreakeven !== false;       // default true
   const breakeven = computeBreakeven(sku, rules);
-  if (floor && price < breakeven) price = breakeven;
+  // A break-even guard protects a viable current price. When a SKU is already
+  // below break-even, raising it to that threshold is not a discount; retain
+  // its current selling price and surface the loss to the seller instead.
+  const protectedFloor = Math.min(breakeven, priceCeiling);
+  if (floor && price < protectedFloor) price = protectedFloor;
   if (rule.roundToCharm) {
-    price = roundToCharm(price);
+    price = isDiscount ? roundDownToCharm(price) : roundToCharm(price);
     // If flooring pushed us under break-even, step up to the smallest charm
-    // price at or above it (step by the current magnitude so we always land on
-    // a valid ₹_9 / ₹__99 tier and the loop strictly increases → terminates).
-    if (floor) while (price < breakeven) price = roundToCharm(price + (price < 100 ? 10 : 100));
+    // price at or above it. Use explicit tiers so ₹99 correctly advances to
+    // ₹199 instead of getting stuck at ₹99 forever.
+    while (floor && price < protectedFloor) {
+      const next = nextCharmPrice(price);
+      if (next > priceCeiling) {
+        price = protectedFloor;
+        break;
+      }
+      price = next;
+    }
   } else if (rule.roundTo99) {
     price = Math.floor(price / 100) * 100 + 99;
-    if (floor && price < breakeven) price += 100;
+    if (floor && price < protectedFloor) price += 100;
   }
-  return price;
+  return Math.min(price, priceCeiling);
 }

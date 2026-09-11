@@ -51,39 +51,43 @@ export class ProductsController {
   }
 
   @Get()
-  getAllProducts() {
-    return this.productsService.getAllProducts();
+  getAllProducts(@Req() req: Request) {
+    // Scope to the logged-in seller so a seller only ever sees their OWN
+    // catalogue -- never other sellers' (or leftover demo) products.
+    return this.productsService.getAllProducts(this.sellerId(req));
   }
 
   @Get(':id')
-  getProductById(@Param('id', ParseIntPipe) id: number) {
-    return this.productsService.getProductById(id);
+  getProductById(@Param('id', ParseIntPipe) id: number, @Req() req: Request) {
+    return this.productsService.getProductById(id, this.sellerId(req));
   }
   @Patch(':id')
 updateProduct(
   @Param('id', ParseIntPipe) id: number,
   @Body(new ZodValidationPipe(productGenomeUpdateSchema))
   data: Partial<typeof productGenome.$inferInsert>,
+  @Req() req: Request,
 ) {
-  return this.productsService.updateProduct(id, data);
+  return this.productsService.updateProduct(id, data, this.sellerId(req));
 }
 @Get(':id/history')
-getProductHistory(@Param('id', ParseIntPipe) id: number) {
-  return this.productsService.getProductHistory(id);
+getProductHistory(@Param('id', ParseIntPipe) id: number, @Req() req: Request) {
+  return this.productsService.getProductHistory(id, this.sellerId(req));
 }
 @Post(':id/rollback/:version')
 rollbackProduct(
   @Param('id', ParseIntPipe) id: number,
   @Param('version', ParseIntPipe) version: number,
+  @Req() req: Request,
 ) {
-  return this.productsService.rollbackProduct(id, version);
+  return this.productsService.rollbackProduct(id, version, this.sellerId(req));
 }
 @Delete(':id')
-archiveProduct(@Param('id', ParseIntPipe) id: number) {
-  return this.productsService.archiveProduct(id);
+archiveProduct(@Param('id', ParseIntPipe) id: number, @Req() req: Request) {
+  return this.productsService.archiveProduct(id, this.sellerId(req));
 }
 @Post(':id/restore')
-restoreProduct(@Param('id', ParseIntPipe) id: number) {
-  return this.productsService.restoreProduct(id);
+restoreProduct(@Param('id', ParseIntPipe) id: number, @Req() req: Request) {
+  return this.productsService.restoreProduct(id, this.sellerId(req));
 }
 }

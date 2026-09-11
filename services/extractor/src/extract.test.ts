@@ -41,12 +41,59 @@ describe("parseModelResponse", () => {
       .toEqual({ pattern: "Solid" });
   });
 
+  it("extracts and normalizes a markdown-fenced JSON block from Qwen2.5-VL", () => {
+    const raw = "```json\n" +
+      '{\n' +
+      '  "color": "navy blue",\n' +
+      '  "fabric": "cotton blend",\n' +
+      '  "neckType": "round neck",\n' +
+      '  "sleeveLength": "3/4 sleeve",\n' +
+      '  "pattern": "floral",\n' +
+      '  "occasion": "festive"\n' +
+      '}\n' +
+      "```";
+    expect(parseModelResponse(raw)).toEqual({
+      color: "Navy Blue",
+      fabric: "Cotton Blend",
+      neckType: "Round Neck",
+      sleeveLength: "Three-Quarter",
+      pattern: "Floral",
+      occasion: "Festive",
+    });
+  });
+
+  it("normalizes casing and variants for standard attributes", () => {
+    expect(
+      parseModelResponse('{"neckType": "boat neck", "sleeveLength": "full sleeve", "pattern": "striped", "color": "dark green"}')
+    ).toEqual({
+      neckType: "Boat Neck",
+      sleeveLength: "Full Sleeve",
+      pattern: "Striped",
+      color: "Dark Green",
+    });
+  });
+
+  it("normalizes saree attributes and blousePiece", () => {
+    expect(
+      parseModelResponse('{"color": "maroon", "fabric": "silk", "sareeLength": "6.3m", "blousePiece": "yes"}')
+    ).toEqual({
+      color: "Maroon",
+      fabric: "Silk",
+      sareeLength: "6.3 metres",
+      blousePiece: true,
+    });
+  });
+
   it("returns null for text with no JSON in it", () => {
     expect(parseModelResponse("I cannot determine this from the image.")).toBeNull();
   });
 
   it("returns null for malformed JSON", () => {
     expect(parseModelResponse("{neckType: broken}")).toBeNull();
+  });
+
+  it("returns null for empty JSON object", () => {
+    expect(parseModelResponse("{}")).toBeNull();
   });
 
   it("parses boolean fields like blousePiece", () => {

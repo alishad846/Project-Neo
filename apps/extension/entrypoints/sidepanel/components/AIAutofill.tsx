@@ -4,9 +4,10 @@ import { PopButton } from "@neo/ui";
 import {
   extractFromImage,
   getProducts,
+  warmupExtractor,
   type ExtractResult,
 } from "../api";
-import { sendMeeshoAutofill, type FillResult } from "../fill";
+import { sendMeeshoAutofill } from "../fill";
 import {
   getBusinessDetails,
   businessDetailsToFields,
@@ -49,6 +50,33 @@ const ATTR_ALIASES: Record<string, string> = {
 function toMeeshoName(key: string): string {
   const norm = key.toLowerCase().replace(/[_\s]/g, "");
   return ATTR_ALIASES[norm] ?? key.toLowerCase().replace(/\s+/g, "_");
+}
+
+// Loose category match: "Women > Kurti" matches "Women Kurti", singular/plural
+// and separators ignored. Used both for the reference-SKU dropdown filter and
+// to auto-pick a same-category reference when the seller hasn't chosen one.
+function categoryMatches(selected: string, productCategory: string): boolean {
+  if (!selected.trim()) return true;
+
+  const normalizeWords = (value: string) =>
+    value
+      .toLowerCase()
+      .replace(/[>/_-]/g, " ")
+      .replace(/\s+/g, " ")
+      .trim()
+      .split(" ")
+      .filter(Boolean)
+      .map((word) =>
+        word.endsWith("s") && word.length > 3 ? word.slice(0, -1) : word,
+      );
+
+  const selectedWords = normalizeWords(selected);
+  const productWords = normalizeWords(productCategory);
+
+  return (
+    productWords.every((word) => selectedWords.includes(word)) ||
+    selectedWords.every((word) => productWords.includes(word))
+  );
 }
 
 const MAX_DIM = 1024;
@@ -123,10 +151,16 @@ export function AIAutofill() {
   const [attrs, setAttrs] = useState<Record<string, string>>({});
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [fillResult, setFillResult] = useState<FillResult | null>(null);
 
   useEffect(() => {
     getBusinessDetails().then(setBusiness);
+  }, []);
+
+  // Warm the vision model the moment the seller opens this tab, so it's
+  // resident by the time they've picked a photo and hit Analyze — the first
+  // extraction no longer eats the ~45s cold-load.
+  useEffect(() => {
+    void warmupExtractor();
   }, []);
 
   useEffect(() => {
@@ -194,7 +228,6 @@ export function AIAutofill() {
   async function autofill() {
   setBusy(true);
   setError(null);
-  setFillResult(null);
 
   try {
     const businessFields = business
@@ -231,10 +264,12 @@ export function AIAutofill() {
           .join(", ")
       : "";
 
-const referenceProduct =
-  referenceProducts.find(
-    (product) => product.sku === referenceSku,
-  );
+// Reference knowledge is opt-in only: it applies solely when the seller has
+// explicitly picked a past SKU. We never auto-merge from the catalogue, so
+// autofill can't inject attributes the seller didn't intend for this listing.
+const referenceProduct = referenceProducts.find(
+  (product) => product.sku === referenceSku,
+);
 
 const referenceAttributes =
   referenceProduct?.attributes &&
@@ -276,9 +311,10 @@ const referenceFallbackAttributes: Record<string, unknown> = {
 },
     };
 
-    const result = await sendMeeshoAutofill(product);
-
-    setFillResult(result);
+    // Fire the fill and let it run to completion. No report is surfaced —
+    // autofill fills whatever it can and stops (the seller reviews the form
+    // itself). The on-page confetti + STOP AUTOFILL button are the only UX.
+    await sendMeeshoAutofill(product);
   } catch (e) {
     setError((e as Error).message);
   } finally {
@@ -329,31 +365,7 @@ const referenceFallbackAttributes: Record<string, unknown> = {
     <option value="">No reference SKU</option>
 
     {referenceProducts
-      .filter((product) => {
-  if (!category.trim()) return true;
-
-  const normalizeWords = (value: string) =>
-    value
-      .toLowerCase()
-      .replace(/[>/_-]/g, " ")
-      .replace(/\s+/g, " ")
-      .trim()
-      .split(" ")
-      .filter(Boolean)
-      .map((word) =>
-        word.endsWith("s") && word.length > 3
-          ? word.slice(0, -1)
-          : word
-      );
-
-  const selectedWords = normalizeWords(category);
-  const productWords = normalizeWords(product.category ?? "");
-
-  return (
-  productWords.every((word) => selectedWords.includes(word)) ||
-  selectedWords.every((word) => productWords.includes(word))
-);
-})
+      .filter((product) => categoryMatches(category, product.category ?? ""))
       .map((product) => (
         <option key={product.id} value={product.sku}>
           {product.sku} — {product.title || "Untitled Product"}
@@ -477,36 +489,6 @@ const referenceFallbackAttributes: Record<string, unknown> = {
             tab so you can halt anytime. Neo never clicks Submit —
             you review and submit yourself.
           </p>
-
-          {fillResult && (
-            <div className="mt-1 font-cartoon text-xs">
-              <p
-                className={`font-semibold ${
-                  fillResult.ok ? "text-green-700" : "text-red-600"
-                }`}
-              >
-                {fillResult.ok
-                  ? `Autofill completed. Filled: ${
-                      fillResult.filled?.join(", ") || "none"
-                    }.`
-                  : `Autofill failed: ${
-                      fillResult.error ?? "unknown error"
-                    }`}
-              </p>
-              {fillResult.ok && !!fillResult.skipped?.length && (
-                <p className="mt-1 text-[#a15c00]">
-                  Not found on this page/step: {fillResult.skipped.join(", ")}.
-                  {" "}These fields may be on a later step of Meesho's wizard —
-                  advance to that step and run Autofill again.
-                </p>
-              )}
-              {fillResult.ok && !!fillResult.missing?.length && (
-                <p className="mt-1 text-red-600">
-                  Required fields still empty: {fillResult.missing.join(", ")}.
-                </p>
-              )}
-            </div>
-          )}
         </div>
       )}
     </div>

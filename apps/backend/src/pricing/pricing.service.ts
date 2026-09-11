@@ -24,21 +24,21 @@ export class PricingService {
 
   // skus omitted/empty => every product (unchanged default behavior);
   // present => only those SKUs.
-  private async scopedGenomes(skus?: string[]) {
-    const genomes = await this.products.getAllProducts();
+  private async scopedGenomes(skus?: string[], sellerId?: string) {
+    const genomes = await this.products.getAllProducts(sellerId);
     if (!skus || skus.length === 0) return genomes;
     const wanted = new Set(skus);
     return genomes.filter((g) => wanted.has(g.sku));
   }
 
-  async calculateDryRun(rule: PricingRule, skus?: string[]) {
-    const genomes = await this.scopedGenomes(skus);
+  async calculateDryRun(rule: PricingRule, skus?: string[], sellerId?: string) {
+    const genomes = await this.scopedGenomes(skus, sellerId);
     const costs = genomes.map(toCosting);
     return executeDryRun(rule, costs, new Date());
   }
 
-  async applyPrices(rule: PricingRule, skus?: string[]) {
-    const genomes = await this.scopedGenomes(skus);
+  async applyPrices(rule: PricingRule, skus?: string[], sellerId?: string) {
+    const genomes = await this.scopedGenomes(skus, sellerId);
     const costs = genomes.map(toCosting);
     const dry = executeDryRun(rule, costs, new Date());
 
@@ -52,7 +52,7 @@ export class PricingService {
       for (let i = 0; i < dry.diffs.length; i++) {
         await this.products.updateProduct(genomes[i].id, {
           sellingPrice: dry.diffs[i].proposedPrice.toFixed(2),
-        });
+        }, sellerId);
       }
     } catch (e) {
       await this.transactions.rollbackPriceTxn(txn.id);
@@ -64,8 +64,8 @@ export class PricingService {
   // Sets sellingPrice back to basePrice for matching products. Products
   // with no basePrice recorded (created before this feature, or never
   // saved through a path that sets it) are skipped, not zeroed.
-  async resetPrices(skus?: string[]) {
-    const all = await this.scopedGenomes(skus);
+  async resetPrices(skus?: string[], sellerId?: string) {
+    const all = await this.scopedGenomes(skus, sellerId);
     const withBase = all.filter((g) => (g as { basePrice?: string | null }).basePrice != null);
 
     const snapshot = withBase.map((g) => ({
@@ -78,7 +78,7 @@ export class PricingService {
       for (const g of withBase) {
         await this.products.updateProduct(g.id, {
           sellingPrice: (g as { basePrice?: string | null }).basePrice!,
-        });
+        }, sellerId);
       }
     } catch (e) {
       await this.transactions.rollbackPriceTxn(txn.id);
