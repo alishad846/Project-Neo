@@ -1,87 +1,119 @@
 import { useMemo, useState } from "react";
 import { Check, Undo2 } from "lucide-react";
 import { PopButton } from "@neo/ui";
-import { PRICE_ROWS } from "../data";
+import { computeCost, computeProposedPrice, type RuleSet, type SkuCosting } from "@neo/rules-engine";
+import { PRICE_ROWS, type PriceRow } from "../data";
 import { useReveal } from "../hooks/useReveal";
 import { SectionBg } from "../components/SectionBg";
 
 // Marketing count used in the copy to signal "bulk" — the table below shows a
-// live sample of 10 real SKUs; the rule conceptually hits all 500.
+// live sample of 13 real SKUs; the rule conceptually hits all 500.
 const TOTAL_SKUS = 500;
 const GST_RATES = [0, 5, 12, 18] as const;
+// The landing-page preview explains the direct seller calculation only:
+// selling price minus manufacturing cost. Marketplace fees belong in the
+// detailed calculator, not in this simple price-floor demonstration.
+const SELLER_COST_RULES: RuleSet = {
+  effectiveFrom: "2024-01-01",
+  margin: { packagingFee: 0, returnShippingCost: 0, defectRate: 0, shippingGstRate: 0, feeGstRate: 0 },
+  categories: [{ category: "*", gstRate: 0, defaultReturnRate: 0, commissionRate: 0 }],
+  shipping: [{ maxWeightKg: Infinity, charge: 0 }],
+};
 
 interface Settings {
-  discount: number; // % off list price
-  gst: number; // GST % added on top of the net price
-  round99: boolean; // round each net price to ₹__99
-  floorBE: boolean; // never let the net price fall below break-even (cost)
+  discount: number; // % off the current base price
+  gst: number; // product GST %, fed into the engine as a cost input — never added on top
+  roundCharm: boolean; // round each price to a customer-appeal charm price (₹__99 / ₹_9 / ₹9)
+  floorBE: boolean; // floor the proposed price at break-even
 }
 
-const BASELINE: Settings = { discount: 0, gst: 0, round99: false, floorBE: true };
+const INITIAL_SETTINGS: Settings = { discount: 0, gst: 0, roundCharm: false, floorBE: true };
 
-function costOf(row: (typeof PRICE_ROWS)[number]) {
-  return Math.round(row.newPrice * (1 - row.margin / 100));
-}
-function roundTo99(p: number) {
-  return Math.max(99, Math.round((p - 99) / 100) * 100 + 99);
+// A demo row's manufacturing cost, derived from its listed margin off the
+// *original* list price — a stable number that doesn't move as `base` moves,
+// so repeated Apply cycles don't drift the implied cost.
+// Builds the SkuCosting the engine needs to price this row from its current
+// committed base — never from the original list price, so a discount always
+// applies to what's live right now, not to some stale reference point.
+function skuFrom(row: PriceRow, base: number): SkuCosting {
+  return {
+    sku: row.sku,
+    currentPrice: base,
+    baseCost: row.costPrice,
+    weightKg: 0.5,
+    category: "*",
+  };
 }
 
-// Net (ex-GST) and listed (incl-GST) price for a row under a set of knobs.
-function priceUnder(row: (typeof PRICE_ROWS)[number], s: Settings) {
-  let net = row.oldPrice * (1 - s.discount / 100);
-  if (s.round99) net = roundTo99(net);
-  const cost = costOf(row);
-  if (s.floorBE && net < cost) net = cost;
-  net = Math.round(net);
-  const listed = Math.round(net * (1 + s.gst / 100));
-  return { net, listed, cost };
-}
-function marginOf(net: number, cost: number) {
-  return net <= 0 ? 0 : Math.round(((net - cost) / net) * 100);
-}
-function settingsEqual(a: Settings, b: Settings) {
-  return a.discount === b.discount && a.gst === b.gst && a.round99 === b.round99 && a.floorBE === b.floorBE;
+function initialBases(): Record<string, number> {
+  const bases: Record<string, number> = {};
+  for (const row of PRICE_ROWS) bases[row.sku] = row.oldPrice;
+  return bases;
 }
 
 export function PriceShowcase() {
   const { ref, visible } = useReveal<HTMLDivElement>();
 
-  const [settings, setSettings] = useState<Settings>({ discount: 10, gst: 0, round99: false, floorBE: true });
-  const [applied, setApplied] = useState<Settings>(BASELINE);
-  const [prev, setPrev] = useState<Settings | null>(null);
+  const [settings, setSettings] = useState<Settings>(INITIAL_SETTINGS);
+  const [bases, setBases] = useState<Record<string, number>>(initialBases);
+  const [undoStack, setUndoStack] = useState<Record<string, number>[]>([]);
   const [justApplied, setJustApplied] = useState(false);
 
   const rows = useMemo(
     () =>
       PRICE_ROWS.map((row) => {
-        const now = priceUnder(row, applied);
-        const next = priceUnder(row, settings);
+        const base = bases[row.sku] ?? row.oldPrice;
+        const preview = Math.round(
+          computeProposedPrice(
+            {
+              actionType: "PERCENTAGE_DISCOUNT",
+              actionValue: settings.discount,
+              roundToCharm: settings.roundCharm,
+              floorBreakeven: settings.floorBE,
+            },
+            skuFrom(row, base),
+            SELLER_COST_RULES,
+          ),
+        );
+        const { netProfit, gstComponent, marginPct } = computeCost(
+          { sellingPrice: preview, manufacturingCost: row.costPrice, gstRate: settings.gst / 100 },
+          SELLER_COST_RULES,
+        );
         return {
           sku: row.sku,
           name: row.name,
-          oldListed: now.listed,
-          newListed: next.listed,
-          margin: marginOf(next.net, next.cost),
-          breakeven: next.net >= next.cost,
-          changed: next.listed !== now.listed,
+          margin: Math.round(marginPct),
+          base,
+          costPrice: row.costPrice,
+          preview,
+          changed: preview !== base,
+          netProfit,
+          gstComponent,
         };
       }),
-    [settings, applied],
+    [settings, bases],
   );
 
-  const pendingChange = !settingsEqual(settings, applied);
-  const belowCount = rows.filter((r) => !r.breakeven).length;
+  const pendingChange = settings.discount > 0;
+  const lossCount = rows.filter((r) => r.netProfit < 0).length;
+  // Average GST embedded in the proposed prices — what you remit / claim as
+  // ITC per order, straight from computeCost. Never added on top of the
+  // displayed price; purely an info figure driven by the GST buttons.
+  const avgGstToRemit = Math.round(rows.reduce((sum, r) => sum + r.gstComponent, 0) / rows.length);
 
   function apply() {
-    setPrev(applied);
-    setApplied(settings);
+    setUndoStack((stack) => [...stack, bases]);
+    const nextBases: Record<string, number> = {};
+    for (const row of rows) nextBases[row.sku] = row.preview;
+    setBases(nextBases);
+    setSettings((s) => ({ ...s, discount: 0 }));
     setJustApplied(true);
   }
   function undo() {
-    if (!prev) return;
-    setApplied(prev);
-    setSettings(prev);
-    setPrev(null);
+    if (undoStack.length === 0) return;
+    const prevBases = undoStack[undoStack.length - 1];
+    setBases(prevBases);
+    setUndoStack(undoStack.slice(0, -1));
     setJustApplied(false);
   }
   function update(patch: Partial<Settings>) {
@@ -110,12 +142,13 @@ export function PriceShowcase() {
               </span>
             </div>
             <div className="overflow-x-auto">
-              <table className="w-full min-w-[560px] border-collapse font-body text-sm">
+              <table className="w-full min-w-[680px] border-collapse font-body text-sm">
                 <thead>
                   <tr className="border-b-2 border-black text-left">
                     <th className="px-3 py-2">SKU</th>
                     <th className="px-3 py-2">Product</th>
-                    <th className="px-3 py-2">Old → New</th>
+                    <th className="px-3 py-2">Cost price</th>
+                    <th className="px-3 py-2">Selling price</th>
                     <th className="px-3 py-2">Margin</th>
                     <th className="px-3 py-2">Status</th>
                   </tr>
@@ -124,24 +157,21 @@ export function PriceShowcase() {
                   {rows.map((row) => (
                     <tr key={row.sku} className="border-b border-black/15">
                       <td className="px-3 py-2.5 font-bold">{row.sku}</td>
-                      <td className="px-3 py-2.5">{row.name}</td>
+                      <td className="px-3 py-2.5">
+                        {row.name}
+                      </td>
                       <td className="px-3 py-2.5 tabular-nums">
-                        <span className="text-black/40 line-through">₹{row.oldListed}</span>{" "}
-                        <span className="text-black">→</span>{" "}
-                        <span className={`font-bold ${row.changed ? "text-[#ff2fb0]" : "text-black"}`}>
-                          ₹{row.newListed}
-                        </span>
+                        <span className="font-bold text-black">₹{row.costPrice}</span>
+                      </td>
+                      <td className="px-3 py-2.5 tabular-nums">
+                        <span className={`font-bold ${row.changed ? "text-[#ff2fb0]" : "text-black"}`}>₹{row.preview}</span>
                       </td>
                       <td className="px-3 py-2.5 tabular-nums">{row.margin}%</td>
-                      <td className="px-3 py-2.5">
-                        {row.breakeven ? (
-                          <span className="border border-black/40 bg-[#b2ff59] px-2.5 py-1 text-xs font-bold uppercase">
-                            safe
-                          </span>
+                      <td className="px-3 py-2.5 tabular-nums">
+                        {row.netProfit >= 0 ? (
+                          <span className="font-bold text-green-600">+₹{Math.round(row.netProfit)}</span>
                         ) : (
-                          <span className="border border-black/40 bg-red-400 px-2.5 py-1 text-xs font-bold uppercase">
-                            below
-                          </span>
+                          <span className="font-bold text-red-600">−₹{Math.round(Math.abs(row.netProfit))}</span>
                         )}
                       </td>
                     </tr>
@@ -164,7 +194,7 @@ export function PriceShowcase() {
                 <input
                   type="range"
                   min={0}
-                  max={60}
+                  max={100}
                   step={1}
                   value={settings.discount}
                   onChange={(e) => update({ discount: Number(e.target.value) })}
@@ -190,16 +220,21 @@ export function PriceShowcase() {
                     </button>
                   ))}
                 </div>
+                <p className="mt-2 font-body text-xs text-black/60">
+                  GST doesn&rsquo;t change the buyer&rsquo;s price — it&rsquo;s baked in either way. It changes what
+                  you remit: ≈ <span className="font-bold text-black">₹{avgGstToRemit}</span> per order to collect /
+                  claim as ITC.
+                </p>
               </div>
 
               <label className="mb-3 flex cursor-pointer items-center gap-2 border border-black/40 bg-[#fff0f5] px-4 py-2.5 font-body text-sm font-bold text-black">
                 <input
                   type="checkbox"
-                  checked={settings.round99}
-                  onChange={(e) => update({ round99: e.target.checked })}
+                  checked={settings.roundCharm}
+                  onChange={(e) => update({ roundCharm: e.target.checked })}
                   className="h-4 w-4 accent-[#ff2fb0]"
                 />
-                Round to ₹__99
+                Round Off Charm
               </label>
               <label className="flex cursor-pointer items-center gap-2 border border-black/40 bg-[#fff0f5] px-4 py-2.5 font-body text-sm font-bold text-black">
                 <input
@@ -221,15 +256,21 @@ export function PriceShowcase() {
                   <>
                     Pending: <span className="font-bold text-[#ff2fb0]">{settings.discount}% off</span> on{" "}
                     {TOTAL_SKUS} SKUs
-                    {belowCount > 0 && <span className="font-bold text-red-500"> · {belowCount} below</span>}
+                    {lossCount > 0 && <span className="font-bold text-red-500"> · {lossCount} at a loss</span>}
                   </>
                 ) : (
                   <span>Live prices are up to date.</span>
                 )}
               </p>
               <div className="flex flex-col gap-3">
-                <PopButton text="Apply to 500" color="#b2ff59" icon={Check} onClick={apply} disabled={!pendingChange} />
-                <PopButton text="Previous (undo)" color="#ffffff" icon={Undo2} onClick={undo} disabled={!prev} />
+                <PopButton text="Apply" color="#b2ff59" icon={Check} onClick={apply} disabled={!pendingChange} />
+                <PopButton
+                  text="Previous (undo)"
+                  color="#ffffff"
+                  icon={Undo2}
+                  onClick={undo}
+                  disabled={undoStack.length === 0}
+                />
               </div>
             </div>
           </div>

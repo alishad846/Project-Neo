@@ -1,4 +1,4 @@
-import { Injectable } from '@nestjs/common';
+import { Injectable, NotFoundException } from '@nestjs/common';
 import { and, eq } from 'drizzle-orm';
 import { db } from '../db/database';
 import { productGenome, productGenomeHistory } from '../db/schema';
@@ -8,47 +8,95 @@ export class ProductsService {
   async createProduct(data: typeof productGenome.$inferInsert) {
     const result = await db
       .insert(productGenome)
-      .values(data)
+      .values({ ...data, basePrice: data.basePrice ?? data.sellingPrice ?? null })
       .returning();
 
     return result[0];
   }
-  async getAllProducts() {
-  return db
-    .select()
-    .from(productGenome)
-    .where(eq(productGenome.isArchived, false));
-}
-  async getProductById(id: number) {
-  const result = await db
-    .select()
-    .from(productGenome)
-    .where(
-      and(
-        eq(productGenome.id, id),
-        eq(productGenome.isArchived, false),
-      ),
-    );
+  async getAllProducts(sellerId?: string) {
+    const filters = [eq(productGenome.isArchived, false)];
+    if (sellerId) filters.push(eq(productGenome.sellerId, sellerId));
+    return db.select().from(productGenome).where(and(...filters));
+  }
 
-  return result[0];
-}
+  async getProductById(id: number, sellerId?: string) {
+    const filters = [eq(productGenome.id, id), eq(productGenome.isArchived, false)];
+    if (sellerId) filters.push(eq(productGenome.sellerId, sellerId));
+    const result = await db.select().from(productGenome).where(and(...filters));
+    const product = result[0];
+    if (!product) throw new NotFoundException(`Product ${id} was not found`);
+    return product;
+  }
+
+  async getSellerPriors(sellerId: string, category?: string) {
+    try {
+      const products = await db
+        .select()
+        .from(productGenome)
+        .where(
+          and(
+            eq(productGenome.sellerId, sellerId),
+            eq(productGenome.isArchived, false),
+          ),
+        );
+
+      const categoryProducts = category
+        ? products.filter((product) => product.category?.toLowerCase() === category.toLowerCase())
+        : products;
+      const relevant = categoryProducts.length > 0 ? categoryProducts : products;
+      if (relevant.length === 0) return undefined;
+
+      const fabrics = new Set<string>();
+      const colors = new Set<string>();
+      const patterns = new Set<string>();
+      const neckTypes = new Set<string>();
+      const sleeveLengths = new Set<string>();
+
+      for (const product of relevant) {
+        if (product.fabric) fabrics.add(product.fabric);
+        if (product.colour) colors.add(product.colour);
+        const attrs = product.attributes as Record<string, unknown> | null;
+        if (!attrs) continue;
+        if (typeof attrs.fabric === "string") fabrics.add(attrs.fabric);
+        if (typeof attrs.color === "string") colors.add(attrs.color);
+        if (typeof attrs.colour === "string") colors.add(attrs.colour);
+        if (typeof attrs.pattern === "string") patterns.add(attrs.pattern);
+        if (typeof attrs.neckType === "string") neckTypes.add(attrs.neckType);
+        if (typeof attrs.sleeveLength === "string") sleeveLengths.add(attrs.sleeveLength);
+      }
+
+      return {
+        frequentFabrics: [...fabrics],
+        frequentColors: [...colors],
+        frequentPatterns: [...patterns],
+        frequentNeckTypes: [...neckTypes],
+        frequentSleeveLengths: [...sleeveLengths],
+      };
+    } catch {
+      // A prior is an optional hint; extraction must still work if the lookup fails.
+      return undefined;
+    }
+  }
 
 async updateProduct(
-  id: number,
-  data: Partial<typeof productGenome.$inferInsert>,
-) {
+    id: number,
+    data: Partial<typeof productGenome.$inferInsert>,
+    sellerId?: string,
+  ) {
   return db.transaction(async (tx) => {
     // 1. Get current product
     const existing = await tx
       .select()
       .from(productGenome)
-      .where(eq(productGenome.id, id));
+      .where(
+        sellerId
+          ? and(eq(productGenome.id, id), eq(productGenome.sellerId, sellerId))
+          : eq(productGenome.id, id),
+      );
 
     const current = existing[0];
 
-    if (!current) {
-      return null;
-    }
+    if (!current) throw new NotFoundException(`Product ${id} was not found`);
 
     // 2. Save current version into history
     await tx.insert(productGenomeHistory).values({
@@ -66,6 +114,7 @@ async updateProduct(
       hsnCode: current.hsnCode,
       costPrice: current.costPrice,
       sellingPrice: current.sellingPrice,
+      basePrice: current.basePrice,
       images: current.images,
       attributes: current.attributes,
       version: current.version,
@@ -85,42 +134,52 @@ async updateProduct(
     return updated[0];
   });
 }
-async getProductHistory(id: number) {
-  return db
+async getProductHistory(id: number, sellerId?: string) {
+    const product = await this.findProductForOwner(id, sellerId);
+    if (!product) throw new NotFoundException(`Product ${id} was not found`);
+    const filters = [eq(productGenomeHistory.productId, id)];
+    if (sellerId) filters.push(eq(productGenomeHistory.sellerId, sellerId));
+    return db
     .select()
     .from(productGenomeHistory)
-    .where(eq(productGenomeHistory.productId, id));
+    .where(and(...filters));
 }
-async rollbackProduct(id: number, targetVersion: number) {
+async rollbackProduct(id: number, targetVersion: number, sellerId?: string) {
   return db.transaction(async (tx) => {
     // Current product
     const currentResult = await tx
       .select()
       .from(productGenome)
-      .where(eq(productGenome.id, id));
+      .where(
+        sellerId
+          ? and(eq(productGenome.id, id), eq(productGenome.sellerId, sellerId))
+          : eq(productGenome.id, id),
+      );
 
     const current = currentResult[0];
 
-    if (!current) {
-      return null;
-    }
+    if (!current) throw new NotFoundException(`Product ${id} was not found`);
 
     // Version we want to restore
     const historyResult = await tx
       .select()
       .from(productGenomeHistory)
       .where(
-        and(
-          eq(productGenomeHistory.productId, id),
-          eq(productGenomeHistory.version, targetVersion),
-        ),
+        sellerId
+          ? and(
+              eq(productGenomeHistory.productId, id),
+              eq(productGenomeHistory.version, targetVersion),
+              eq(productGenomeHistory.sellerId, sellerId),
+            )
+          : and(
+              eq(productGenomeHistory.productId, id),
+              eq(productGenomeHistory.version, targetVersion),
+            ),
       );
 
     const target = historyResult[0];
 
-    if (!target) {
-      return null;
-    }
+    if (!target) throw new NotFoundException(`Version ${targetVersion} was not found for product ${id}`);
 
     // Save current state before rollback
     await tx.insert(productGenomeHistory).values({
@@ -138,6 +197,7 @@ async rollbackProduct(id: number, targetVersion: number) {
       hsnCode: current.hsnCode,
       costPrice: current.costPrice,
       sellingPrice: current.sellingPrice,
+      basePrice: current.basePrice,
       images: current.images,
       attributes: current.attributes,
       version: current.version,
@@ -160,6 +220,7 @@ async rollbackProduct(id: number, targetVersion: number) {
         hsnCode: target.hsnCode,
         costPrice: target.costPrice,
         sellingPrice: target.sellingPrice,
+        basePrice: target.basePrice,
         images: target.images,
         attributes: target.attributes,
         version: current.version + 1,
@@ -171,16 +232,18 @@ async rollbackProduct(id: number, targetVersion: number) {
     return restored[0];
   });
 }
-async archiveProduct(id: number) {
+async archiveProduct(id: number, sellerId?: string) {
+  const filters = [eq(productGenome.id, id)];
+  if (sellerId) filters.push(eq(productGenome.sellerId, sellerId));
   const existing = await db
     .select()
     .from(productGenome)
-    .where(eq(productGenome.id, id));
+    .where(and(...filters));
 
   const current = existing[0];
 
   if (!current) {
-    return null;
+    throw new NotFoundException(`Product ${id} was not found`);
   }
 
   const archived = await db
@@ -189,20 +252,31 @@ async archiveProduct(id: number) {
       isArchived: true,
       updatedAt: new Date(),
     })
-    .where(eq(productGenome.id, id))
+    .where(and(...filters))
     .returning();
 
   return archived[0];
 }
-async restoreProduct(id: number) {
+async restoreProduct(id: number, sellerId?: string) {
+  const filters = [eq(productGenome.id, id)];
+  if (sellerId) filters.push(eq(productGenome.sellerId, sellerId));
   const restored = await db
     .update(productGenome)
     .set({
       isArchived: false,
       updatedAt: new Date(),
     })
-    .where(eq(productGenome.id, id))
+    .where(and(...filters))
     .returning();
 
-  return restored[0] ?? null;
-}}
+  if (!restored[0]) throw new NotFoundException(`Product ${id} was not found`);
+  return restored[0];
+  }
+
+  private async findProductForOwner(id: number, sellerId?: string) {
+    const filters = [eq(productGenome.id, id)];
+    if (sellerId) filters.push(eq(productGenome.sellerId, sellerId));
+    const result = await db.select({ id: productGenome.id }).from(productGenome).where(and(...filters));
+    return result[0];
+  }
+}

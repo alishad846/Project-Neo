@@ -23,3 +23,17 @@ describe("resolveRuleSet", () => {
       for (const c of rs.categories) expect(c.gstRate).toBeGreaterThanOrEqual(0), expect(c.gstRate).toBeLessThan(1);
   });
 });
+
+describe("RuleSet fee data", () => {
+  const rs = resolveRuleSet(new Date("2026-01-01"));
+  it("carries an 18% GST-on-fees rate", () => {
+    expect(rs.margin.feeGstRate).toBeCloseTo(0.18, 5);
+  });
+  it("defaults Meesho-beachhead commission to 0% on the * fallback", () => {
+    const star = rs.categories.find((c) => c.category === "*")!;
+    expect(star.commissionRate).toBe(0);
+  });
+  it("every category rule has a commissionRate", () => {
+    for (const c of rs.categories) expect(typeof c.commissionRate).toBe("number");
+  });
+});

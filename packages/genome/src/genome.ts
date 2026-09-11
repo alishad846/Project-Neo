@@ -20,6 +20,7 @@ export const productGenomeInsertSchema = z.object({
   hsnCode: z.string().max(50).nullable().optional(),
   costPrice: decimalString,
   sellingPrice: decimalString,
+  basePrice: decimalString,
   images: z.unknown().optional(),
   attributes: z.unknown().optional(),
 });
@@ -32,5 +33,9 @@ export const productGenomeSchema = productGenomeInsertSchema.extend({
   updatedAt: z.coerce.date(),
 });
 
+export const productGenomeUpdateSchema = productGenomeInsertSchema.partial();
+export const productGenomeCreateSchema = productGenomeInsertSchema.omit({ sellerId: true });
+
 export type ProductGenomeInsert = z.infer<typeof productGenomeInsertSchema>;
+export type ProductGenomeUpdate = z.infer<typeof productGenomeUpdateSchema>;
 export type ProductGenome = z.infer<typeof productGenomeSchema>;

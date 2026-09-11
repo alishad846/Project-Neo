@@ -3,12 +3,16 @@ export interface MarginConstants {
   returnShippingCost: number;// cost of a returned shipment (was R_ship)
   defectRate: number;        // fraction of returns that are unsellable (was d)
   shippingGstRate: number;   // GST applied to the shipping charge (was 0.18)
+  feeGstRate: number;        // GST charged on marketplace fees (currently 18%)
 }
 
 export interface CategoryRule {
   category: string;          // matches ProductGenome.category prefix; "*" is the fallback
   gstRate: number;           // product GST as a fraction (e.g. 0.05)
   defaultReturnRate: number; // expected RTO/return fraction when not known per-SKU
+  commissionRate: number;    // marketplace commission as a fraction of selling price
+  fixedFee?: number;         // flat per-order fee (e.g. Amazon closing fee / Flipkart fixed fee)
+  collectionRate?: number;   // payment/collection fee as a fraction of selling price
 }
 
 export interface ShippingSlab {
@@ -28,11 +32,11 @@ export interface RuleSet {
 export const RULE_HISTORY: RuleSet[] = [
   {
     effectiveFrom: "2024-01-01",
-    margin: { packagingFee: 5, returnShippingCost: 160, defectRate: 0.1, shippingGstRate: 0.18 },
+    margin: { packagingFee: 5, returnShippingCost: 160, defectRate: 0.1, shippingGstRate: 0.18, feeGstRate: 0.18 },
     categories: [
-      { category: "Women > Kurtis", gstRate: 0.05, defaultReturnRate: 0.15 },
-      { category: "Women > Sarees", gstRate: 0.05, defaultReturnRate: 0.12 },
-      { category: "*", gstRate: 0.05, defaultReturnRate: 0.15 },
+      { category: "Women > Kurtis", gstRate: 0.05, defaultReturnRate: 0.15, commissionRate: 0 },
+      { category: "Women > Sarees", gstRate: 0.05, defaultReturnRate: 0.12, commissionRate: 0 },
+      { category: "*", gstRate: 0.05, defaultReturnRate: 0.15, commissionRate: 0 },
     ],
     shipping: [
       { maxWeightKg: 0.5, charge: 56 },

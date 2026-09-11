@@ -5,10 +5,14 @@ dist/
 *.log
 .env
 
+# First-run seed marker written by scripts/start.mjs
+.neo-seeded
+
 # Local-only working notes (kept on disk, never committed)
 .superpowers/
 docs/superpowers/
 docs/PROJECT_BRIEF.md
+docs/Work.md
 
 # Captured Meesho panel DOM (input artifact, contains seller panel identifiers)
 meesho-form.html

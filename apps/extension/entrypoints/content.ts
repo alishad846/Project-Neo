@@ -1,7 +1,12 @@
+<<<<<<< HEAD
 import { SELECTOR_CONFIGS as MEESHO_SELECTORS, type MeeshoConfigId, type MeeshoSelectorMap } from "@neo/adapter-meesho";
 import { SELECTOR_CONFIGS as AMAZON_SELECTORS, type AmazonConfigId, type AmazonSelectorMap } from "@neo/adapter-amazon";
 import { SELECTOR_CONFIGS as FLIPKART_SELECTORS, type FlipkartConfigId, type FlipkartSelectorMap } from "@neo/adapter-flipkart";
 import type { MarketplaceId } from "@neo/adapter";
+=======
+import { SELECTOR_CONFIGS, type MeeshoConfigId, type MeeshoSelectorMap } from "@neo/adapter-meesho";
+import { injectScript, type ScriptPublicPath } from "#imports";
+>>>>>>> c7923eab97cb209bcbe3876ee06576439151e2d9
 
 export interface FillValues {
   title: string;
@@ -17,10 +22,33 @@ interface FillMessage {
   marketplace?: MarketplaceId;
   config: string;
   values: FillValues;
+<<<<<<< HEAD
   // When present, fill generically by field `name` instead of the fixed fixture
   // selector map. Keyed by the marketplace's stable `name` attribute
   // (e.g. { product_name, comment, color, fabric, occasion, ... }).
+=======
+>>>>>>> c7923eab97cb209bcbe3876ee06576439151e2d9
   fields?: Record<string, string>;
+}
+
+interface MeeshoAutofillMessage {
+  type: "NEO_MEESHO_AUTOFILL";
+  product: Record<string, unknown>;
+}
+
+interface MeeshoBulkGenerationMessage {
+  type: "PROJECT_NEO_GENERATE_MEESHO_BULK";
+  templateBase64: string;
+  templateName?: string;
+  templateType?: string;
+  products: unknown[];
+}
+
+interface MeeshoInspectTemplateMessage {
+  type: "PROJECT_NEO_INSPECT_MEESHO_TEMPLATE";
+  templateBase64: string;
+  templateName?: string;
+  templateType?: string;
 }
 
 interface FillResponse {
@@ -34,10 +62,178 @@ interface FillResponse {
 
 const sleep = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
 
+<<<<<<< HEAD
 // Randomized delay (100–300ms) between field fills. Simulates human typing
 // cadence to avoid triggering generic rate-limiters or bot-detection heuristics
 // on Amazon Seller Central and Flipkart Seller Hub.
 const humanDelay = () => sleep(100 + Math.floor(Math.random() * 200));
+=======
+function requestMeeshoAutofill(product: Record<string, unknown>): Promise<unknown> {
+  return new Promise((resolve, reject) => {
+    const requestId = `neo-${Date.now()}-${Math.random().toString(36).slice(2)}`;
+
+    const handler = (event: MessageEvent) => {
+      if (
+        event.source !== window ||
+        event.data?.source !== "PROJECT_NEO_MEESHO_MAIN" ||
+        event.data?.type !== "PROJECT_NEO_AUTOFILL_RESULT" ||
+        event.data?.requestId !== requestId
+      ) {
+        return;
+      }
+
+      window.removeEventListener("message", handler);
+
+      const result = event.data?.result;
+
+      if (result?.success === false && result?.error) {
+        reject(new Error(result.error));
+        return;
+      }
+
+      resolve(result);
+    };
+
+    window.addEventListener("message", handler);
+
+    window.postMessage(
+      {
+        source: "PROJECT_NEO_EXTENSION",
+        type: "PROJECT_NEO_AUTOFILL_MEESHO",
+        requestId,
+        product,
+      },
+      "*",
+    );
+  });
+}
+
+function requestMeeshoScrape(): Promise<Record<string, string>> {
+  return new Promise((resolve, reject) => {
+    const requestId = `neo-scrape-${Date.now()}-${Math.random().toString(36).slice(2)}`;
+
+    const handler = (event: MessageEvent) => {
+      if (
+        event.source !== window ||
+        event.data?.source !== "PROJECT_NEO_MEESHO_MAIN" ||
+        event.data?.type !== "PROJECT_NEO_SCRAPE_RESULT" ||
+        event.data?.requestId !== requestId
+      ) {
+        return;
+      }
+
+      window.removeEventListener("message", handler);
+
+      const result = event.data?.result;
+
+      if (result?.success === false && result?.error) {
+        reject(new Error(result.error));
+        return;
+      }
+
+      resolve(result?.fields ?? {});
+    };
+
+    window.addEventListener("message", handler);
+
+    window.postMessage({ source: "PROJECT_NEO_EXTENSION", type: "PROJECT_NEO_SCRAPE_MEESHO", requestId }, "*");
+  });
+}
+
+function requestMeeshoBulkGeneration(payload: {
+  templateBase64: string;
+  templateName?: string;
+  templateType?: string;
+  products: unknown[];
+}): Promise<unknown> {
+  return new Promise((resolve, reject) => {
+    const requestId = `neo-bulk-${Date.now()}-${Math.random().toString(36).slice(2)}`;
+
+    const handler = (event: MessageEvent) => {
+      if (
+        event.source !== window ||
+        event.data?.source !== "PROJECT_NEO_MEESHO_MAIN" ||
+        event.data?.type !== "PROJECT_NEO_BULK_RESULT" ||
+        event.data?.requestId !== requestId
+      ) {
+        return;
+      }
+
+      window.removeEventListener("message", handler);
+
+      const result = event.data?.result;
+
+      if (result?.success === false && result?.error) {
+        reject(new Error(result.error));
+        return;
+      }
+
+      resolve(result);
+    };
+
+    window.addEventListener("message", handler);
+
+    window.postMessage(
+      {
+        source: "PROJECT_NEO_EXTENSION",
+        type: "PROJECT_NEO_GENERATE_MEESHO_BULK",
+        requestId,
+        templateBase64: payload.templateBase64,
+        templateName: payload.templateName,
+        templateType: payload.templateType,
+        products: payload.products,
+      },
+      "*",
+    );
+  });
+}
+
+function requestMeeshoInspect(payload: {
+  templateBase64: string;
+  templateName?: string;
+  templateType?: string;
+}): Promise<unknown> {
+  return new Promise((resolve, reject) => {
+    const requestId = `neo-inspect-${Date.now()}-${Math.random().toString(36).slice(2)}`;
+
+    const handler = (event: MessageEvent) => {
+      if (
+        event.source !== window ||
+        event.data?.source !== "PROJECT_NEO_MEESHO_MAIN" ||
+        event.data?.type !== "PROJECT_NEO_INSPECT_RESULT" ||
+        event.data?.requestId !== requestId
+      ) {
+        return;
+      }
+
+      window.removeEventListener("message", handler);
+
+      const result = event.data?.result;
+
+      if (result?.success === false && result?.error) {
+        reject(new Error(result.error));
+        return;
+      }
+
+      resolve(result);
+    };
+
+    window.addEventListener("message", handler);
+
+    window.postMessage(
+      {
+        source: "PROJECT_NEO_EXTENSION",
+        type: "PROJECT_NEO_INSPECT_MEESHO_TEMPLATE",
+        requestId,
+        templateBase64: payload.templateBase64,
+        templateName: payload.templateName,
+        templateType: payload.templateType,
+      },
+      "*",
+    );
+  });
+}
+>>>>>>> c7923eab97cb209bcbe3876ee06576439151e2d9
 
 // Human-readable labels for the fixed fixture fields (for the "✓ filled" badge).
 const FIELD_LABELS: Record<keyof FillValues, string> = {
@@ -128,7 +324,6 @@ function removeStopButton() {
 
 function clearOverlays() {
   document.querySelectorAll(`.${POP_CLASS}`).forEach((n) => n.remove());
-  // Remove any stray highlight from earlier builds.
   document.querySelectorAll(".neo-af-highlight").forEach((n) => n.classList.remove("neo-af-highlight"));
 }
 
@@ -149,7 +344,6 @@ function popConfetti(el: Element, label: string) {
   pill.textContent = `🎉 ${label}`;
   pop.appendChild(pill);
 
-  // A small confetti burst radiating from the pill.
   for (let i = 0; i < 8; i++) {
     const piece = document.createElement("span");
     piece.className = "neo-af-confetti";
@@ -167,21 +361,20 @@ function popConfetti(el: Element, label: string) {
 }
 
 function setNativeValue(el: HTMLInputElement | HTMLTextAreaElement, value: string) {
-  // React/MUI track value via the prototype setter; call it directly so the
-  // framework's onChange fires and the field is considered "dirty".
   const proto = Object.getPrototypeOf(el);
   const descriptor = Object.getOwnPropertyDescriptor(proto, "value");
   const setter = descriptor?.set;
+
   if (setter) {
     setter.call(el, value);
   } else {
     el.value = value;
   }
+
   el.dispatchEvent(new Event("input", { bubbles: true }));
   el.dispatchEvent(new Event("change", { bubbles: true }));
 }
 
-// A field is a (readonly) dropdown/select rather than a free-text input.
 function isDropdown(el: HTMLInputElement): boolean {
   return (
     el.readOnly ||
@@ -200,45 +393,50 @@ function visibleOptions(): HTMLElement[] {
   );
 }
 
-// Reliably close any open MUI popover/menu. MUI listens for Escape to close and
-// UNLOCK body scroll — clicking away is unreliable and can leave the scroll lock
-// in place (the "whole site is frozen" bug). Sends Escape until nothing is open.
 async function closeOpenPopovers() {
   for (let i = 0; i < 4; i++) {
     if (!document.querySelector(OPEN_POPOVER_SELECTOR)) return;
+
     const active = (document.activeElement as HTMLElement) ?? document.body;
+
     for (const target of [active, document.body]) {
       target.dispatchEvent(
-        new KeyboardEvent("keydown", { key: "Escape", code: "Escape", keyCode: 27, which: 27, bubbles: true }),
+        new KeyboardEvent("keydown", {
+          key: "Escape",
+          code: "Escape",
+          keyCode: 27,
+          which: 27,
+          bubbles: true,
+        }),
       );
     }
+
     await sleep(120);
   }
-  // Last resort: MUI backdrop click.
+
   const backdrop = document.querySelector<HTMLElement>(".MuiBackdrop-root");
   backdrop?.click();
   await sleep(80);
 }
 
-// Open a MUI-style dropdown and click the option whose visible text best matches
-// `value`. ALWAYS closes the popover afterwards (success or fail) so it can never
-// be left open blocking the page. Overwrites any existing selection.
 async function fillDropdown(el: HTMLInputElement, value: string): Promise<boolean> {
   const wanted = value.trim().toLowerCase();
+
   try {
     el.focus();
     el.click();
 
-    // Poll for the options to render (portals can be slow); type into a search
-    // box if the dropdown has one.
     let options: HTMLElement[] = [];
+
     for (let i = 0; i < 8 && options.length === 0; i++) {
       await sleep(140);
       options = visibleOptions();
     }
+
     const search = document.querySelector<HTMLInputElement>(
       '.MuiAutocomplete-popper input, [role="listbox"] input:not([readonly])',
     );
+
     if (search) {
       setNativeValue(search, value);
       await sleep(280);
@@ -246,8 +444,15 @@ async function fillDropdown(el: HTMLInputElement, value: string): Promise<boolea
     }
 
     const norm = (o: HTMLElement) => (o.textContent ?? "").trim().toLowerCase();
+
     const exact = options.find((o) => norm(o) === wanted);
-    const partial = options.find((o) => norm(o).includes(wanted) || (wanted.length > 3 && wanted.includes(norm(o))));
+
+    const partial = options.find(
+      (o) =>
+        norm(o).includes(wanted) ||
+        (wanted.length > 3 && wanted.includes(norm(o))),
+    );
+
     const choice = exact ?? partial;
 
     if (choice) {
@@ -256,13 +461,14 @@ async function fillDropdown(el: HTMLInputElement, value: string): Promise<boolea
       await closeOpenPopovers();
       return true;
     }
+
     return false;
   } finally {
-    // Whatever happened, never leave a dropdown open.
     await closeOpenPopovers();
   }
 }
 
+<<<<<<< HEAD
 // ---------------------------------------------------------------------------
 // React Native Setter Hack (Amazon Seller Central).
 //
@@ -446,6 +652,9 @@ async function fillByName(
   fields: Record<string, string>,
   marketplace: MarketplaceId = "meesho",
 ): Promise<FillResponse> {
+=======
+async function fillByName(fields: Record<string, string>): Promise<FillResponse> {
+>>>>>>> c7923eab97cb209bcbe3876ee06576439151e2d9
   const filled: string[] = [];
   const missing: string[] = [];
   const skipped: string[] = [];
@@ -461,27 +670,35 @@ async function fillByName(
       stopped = true;
       break;
     }
+
     if (!value) {
       skipped.push(name);
       continue;
     }
-    const el = document.querySelector<HTMLInputElement | HTMLTextAreaElement>(`[name="${name}"]`);
+
+    const el = document.querySelector<HTMLInputElement | HTMLTextAreaElement>(
+      `[name="${name}"]`,
+    );
+
     if (!el) {
       missing.push(name);
       continue;
     }
 
-    // Clear the previous pop BEFORE scrolling so it never lingers on-screen
-    // while the page moves to the next field.
     clearOverlays();
     el.scrollIntoView({ behavior: "auto", block: "center" });
     await sleep(120);
 
     let ok = true;
+<<<<<<< HEAD
     if (el instanceof HTMLSelectElement) {
       // Amazon uses native <select> for some category fields.
       ok = await fillNativeSelect(el, value);
     } else if (el instanceof HTMLInputElement && isDropdown(el)) {
+=======
+
+    if (el instanceof HTMLInputElement && isDropdown(el)) {
+>>>>>>> c7923eab97cb209bcbe3876ee06576439151e2d9
       ok = await fillDropdown(el, value);
     } else if (marketplace === "amazon_in") {
       // React native setter hack — bypass React's fiber state guard.
@@ -493,7 +710,10 @@ async function fillByName(
     } else {
       // Meesho — existing proven approach.
       el.focus();
-      setNativeValue(el as HTMLInputElement | HTMLTextAreaElement, value);
+      setNativeValue(
+        el as HTMLInputElement | HTMLTextAreaElement,
+        value,
+      );
     }
 
     if (ok) {
@@ -507,7 +727,6 @@ async function fillByName(
         await sleep(360);
       }
     } else {
-      // Element found but no matching option — surface it so the seller knows.
       missing.push(name);
     }
   }
@@ -515,14 +734,21 @@ async function fillByName(
   clearOverlays();
   await closeOpenPopovers();
   removeStopButton();
-  return { ok: true, filled, missing, skipped, submitFocused: false, stopped };
+
+  return {
+    ok: true,
+    filled,
+    missing,
+    skipped,
+    submitFocused: false,
+    stopped,
+  };
 }
 
-/**
- * Legacy fixed-field fill for the local demo/fixture (id selectors). Focuses the
- * submit control at the end but NEVER clicks it.
- */
-async function fillForm(map: MeeshoSelectorMap, vals: FillValues): Promise<FillResponse> {
+async function fillForm(
+  map: MeeshoSelectorMap,
+  vals: FillValues,
+): Promise<FillResponse> {
   const fieldOrder: Array<[keyof FillValues, string]> = [
     ["title", map.title],
     ["description", map.description],
@@ -545,16 +771,24 @@ async function fillForm(map: MeeshoSelectorMap, vals: FillValues): Promise<FillR
       stopped = true;
       break;
     }
+
     if (!selector) {
       skipped.push(key);
       continue;
     }
-    const el = document.querySelector(selector) as HTMLInputElement | HTMLTextAreaElement | null;
+
+    const el = document.querySelector(
+      selector,
+    ) as HTMLInputElement | HTMLTextAreaElement | null;
+
     if (!el) {
       missing.push(key);
       continue;
     }
-    el.scrollIntoView({ behavior: "smooth", block: "center" });
+
+    // "auto" (instant), not "smooth" -- popConfetti reads getBoundingClientRect()
+    // right after, which must be the element's final position, not mid-scroll.
+    el.scrollIntoView({ behavior: "auto", block: "center" });
     await sleep(220);
     el.focus();
     setNativeValue(el, vals[key]);
@@ -564,10 +798,18 @@ async function fillForm(map: MeeshoSelectorMap, vals: FillValues): Promise<FillR
   }
 
   let submitFocused = false;
+
   if (!stopped && map.submit) {
-    const submitEl = document.querySelector(map.submit) as HTMLElement | null;
+    const submitEl = document.querySelector(
+      map.submit,
+    ) as HTMLElement | null;
+
     if (submitEl) {
-      submitEl.scrollIntoView({ behavior: "smooth", block: "center" });
+      submitEl.scrollIntoView({
+        behavior: "smooth",
+        block: "center",
+      });
+
       submitEl.focus();
       submitFocused = true;
     } else {
@@ -576,7 +818,15 @@ async function fillForm(map: MeeshoSelectorMap, vals: FillValues): Promise<FillR
   }
 
   removeStopButton();
-  return { ok: true, filled, missing, skipped, submitFocused, stopped };
+
+  return {
+    ok: true,
+    filled,
+    missing,
+    skipped,
+    submitFocused,
+    stopped,
+  };
 }
 
 /**
@@ -721,6 +971,7 @@ function detectMarketplace(): MarketplaceId {
 }
 
 export default defineContentScript({
+<<<<<<< HEAD
   matches: [
     "*://*.meesho.com/*",
     "*://*.sellercentral.amazon.in/*",
@@ -728,25 +979,141 @@ export default defineContentScript({
     "*://*.seller.flipkart.com/*",
   ],
   main() {
+=======
+  matches: ["*://*.meesho.com/*"],
+
+  async main() {
+    // Inject the main-world script that exposes window.meeshoAutofill.
+    await injectScript("/meesho-main-world.js" as ScriptPublicPath, {
+      keepInDom: true,
+    });
+
+>>>>>>> c7923eab97cb209bcbe3876ee06576439151e2d9
     // Readiness marker so the side panel (or a test probe) can detect that the
     // declarative content script actually injected into this page.
     (window as unknown as { __NEO_CONTENT__?: boolean }).__NEO_CONTENT__ = true;
 
     const chrome = (globalThis as { chrome?: any }).chrome;
+
     if (!chrome?.runtime?.onMessage) return;
 
     chrome.runtime.onMessage.addListener(
-      (message: FillMessage, _sender: unknown, sendResponse: (response: FillResponse | { ok: false; error: string }) => void) => {
-        if (!message || message.type !== "NEO_FILL") return false;
+      (
+        message:
+  | FillMessage
+  | MeeshoAutofillMessage
+  | MeeshoBulkGenerationMessage
+  | MeeshoInspectTemplateMessage
+  | { type: "NEO_SCRAPE_MEESHO" },
+        _sender: unknown,
+        sendResponse: (
+  response:
+    | FillResponse
+    | { ok: true; fields: Record<string, string> }
+    | { ok: false; error: string }
+    | { success: boolean; error?: string },
+) => void,
+      ) => {
+        if (!message) return false;
+
+if (message.type === "PROJECT_NEO_GENERATE_MEESHO_BULK") {
+  requestMeeshoBulkGeneration({
+    templateBase64: message.templateBase64,
+    templateName: message.templateName,
+    templateType: message.templateType,
+    products: message.products,
+  })
+    .then((result: any) => {
+      sendResponse(result);
+    })
+    .catch((err) => {
+      sendResponse({
+        success: false,
+        error:
+          err instanceof Error
+            ? err.message
+            : String(err),
+      });
+    });
+
+  return true;
+}
+
+if (message.type === "PROJECT_NEO_INSPECT_MEESHO_TEMPLATE") {
+  requestMeeshoInspect({
+    templateBase64: (message as any).templateBase64,
+    templateName: (message as any).templateName,
+    templateType: (message as any).templateType,
+  })
+    .then((result: any) => sendResponse(result))
+    .catch((err) => sendResponse({ success: false, error: err instanceof Error ? err.message : String(err) }));
+  return true;
+}
+
+        // New full Meesho autofill engine.
+        if (message.type === "NEO_MEESHO_AUTOFILL") {
+  requestMeeshoAutofill(message.product)
+    .then((result: any) => {
+      // `result.failed` holds fields the engine found and wrote but which
+      // never verified (e.g. business-details fields Meesho's own onChange
+      // handling rejected or reformatted) -- fold them into `missing` so the
+      // seller sees them instead of the run silently reporting success.
+      const failedFields: string[] = Array.isArray(result?.failed)
+        ? result.failed.map((f: any) => f?.field).filter(Boolean)
+        : [];
+
+      sendResponse({
+        ok: true,
+        filled: result?.filled ?? [],
+        missing: [...(result?.requiredMissing ?? []), ...failedFields],
+        skipped: result?.skipped ?? [],
+        submitFocused: false,
+        stopped: result?.stopped ?? false,
+      });
+    })
+            .catch((err) => {
+              sendResponse({
+                ok: false,
+                error:
+                  err instanceof Error
+                    ? err.message
+                    : String(err),
+              });
+            });
+
+          return true;
+        }
+
+        if (message.type === "NEO_SCRAPE_MEESHO") {
+          requestMeeshoScrape()
+            .then((fields) => sendResponse({ ok: true, fields }))
+            .catch((err) =>
+              sendResponse({ ok: false, error: err instanceof Error ? err.message : String(err) }),
+            );
+
+          return true;
+        }
+
+        // Existing generic/fixture autofill path.
+        if (message.type !== "NEO_FILL") return false;
 
         const marketplace = message.marketplace ?? detectMarketplace();
 
         const done = (result: FillResponse) => sendResponse(result);
+
         const fail = (err: unknown) => {
           removeStopButton();
-          sendResponse({ ok: false, error: err instanceof Error ? err.message : String(err) });
+
+          sendResponse({
+            ok: false,
+            error:
+              err instanceof Error
+                ? err.message
+                : String(err),
+          });
         };
 
+<<<<<<< HEAD
         // Generic name-based fill (live marketplace) when `fields` is provided.
         if (message.fields) {
           fillByName(message.fields, marketplace).then(done).catch(fail);
@@ -776,12 +1143,32 @@ export default defineContentScript({
 
         // Default: Meesho (backward compatible)
         const map = MEESHO_SELECTORS[message.config as MeeshoConfigId];
-        if (!map) {
-          sendResponse({ ok: false, error: `Unknown selector config: ${message.config}` });
+=======
+        if (message.fields) {
+          fillByName(message.fields)
+            .then(done)
+            .catch(fail);
+
           return true;
         }
-        fillForm(map, message.values).then(done).catch(fail);
-        return true; // keep the message channel open for the async response
+
+        const map = SELECTOR_CONFIGS[message.config];
+
+>>>>>>> c7923eab97cb209bcbe3876ee06576439151e2d9
+        if (!map) {
+          sendResponse({
+            ok: false,
+            error: `Unknown selector config: ${message.config}`,
+          });
+
+          return true;
+        }
+
+        fillForm(map, message.values)
+          .then(done)
+          .catch(fail);
+
+        return true;
       },
     );
   },

@@ -55,7 +55,14 @@ body {
   margin: 0;
   overflow-x: hidden;
   color: var(--neo-ink);
+  line-height: 1.5;
+  letter-spacing: 0.01em;
 }
+
+h1, h2, h3, h4, h5, h6 { line-height: 1.15; letter-spacing: 0.01em; }
+p { line-height: 1.55; letter-spacing: 0.01em; }
+button, input, textarea, select { letter-spacing: 0.02em; }
+label { letter-spacing: 0.03em; }
 
 /* ============================================================================
    SITE CANVAS — warm off-white with faint hand-inked GRID LINES behind
@@ -99,11 +106,14 @@ body {
    ========================================================================== */
 .font-loud { font-family: "Magic Cookie", system-ui, sans-serif; }
 .font-display { font-family: "Whoa Sauce", "Impact", system-ui, sans-serif; }
-/* Hogfish is the site's default body/small-text/number face. */
+/* Hogfish is the site's default body/small-text/number face. Its glyphs sit
+   tight, which turns mushy in small/cramped spots (badges, table cells, chips),
+   so we open the tracking slightly for a clearer read everywhere. */
 .font-cartoon,
 .font-body,
 .font-accent {
   font-family: "Hogfish", system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+  letter-spacing: 0.02em;
 }
 
 /* ============================================================================
@@ -279,5 +289,39 @@ body {
     animation-iteration-count: 1 !important;
     transition-duration: 0.001ms !important;
     scroll-behavior: auto !important;
+  }
+}
+
+/* Readability and keyboard affordances. */
+button, a { cursor: pointer; }
+button:focus-visible, a:focus-visible, input:focus-visible,
+textarea:focus-visible, select:focus-visible {
+  outline: 3px solid var(--neo-ink);
+  outline-offset: 3px;
+}
+button:disabled, input:disabled, textarea:disabled, select:disabled {
+  cursor: not-allowed;
+  opacity: 0.55;
+}
+input, textarea, select { color: var(--neo-ink); background-color: #fffdf8; }
+input::placeholder, textarea::placeholder { color: rgba(26, 26, 26, 0.6); }
+
+/* Comic button press: move into the offset shadow on hover/press so every
+   interactive button shares the same tactile Neo-brutalist affordance. */
+button:not(:disabled) {
+  transition: transform 120ms ease-out, box-shadow 120ms ease-out;
+}
+button:not(:disabled):hover,
+button:not(:disabled):active {
+  transform: translate(2px, 2px);
+  box-shadow: none !important;
+}
+@media (prefers-reduced-motion: reduce) {
+  button:not(:disabled) {
+    transition: none !important;
+  }
+  button:not(:disabled):hover,
+  button:not(:disabled):active {
+    transform: none;
   }
 }

@@ -1,10 +1,11 @@
 import { z } from "zod";
+import { passwordSchema } from "@neo/genome";
 
 export const signupRequestSchema = z.object({
   fullName: z.string().min(1),
   shopName: z.string().min(1),
   email: z.string().email(),
-  password: z.string().min(8),
+  password: passwordSchema,
 });
 
 export type SignupRequestDto = z.infer<typeof signupRequestSchema>;

@@ -258,10 +258,12 @@ button {
 
 .attributes {
   display: flex;
-  gap: 4px;
+  gap: 5px;
   margin-top: 6px;
-  color: #64748b;
-  font-size: 9px;
+  color: #475569;
+  font-size: 10px;
+  line-height: 1.4;
+  letter-spacing: 0.01em;
 }
 
 .productBottom {
@@ -278,9 +280,10 @@ button {
 .viewButton {
   border: 0;
   background: transparent;
-  color: #4f46e5;
-  font-size: 9px;
+  color: #4338ca;
+  font-size: 10px;
   font-weight: 700;
+  letter-spacing: 0.02em;
 }
 
 .composerCard,
@@ -845,4 +848,37 @@ button {
   font-size: 13px;
   line-height: 1.5;
   margin: 10px 0 0;
+}
+
+/* Readability and keyboard affordances. */
+body { line-height: 1.5; letter-spacing: 0.01em; }
+input, textarea, select { color: #1a1a1a; background: #fffdf8; letter-spacing: 0.02em; }
+/* Faded enough to read clearly as a hint, never mistaken for a real value. */
+input::placeholder, textarea::placeholder { color: rgba(26, 26, 26, 0.35); }
+button:focus-visible, input:focus-visible, textarea:focus-visible, select:focus-visible {
+  outline: 3px solid #1a1a1a;
+  outline-offset: 2px;
+}
+button:disabled { cursor: not-allowed; opacity: 0.55; transform: none !important; }
+
+/* Keep the extension controls tactile and consistent with the marketing site. */
+button:not(:disabled) {
+  transition: transform 120ms ease-out, box-shadow 120ms ease-out;
+}
+button:not(:disabled):hover,
+button:not(:disabled):active {
+  transform: translate(2px, 2px);
+  box-shadow: none !important;
+}
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after {
+    scroll-behavior: auto !important;
+    transition-duration: 0.01ms !important;
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+  }
+  button:not(:disabled):hover,
+  button:not(:disabled):active {
+    transform: none;
+  }
 }
