@@ -1,12 +1,8 @@
-<<<<<<< HEAD
 import { SELECTOR_CONFIGS as MEESHO_SELECTORS, type MeeshoConfigId, type MeeshoSelectorMap } from "@neo/adapter-meesho";
 import { SELECTOR_CONFIGS as AMAZON_SELECTORS, type AmazonConfigId, type AmazonSelectorMap } from "@neo/adapter-amazon";
 import { SELECTOR_CONFIGS as FLIPKART_SELECTORS, type FlipkartConfigId, type FlipkartSelectorMap } from "@neo/adapter-flipkart";
 import type { MarketplaceId } from "@neo/adapter";
-=======
-import { SELECTOR_CONFIGS, type MeeshoConfigId, type MeeshoSelectorMap } from "@neo/adapter-meesho";
 import { injectScript, type ScriptPublicPath } from "#imports";
->>>>>>> c7923eab97cb209bcbe3876ee06576439151e2d9
 
 export interface FillValues {
   title: string;
@@ -17,17 +13,10 @@ export interface FillValues {
 
 interface FillMessage {
   type: "NEO_FILL";
-  // Marketplace discriminant — when omitted, defaults to "meesho" for backward
-  // compatibility with existing side-panel code that hasn't been updated yet.
+  // Marketplace discriminant — when omitted, auto-detected from hostname
   marketplace?: MarketplaceId;
   config: string;
   values: FillValues;
-<<<<<<< HEAD
-  // When present, fill generically by field `name` instead of the fixed fixture
-  // selector map. Keyed by the marketplace's stable `name` attribute
-  // (e.g. { product_name, comment, color, fabric, occasion, ... }).
-=======
->>>>>>> c7923eab97cb209bcbe3876ee06576439151e2d9
   fields?: Record<string, string>;
 }
 
@@ -62,12 +51,11 @@ interface FillResponse {
 
 const sleep = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
 
-<<<<<<< HEAD
 // Randomized delay (100–300ms) between field fills. Simulates human typing
 // cadence to avoid triggering generic rate-limiters or bot-detection heuristics
 // on Amazon Seller Central and Flipkart Seller Hub.
 const humanDelay = () => sleep(100 + Math.floor(Math.random() * 200));
-=======
+
 function requestMeeshoAutofill(product: Record<string, unknown>): Promise<unknown> {
   return new Promise((resolve, reject) => {
     const requestId = `neo-${Date.now()}-${Math.random().toString(36).slice(2)}`;
@@ -233,7 +221,6 @@ function requestMeeshoInspect(payload: {
     );
   });
 }
->>>>>>> c7923eab97cb209bcbe3876ee06576439151e2d9
 
 // Human-readable labels for the fixed fixture fields (for the "✓ filled" badge).
 const FIELD_LABELS: Record<keyof FillValues, string> = {
@@ -375,6 +362,95 @@ function setNativeValue(el: HTMLInputElement | HTMLTextAreaElement, value: strin
   el.dispatchEvent(new Event("change", { bubbles: true }));
 }
 
+// ---------------------------------------------------------------------------
+// React Native Setter Hack (Amazon Seller Central).
+//
+// Amazon's React SPA tracks input values via React's internal fiber state.
+// Setting `el.value = x` directly does NOT update the fiber — React still sees
+// the old value and onChange never fires. The fix: grab the NATIVE property
+// descriptor from the prototype chain (HTMLInputElement.prototype or
+// HTMLTextAreaElement.prototype), call its setter, then dispatch a bubbling
+// `input` event so React's synthetic event system picks up the change.
+// ---------------------------------------------------------------------------
+const nativeInputValueSetter = Object.getOwnPropertyDescriptor(
+  window.HTMLInputElement.prototype, "value",
+)?.set;
+
+const nativeTextAreaValueSetter = Object.getOwnPropertyDescriptor(
+  window.HTMLTextAreaElement.prototype, "value",
+)?.set;
+
+function setReactValue(el: HTMLInputElement | HTMLTextAreaElement, value: string) {
+  const setter = el instanceof HTMLTextAreaElement
+    ? nativeTextAreaValueSetter
+    : nativeInputValueSetter;
+
+  if (setter) {
+    setter.call(el, value);
+  } else {
+    el.value = value;
+  }
+
+  el.dispatchEvent(new Event("input", { bubbles: true }));
+  el.dispatchEvent(new Event("change", { bubbles: true }));
+}
+
+// ---------------------------------------------------------------------------
+// Angular Event Dispatcher (Flipkart Seller Hub).
+//
+// Flipkart's Angular reactive forms bind via ControlValueAccessor, which
+// listens for `input` events to update the model and `blur` events to mark
+// the control as "touched" (triggering validation). The full sequence:
+//   1. focus()  — activates the control
+//   2. Native setter — sets the DOM value
+//   3. `input` event — ControlValueAccessor reads the new value
+//   4. `change` event — some controls commit on change
+//   5. `blur` event — marks control as "touched", triggers validation
+// ---------------------------------------------------------------------------
+function setAngularValue(el: HTMLInputElement | HTMLTextAreaElement, value: string) {
+  el.focus();
+
+  const setter = el instanceof HTMLTextAreaElement
+    ? nativeTextAreaValueSetter
+    : nativeInputValueSetter;
+
+  if (setter) {
+    setter.call(el, value);
+  } else {
+    el.value = value;
+  }
+
+  el.dispatchEvent(new Event("input", { bubbles: true }));
+  el.dispatchEvent(new Event("change", { bubbles: true }));
+  el.dispatchEvent(new Event("blur", { bubbles: true }));
+}
+
+// ---------------------------------------------------------------------------
+// Amazon-specific: fill a native <select> element by value or visible text.
+// Uses the native setter to bypass React's synthetic event guard.
+// ---------------------------------------------------------------------------
+async function fillNativeSelect(el: HTMLSelectElement, value: string): Promise<boolean> {
+  const wanted = value.trim().toLowerCase();
+  for (const opt of Array.from(el.options)) {
+    if (
+      opt.value.toLowerCase() === wanted ||
+      (opt.textContent ?? "").trim().toLowerCase() === wanted
+    ) {
+      const selectSetter = Object.getOwnPropertyDescriptor(
+        window.HTMLSelectElement.prototype, "value",
+      )?.set;
+      if (selectSetter) {
+        selectSetter.call(el, opt.value);
+      } else {
+        el.value = opt.value;
+      }
+      el.dispatchEvent(new Event("change", { bubbles: true }));
+      return true;
+    }
+  }
+  return false;
+}
+
 function isDropdown(el: HTMLInputElement): boolean {
   return (
     el.readOnly ||
@@ -468,193 +544,10 @@ async function fillDropdown(el: HTMLInputElement, value: string): Promise<boolea
   }
 }
 
-<<<<<<< HEAD
-// ---------------------------------------------------------------------------
-// React Native Setter Hack (Amazon Seller Central).
-//
-// Amazon's React SPA tracks input values via React's internal fiber state.
-// Setting `el.value = x` directly does NOT update the fiber — React still sees
-// the old value and onChange never fires. The fix: grab the NATIVE property
-// descriptor from the prototype chain (HTMLInputElement.prototype or
-// HTMLTextAreaElement.prototype), call its setter, then dispatch a bubbling
-// `input` event so React's synthetic event system picks up the change.
-//
-// This is the standard technique used by React Testing Library, Selenium
-// adapters, and browser automation tools.
-// ---------------------------------------------------------------------------
-const nativeInputValueSetter = Object.getOwnPropertyDescriptor(
-  window.HTMLInputElement.prototype, "value",
-)?.set;
-
-const nativeTextAreaValueSetter = Object.getOwnPropertyDescriptor(
-  window.HTMLTextAreaElement.prototype, "value",
-)?.set;
-
-function setReactValue(el: HTMLInputElement | HTMLTextAreaElement, value: string) {
-  // Pick the correct native setter based on element type.
-  const setter = el instanceof HTMLTextAreaElement
-    ? nativeTextAreaValueSetter
-    : nativeInputValueSetter;
-
-  if (setter) {
-    setter.call(el, value);
-  } else {
-    // Absolute fallback — should never happen in a real browser.
-    el.value = value;
-  }
-
-  // React listens for `input` events on the document via event delegation.
-  // The event MUST bubble and use the native Event constructor (not
-  // InputEvent) for React 16+ compatibility.
-  el.dispatchEvent(new Event("input", { bubbles: true }));
-
-  // Some Amazon form fields also bind on `change` (e.g. price inputs that
-  // format on commit). Dispatch it too — harmless if unused.
-  el.dispatchEvent(new Event("change", { bubbles: true }));
-}
-
-// ---------------------------------------------------------------------------
-// Angular Event Dispatcher (Flipkart Seller Hub).
-//
-// Flipkart's Angular reactive forms bind via ControlValueAccessor, which
-// listens for `input` events to update the model and `blur` events to mark
-// the control as "touched" (triggering validation). A simple `el.value = x`
-// skips both — Angular never sees the change.
-//
-// The full sequence simulates a human interaction:
-//   1. focus()  — activates the control, sets it as "focused"
-//   2. Native setter — sets the DOM value without Angular interference
-//   3. `input` event — ControlValueAccessor reads the new value
-//   4. `change` event — some controls commit on change (selects, date pickers)
-//   5. `blur` event — marks the control as "touched", triggers validation
-// ---------------------------------------------------------------------------
-function setAngularValue(el: HTMLInputElement | HTMLTextAreaElement, value: string) {
-  // Step 1: Focus the element (Angular tracks focus state).
-  el.focus();
-
-  // Step 2: Set the value using the native setter to bypass any Angular
-  // getter/setter overrides on the element instance.
-  const setter = el instanceof HTMLTextAreaElement
-    ? nativeTextAreaValueSetter
-    : nativeInputValueSetter;
-
-  if (setter) {
-    setter.call(el, value);
-  } else {
-    el.value = value;
-  }
-
-  // Step 3: Dispatch input — ControlValueAccessor reads the new value.
-  el.dispatchEvent(new Event("input", { bubbles: true }));
-
-  // Step 4: Dispatch change — some controls commit on change.
-  el.dispatchEvent(new Event("change", { bubbles: true }));
-
-  // Step 5: Dispatch blur — marks control as "touched", triggers validation.
-  el.dispatchEvent(new Event("blur", { bubbles: true }));
-}
-
-// ---------------------------------------------------------------------------
-// Flipkart bulk grid fill — fills cells in a `[role="grid"]` table by mapping
-// column indices to field values. Each `[role="row"]` contains `[role="gridcell"]`
-// elements. Editable cells contain an inner `input` or `span[contenteditable]`.
-// ---------------------------------------------------------------------------
-async function fillGridRow(
-  row: Element,
-  columnMap: Record<number, string>,
-): Promise<{ filled: string[]; missing: string[] }> {
-  const cells = row.querySelectorAll('[role="gridcell"]');
-  const filled: string[] = [];
-  const missing: string[] = [];
-
-  for (const [colIdx, value] of Object.entries(columnMap)) {
-    const idx = Number(colIdx);
-    const cell = cells[idx];
-    if (!cell || !value) {
-      if (value) missing.push(`col_${idx}`);
-      continue;
-    }
-
-    // Try to find an editable element within the cell.
-    const input = cell.querySelector<HTMLInputElement | HTMLTextAreaElement>("input, textarea");
-    const editable = cell.querySelector<HTMLElement>("[contenteditable]");
-
-    if (input) {
-      setAngularValue(input, value);
-      filled.push(`col_${idx}`);
-    } else if (editable) {
-      editable.focus();
-      editable.textContent = value;
-      editable.dispatchEvent(new Event("input", { bubbles: true }));
-      editable.dispatchEvent(new Event("blur", { bubbles: true }));
-      filled.push(`col_${idx}`);
-    } else {
-      // Cell exists but has no editable child — click to activate, then retry.
-      (cell as HTMLElement).click();
-      await sleep(200);
-      const retryInput = cell.querySelector<HTMLInputElement | HTMLTextAreaElement>("input, textarea");
-      if (retryInput) {
-        setAngularValue(retryInput, value);
-        filled.push(`col_${idx}`);
-      } else {
-        missing.push(`col_${idx}`);
-      }
-    }
-    await humanDelay();
-  }
-  return { filled, missing };
-}
-
-// ---------------------------------------------------------------------------
-// Amazon-specific: fill a native <select> element by value or visible text.
-// Amazon Seller Central uses both standard <select> and React-select widgets.
-// ---------------------------------------------------------------------------
-async function fillNativeSelect(el: HTMLSelectElement, value: string): Promise<boolean> {
-  const wanted = value.trim().toLowerCase();
-  for (const opt of Array.from(el.options)) {
-    if (
-      opt.value.toLowerCase() === wanted ||
-      (opt.textContent ?? "").trim().toLowerCase() === wanted
-    ) {
-      // Use the native setter to bypass React's synthetic event guard.
-      const selectSetter = Object.getOwnPropertyDescriptor(
-        window.HTMLSelectElement.prototype, "value",
-      )?.set;
-      if (selectSetter) {
-        selectSetter.call(el, opt.value);
-      } else {
-        el.value = opt.value;
-      }
-      el.dispatchEvent(new Event("change", { bubbles: true }));
-      return true;
-    }
-  }
-  return false;
-}
-
-/**
- * Generic fill by field `name` (live marketplace). Enumerates the values Neo has
- * and fills whichever fields exist on the current page — category-agnostic, since
- * marketplace fields carry a stable `name`. Fields not on the page are reported
- * missing; the seller reviews and submits themselves.
- *
- * Works across Meesho, Amazon Seller Central, and Flipkart Seller Hub.
- *   - Amazon: uses `setReactValue` (native prototype setter hack) so React's
- *     fiber state picks up the new value and onChange fires.
- *   - Flipkart: uses `setAngularValue` (focus → native set → input → change →
- *     blur) so Angular's ControlValueAccessor commits the value.
- *   - Meesho: uses `setNativeValue` (existing, proven approach).
- *
- * Amazon and Flipkart paths include a randomized human-simulation delay
- * (100–300ms) between fields to avoid triggering bot-detection heuristics.
- */
 async function fillByName(
   fields: Record<string, string>,
   marketplace: MarketplaceId = "meesho",
 ): Promise<FillResponse> {
-=======
-async function fillByName(fields: Record<string, string>): Promise<FillResponse> {
->>>>>>> c7923eab97cb209bcbe3876ee06576439151e2d9
   const filled: string[] = [];
   const missing: string[] = [];
   const skipped: string[] = [];
@@ -690,15 +583,11 @@ async function fillByName(fields: Record<string, string>): Promise<FillResponse>
     await sleep(120);
 
     let ok = true;
-<<<<<<< HEAD
+
     if (el instanceof HTMLSelectElement) {
       // Amazon uses native <select> for some category fields.
       ok = await fillNativeSelect(el, value);
     } else if (el instanceof HTMLInputElement && isDropdown(el)) {
-=======
-
-    if (el instanceof HTMLInputElement && isDropdown(el)) {
->>>>>>> c7923eab97cb209bcbe3876ee06576439151e2d9
       ok = await fillDropdown(el, value);
     } else if (marketplace === "amazon_in") {
       // React native setter hack — bypass React's fiber state guard.
@@ -719,8 +608,7 @@ async function fillByName(fields: Record<string, string>): Promise<FillResponse>
     if (ok) {
       popConfetti(el, `${labelFromName(name)} filled`);
       filled.push(name);
-      // Human-simulation delay for Amazon/Flipkart; Meesho uses the original
-      // fixed cadence to preserve existing behavior.
+      // Human-simulation delay for Amazon/Flipkart; Meesho keeps original cadence.
       if (marketplace === "amazon_in" || marketplace === "flipkart") {
         await humanDelay();
       } else {
@@ -786,8 +674,6 @@ async function fillForm(
       continue;
     }
 
-    // "auto" (instant), not "smooth" -- popConfetti reads getBoundingClientRect()
-    // right after, which must be the element's final position, not mid-scroll.
     el.scrollIntoView({ behavior: "auto", block: "center" });
     await sleep(220);
     el.focus();
@@ -835,7 +721,10 @@ async function fillForm(
  * from the selector map in sequence with human-simulation delays, then focuses
  * submit (never clicks).
  */
-async function fillAmazonForm(map: AmazonSelectorMap, vals: FillValues & Record<string, string>): Promise<FillResponse> {
+async function fillAmazonForm(
+  map: AmazonSelectorMap,
+  vals: FillValues & Record<string, string>,
+): Promise<FillResponse> {
   const fieldOrder: Array<[string, string]> = [
     ["productName", map.productName],
     ["description", map.description],
@@ -862,18 +751,25 @@ async function fillAmazonForm(map: AmazonSelectorMap, vals: FillValues & Record<
   showStopButton();
 
   for (const [key, selector] of fieldOrder) {
-    if (stopRequested) { stopped = true; break; }
-    if (!selector) { skipped.push(key); continue; }
+    if (stopRequested) {
+      stopped = true;
+      break;
+    }
+    if (!selector) {
+      skipped.push(key);
+      continue;
+    }
     const el = document.querySelector(selector) as HTMLInputElement | HTMLTextAreaElement | null;
-    if (!el) { missing.push(key); continue; }
+    if (!el) {
+      missing.push(key);
+      continue;
+    }
 
     el.scrollIntoView({ behavior: "smooth", block: "center" });
     await sleep(120);
     el.focus();
     await humanDelay();
     const value = (vals as Record<string, string>)[key] ?? "";
-    // React native setter hack — uses HTMLInputElement.prototype / HTMLTextAreaElement.prototype
-    // value setter to bypass React's internal state tracking.
     setReactValue(el, value);
     popConfetti(el, `${labelFromName(key)} filled`);
     filled.push(key);
@@ -902,7 +798,10 @@ async function fillAmazonForm(map: AmazonSelectorMap, vals: FillValues & Record<
  * Angular's ControlValueAccessor. Human-simulation delays between fields avoid
  * triggering Flipkart's bot-detection heuristics.
  */
-async function fillFlipkartForm(map: FlipkartSelectorMap, vals: FillValues & Record<string, string>): Promise<FillResponse> {
+async function fillFlipkartForm(
+  map: FlipkartSelectorMap,
+  vals: FillValues & Record<string, string>,
+): Promise<FillResponse> {
   const fieldOrder: Array<[string, string]> = [
     ["productName", map.productName],
     ["description", map.description],
@@ -927,16 +826,23 @@ async function fillFlipkartForm(map: FlipkartSelectorMap, vals: FillValues & Rec
   showStopButton();
 
   for (const [key, selector] of fieldOrder) {
-    if (stopRequested) { stopped = true; break; }
-    if (!selector) { skipped.push(key); continue; }
+    if (stopRequested) {
+      stopped = true;
+      break;
+    }
+    if (!selector) {
+      skipped.push(key);
+      continue;
+    }
     const el = document.querySelector(selector) as HTMLInputElement | HTMLTextAreaElement | null;
-    if (!el) { missing.push(key); continue; }
+    if (!el) {
+      missing.push(key);
+      continue;
+    }
 
     el.scrollIntoView({ behavior: "smooth", block: "center" });
     await sleep(120);
     const value = (vals as Record<string, string>)[key] ?? "";
-    // Angular full event chain — setAngularValue handles focus() internally,
-    // then native set → input → change → blur to commit the FormControl state.
     await humanDelay();
     setAngularValue(el, value);
     popConfetti(el, `${labelFromName(key)} filled`);
@@ -971,24 +877,21 @@ function detectMarketplace(): MarketplaceId {
 }
 
 export default defineContentScript({
-<<<<<<< HEAD
   matches: [
     "*://*.meesho.com/*",
     "*://*.sellercentral.amazon.in/*",
     "*://*.sellercentral.amazon.com/*",
     "*://*.seller.flipkart.com/*",
   ],
-  main() {
-=======
-  matches: ["*://*.meesho.com/*"],
 
   async main() {
-    // Inject the main-world script that exposes window.meeshoAutofill.
-    await injectScript("/meesho-main-world.js" as ScriptPublicPath, {
-      keepInDom: true,
-    });
+    // Inject the main-world script that exposes window.meeshoAutofill (Meesho only).
+    if (window.location.hostname.includes("meesho.com")) {
+      await injectScript("/meesho-main-world.js" as ScriptPublicPath, {
+        keepInDom: true,
+      }).catch((err) => console.warn("[Neo] Could not inject Meesho main-world script:", err));
+    }
 
->>>>>>> c7923eab97cb209bcbe3876ee06576439151e2d9
     // Readiness marker so the side panel (or a test probe) can detect that the
     // declarative content script actually injected into this page.
     (window as unknown as { __NEO_CONTENT__?: boolean }).__NEO_CONTENT__ = true;
@@ -1113,10 +1016,11 @@ if (message.type === "PROJECT_NEO_INSPECT_MEESHO_TEMPLATE") {
           });
         };
 
-<<<<<<< HEAD
-        // Generic name-based fill (live marketplace) when `fields` is provided.
         if (message.fields) {
-          fillByName(message.fields, marketplace).then(done).catch(fail);
+          fillByName(message.fields, marketplace)
+            .then(done)
+            .catch(fail);
+
           return true;
         }
 
@@ -1124,37 +1028,36 @@ if (message.type === "PROJECT_NEO_INSPECT_MEESHO_TEMPLATE") {
         if (marketplace === "amazon_in") {
           const map = AMAZON_SELECTORS[message.config as AmazonConfigId];
           if (!map) {
-            sendResponse({ ok: false, error: `Unknown Amazon selector config: ${message.config}` });
+            sendResponse({
+              ok: false,
+              error: `Unknown Amazon selector config: ${message.config}`,
+            });
             return true;
           }
-          fillAmazonForm(map, message.values as FillValues & Record<string, string>).then(done).catch(fail);
+          fillAmazonForm(map, message.values as FillValues & Record<string, string>)
+            .then(done)
+            .catch(fail);
           return true;
         }
 
         if (marketplace === "flipkart") {
           const map = FLIPKART_SELECTORS[message.config as FlipkartConfigId];
           if (!map) {
-            sendResponse({ ok: false, error: `Unknown Flipkart selector config: ${message.config}` });
+            sendResponse({
+              ok: false,
+              error: `Unknown Flipkart selector config: ${message.config}`,
+            });
             return true;
           }
-          fillFlipkartForm(map, message.values as FillValues & Record<string, string>).then(done).catch(fail);
+          fillFlipkartForm(map, message.values as FillValues & Record<string, string>)
+            .then(done)
+            .catch(fail);
           return true;
         }
 
         // Default: Meesho (backward compatible)
         const map = MEESHO_SELECTORS[message.config as MeeshoConfigId];
-=======
-        if (message.fields) {
-          fillByName(message.fields)
-            .then(done)
-            .catch(fail);
 
-          return true;
-        }
-
-        const map = SELECTOR_CONFIGS[message.config];
-
->>>>>>> c7923eab97cb209bcbe3876ee06576439151e2d9
         if (!map) {
           sendResponse({
             ok: false,

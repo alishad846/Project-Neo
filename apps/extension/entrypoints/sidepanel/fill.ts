@@ -1,11 +1,8 @@
 import type { MarketplaceId } from "@neo/adapter";
 import type { MeeshoConfigId } from "@neo/adapter-meesho";
-<<<<<<< HEAD
 import type { AmazonConfigId } from "@neo/adapter-amazon";
 import type { FlipkartConfigId } from "@neo/adapter-flipkart";
-=======
 import type { TemplateSchema } from "./components/bulk/types";
->>>>>>> c7923eab97cb209bcbe3876ee06576439151e2d9
 
 export interface FillValues {
   title: string;
@@ -26,61 +23,43 @@ export interface FillResult {
   submitFocused?: boolean;
 }
 
-// ---------------------------------------------------------------------------
-// Marketplace URL patterns — used to auto-detect which marketplace the seller
-// tab is on and route the fill message to the correct adapter.
-// ---------------------------------------------------------------------------
-const MARKETPLACE_PATTERNS: Record<MarketplaceId, RegExp> = {
-  meesho: /^https?:\/\/([^/]*\.)?meesho\.com\//i,
-  amazon_in: /^https?:\/\/([^/]*\.)?sellercentral\.amazon\.(in|com)\//i,
-  flipkart: /^https?:\/\/([^/]*\.)?seller\.flipkart\.com\//i,
-};
-
-type ConfigId = MeeshoConfigId | AmazonConfigId | FlipkartConfigId;
-
-function detectMarketplaceFromUrl(url: string): MarketplaceId | null {
-  for (const [id, pattern] of Object.entries(MARKETPLACE_PATTERNS)) {
-    if (pattern.test(url)) return id as MarketplaceId;
-  }
-  return null;
-}
-
 const NO_RECEIVER_HINTS: Record<MarketplaceId, string> = {
   meesho: "Open your Meesho Add-Product page in a tab, then click Autofill.",
   amazon_in: "Open your Amazon Seller Central Add-Product page in a tab, then click Autofill.",
   flipkart: "Open your Flipkart Seller Hub listing page in a tab, then click Autofill.",
 };
 
+// Keep the default hint for Meesho-only callers (sendMeeshoAutofill, etc.)
+const NO_RECEIVER_HINT = NO_RECEIVER_HINTS.meesho;
+
+export const MARKETPLACE_PATTERNS: Record<MarketplaceId, RegExp> = {
+  meesho: /^https?:\/\/([^/]*\.)?meesho\.com\//i,
+  amazon_in: /^https?:\/\/([^/]*\.)?sellercentral\.amazon\.(in|com)\//i,
+  flipkart: /^https?:\/\/([^/]*\.)?seller\.flipkart\.com\//i,
+};
+
+// Legacy alias — used by sendMeeshoAutofill and helpers that only care about Meesho.
+const TARGET_URL_PATTERN = MARKETPLACE_PATTERNS.meesho;
+
+export type ConfigId = MeeshoConfigId | AmazonConfigId | FlipkartConfigId;
+
+export function detectMarketplaceFromUrl(url: string): MarketplaceId | null {
+  for (const [id, pattern] of Object.entries(MARKETPLACE_PATTERNS)) {
+    if (pattern.test(url)) return id as MarketplaceId;
+  }
+  return null;
+}
+
 /**
  * Sends a fill request to the declarative content script (see
  * `entrypoints/content.ts`) running on the target tab, via
-<<<<<<< HEAD
- * `chrome.tabs.sendMessage`. The content script itself performs the DOM
- * writes and focuses (never clicks) the submit control.
- *
- * Tab selection: prefer a tab whose URL matches the target marketplace
- * (Meesho/Amazon/Flipkart or localhost) over whatever tab happens to be
- * active, since the side panel itself lives in a different "tab" context.
- *
- * Marketplace auto-detection: if no explicit marketplace is passed, the
- * function detects it from the target tab's URL. Falls back to "meesho"
- * for backward compatibility.
+ * `chrome.tabs.sendMessage`. Detects the marketplace from the tab URL
+ * and tags the message so the content script routes to the right adapter.
  */
 export async function sendFill(
   values: FillValues,
   configId: ConfigId = "live",
-  // Live marketplace: a map of marketplace field `name` -> value, filled
-  // generically by the content script (category-agnostic). When omitted,
-  // the content script uses the fixed fixture selector map instead.
-=======
- * `chrome.tabs.sendMessage`.
- */
-export async function sendFill(
-  values: FillValues,
-  configId: MeeshoConfigId,
->>>>>>> c7923eab97cb209bcbe3876ee06576439151e2d9
   fields?: Record<string, string>,
-  // Explicit marketplace override. When omitted, auto-detected from tab URL.
   marketplace?: MarketplaceId,
 ): Promise<FillResult> {
   const chrome = (globalThis as { chrome?: any }).chrome;
@@ -90,21 +69,6 @@ export async function sendFill(
   }
 
   try {
-<<<<<<< HEAD
-    const allTabs: Array<{ id?: number; url?: string; active?: boolean; windowId?: number }> =
-      await chrome.tabs.query({});
-
-    // Find a tab matching ANY of the supported marketplaces.
-    const targetTab = allTabs.find((t) => {
-      if (!t.url) return false;
-      return Object.values(MARKETPLACE_PATTERNS).some((p) => p.test(t.url!));
-    });
-
-    let tabId = targetTab?.id;
-    const detectedMarketplace = targetTab?.url
-      ? detectMarketplaceFromUrl(targetTab.url)
-      : null;
-=======
     const allTabs: Array<{
       id?: number;
       url?: string;
@@ -112,12 +76,17 @@ export async function sendFill(
       windowId?: number;
     }> = await chrome.tabs.query({});
 
-    const targetTab = allTabs.find(
-      (t) => t.url && TARGET_URL_PATTERN.test(t.url),
-    );
+    // Find a tab matching ANY supported marketplace (not just Meesho).
+    const targetTab = allTabs.find((t) => {
+      if (!t.url) return false;
+      return Object.values(MARKETPLACE_PATTERNS).some((p) => p.test(t.url!));
+    });
+
+    const detectedMarketplace = targetTab?.url
+      ? detectMarketplaceFromUrl(targetTab.url)
+      : null;
 
     let tabId = targetTab?.id;
->>>>>>> c7923eab97cb209bcbe3876ee06576439151e2d9
 
     if (!tabId) {
       const activeTabs = await chrome.tabs.query({
@@ -128,20 +97,15 @@ export async function sendFill(
       tabId = activeTabs?.[0]?.id;
     }
 
+    const mp = marketplace ?? detectedMarketplace ?? "meesho";
+
     if (!tabId) {
-      const mp = marketplace ?? detectedMarketplace ?? "meesho";
       return { ok: false, error: NO_RECEIVER_HINTS[mp] };
     }
 
-<<<<<<< HEAD
-    const mp = marketplace ?? detectedMarketplace ?? "meesho";
     const message = {
       type: "NEO_FILL",
       marketplace: mp,
-=======
-    const message = {
-      type: "NEO_FILL",
->>>>>>> c7923eab97cb209bcbe3876ee06576439151e2d9
       config: configId,
       values,
       ...(fields ? { fields } : {}),
@@ -193,6 +157,124 @@ export async function sendFill(
       error: err instanceof Error ? err.message : String(err),
     };
   }
+}
+
+/**
+ * Unified autofill dispatcher. Auto-detects the target tab's marketplace:
+ * - On Meesho: delegates to the team's `sendMeeshoAutofill` engine.
+ * - On Amazon: maps the product data to Amazon fields and fills using the React bypass.
+ * - On Flipkart: maps the product data to Flipkart fields and fills using the Angular dispatcher.
+ */
+export async function sendAutofill(
+  product: Record<string, unknown>,
+): Promise<FillResult> {
+  const chrome = (globalThis as { chrome?: any }).chrome;
+  if (!chrome?.tabs?.query) {
+    return sendMeeshoAutofill(product);
+  }
+
+  const allTabs: Array<{ id?: number; url?: string; active?: boolean }> =
+    await chrome.tabs.query({});
+  const targetTab =
+    allTabs.find((t) => {
+      if (!t.url) return false;
+      return Object.values(MARKETPLACE_PATTERNS).some((p) => p.test(t.url!));
+    }) ?? (await chrome.tabs.query({ active: true, currentWindow: true }))?.[0];
+
+  const mp = targetTab?.url ? detectMarketplaceFromUrl(targetTab.url) : "meesho";
+
+  if (mp === "amazon_in") {
+    const attrs = (product.attributes as Record<string, unknown> | undefined) ?? {};
+    const title = String(product.title ?? product.product_name ?? product.productName ?? "");
+    const description = String(product.description ?? attrs.description ?? "");
+    const sellingPrice = String(product.sellingPrice ?? attrs.sellingPrice ?? attrs.meesho_price ?? "");
+    const mrp = String(product.mrp ?? attrs.mrp ?? sellingPrice);
+    const hsnCode = String(product.hsnCode ?? attrs.hsn_id ?? attrs.hsn_code ?? "");
+    const brand = String(product.brand ?? attrs.brand ?? "");
+    const sku = String(product.sku ?? attrs.sku ?? "");
+
+    const values: FillValues = {
+      title,
+      description,
+      hsnCode,
+      sellingPrice,
+    };
+
+    const fields: Record<string, string> = {
+      item_name: title,
+      product_name: title,
+      productName: title,
+      product_description: description,
+      description,
+      brand_name: brand,
+      brand,
+      standard_price: sellingPrice,
+      sellingPrice,
+      list_price: mrp,
+      mrp,
+      hsn_code: hsnCode,
+      hsnCode,
+      item_sku: sku,
+      skuId: sku,
+      bullet_point1: String(attrs.bullet_point1 ?? (attrs.fabric ? `Fabric: ${attrs.fabric}` : "")),
+      bullet_point2: String(attrs.bullet_point2 ?? (attrs.occasion ? `Occasion: ${attrs.occasion}` : "")),
+      bullet_point3: String(attrs.bullet_point3 ?? (attrs.color ? `Color: ${attrs.color}` : "")),
+      generic_keywords: String(attrs.keywords ?? product.category ?? ""),
+      searchKeywords: String(attrs.keywords ?? product.category ?? ""),
+    };
+
+    // Forward any extra string attributes
+    for (const [k, v] of Object.entries(attrs)) {
+      if (typeof v === "string" && v && !fields[k]) {
+        fields[k] = v;
+      }
+    }
+
+    return sendFill(values, "live", fields, "amazon_in");
+  }
+
+  if (mp === "flipkart") {
+    const attrs = (product.attributes as Record<string, unknown> | undefined) ?? {};
+    const title = String(product.title ?? product.product_name ?? product.productName ?? "");
+    const description = String(product.description ?? attrs.description ?? "");
+    const sellingPrice = String(product.sellingPrice ?? attrs.sellingPrice ?? attrs.meesho_price ?? "");
+    const mrp = String(product.mrp ?? attrs.mrp ?? sellingPrice);
+    const hsnCode = String(product.hsnCode ?? attrs.hsn_id ?? attrs.hsn_code ?? "");
+    const brand = String(product.brand ?? attrs.brand ?? "");
+    const sku = String(product.sku ?? attrs.sku ?? "");
+
+    const values: FillValues = {
+      title,
+      description,
+      hsnCode,
+      sellingPrice,
+    };
+
+    const fields: Record<string, string> = {
+      product_name: title,
+      productName: title,
+      description,
+      brand,
+      selling_price: sellingPrice,
+      sellingPrice,
+      mrp,
+      hsn: hsnCode,
+      hsnCode,
+      sku_id: sku,
+      skuId: sku,
+      procurement_sla: "3",
+      procurementSla: "3",
+      stock: String(attrs.inventory ?? "10"),
+      stockCount: String(attrs.inventory ?? "10"),
+      shipping_days: "2",
+      shippingDays: "2",
+    };
+
+    return sendFill(values, "live", fields, "flipkart");
+  }
+
+  // Default: Meesho full engine
+  return sendMeeshoAutofill(product);
 }
 
 export async function sendMeeshoAutofill(

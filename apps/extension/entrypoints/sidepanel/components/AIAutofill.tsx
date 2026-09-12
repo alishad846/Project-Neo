@@ -7,7 +7,7 @@ import {
   warmupExtractor,
   type ExtractResult,
 } from "../api";
-import { sendMeeshoAutofill } from "../fill";
+import { sendAutofill } from "../fill";
 import {
   getBusinessDetails,
   businessDetailsToFields,
@@ -314,7 +314,7 @@ const referenceFallbackAttributes: Record<string, unknown> = {
     // Fire the fill and let it run to completion. No report is surfaced —
     // autofill fills whatever it can and stops (the seller reviews the form
     // itself). The on-page confetti + STOP AUTOFILL button are the only UX.
-    await sendMeeshoAutofill(product);
+    await sendAutofill(product);
   } catch (e) {
     setError((e as Error).message);
   } finally {
