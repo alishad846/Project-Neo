@@ -4,7 +4,8 @@ const GST_RATES = [0, 3, 5, 12, 18, 28];
 
 const money = (n: number) => `₹${n.toFixed(2)}`;
 
-const inputClass = "rounded-lg border-2 border-black px-2 py-1.5 font-cartoon text-xs";
+const inputClass =
+  "rounded-lg border-2 border-black px-2 py-1.5 font-cartoon text-xs";
 
 export function GstCalculator() {
   const [amount, setAmount] = useState<number | "">("");
@@ -19,6 +20,7 @@ export function GstCalculator() {
     const r = rate / 100;
     let base: number;
     let gstAmount: number;
+
     if (inclusive) {
       base = amt / (1 + r);
       gstAmount = amt - base;
@@ -26,8 +28,16 @@ export function GstCalculator() {
       base = amt;
       gstAmount = amt * r;
     }
+
     const total = base + gstAmount;
-    if (!Number.isFinite(base) || !Number.isFinite(gstAmount) || !Number.isFinite(total)) return null;
+
+    if (
+      !Number.isFinite(base) ||
+      !Number.isFinite(gstAmount) ||
+      !Number.isFinite(total)
+    ) {
+      return null;
+    }
 
     return {
       base,
@@ -41,7 +51,9 @@ export function GstCalculator() {
 
   return (
     <div className="p-4">
-      <h2 className="font-accent text-xl tracking-wide text-black">GST Calculator</h2>
+      <h2 className="font-accent text-xl tracking-wide text-black">
+        GST Calculator
+      </h2>
 
       <div className="mt-3 grid grid-cols-2 gap-2 rounded-xl border-2 border-black bg-white p-3 shadow-[3px_3px_0px_0px_#000]">
         <input
@@ -49,9 +61,14 @@ export function GstCalculator() {
           type="number"
           min="0"
           value={amount}
-          onChange={(e) => setAmount(e.target.value === "" ? "" : Number(e.target.value))}
+          onChange={(e) =>
+            setAmount(
+              e.target.value === "" ? "" : Number(e.target.value),
+            )
+          }
           placeholder="Amount (₹)"
         />
+
         <select
           className={`${inputClass} col-span-2`}
           value={rate}
@@ -71,7 +88,7 @@ export function GstCalculator() {
             checked={inclusive}
             onChange={(e) => setInclusive(e.target.checked)}
           />
-          Amount is GST-inclusive
+          GST-inclusive amount
         </label>
 
         <label className="col-span-2 flex items-center gap-2 font-cartoon text-xs">
@@ -87,29 +104,46 @@ export function GstCalculator() {
 
       {!outcome ? (
         <p className="mt-3 font-cartoon text-xs text-black/60">
-          Enter an amount to see the GST breakdown.
+          Enter an amount to calculate GST.
         </p>
       ) : (
         <div className="mt-3 rounded-xl border-2 border-black bg-white p-3 shadow-[3px_3px_0px_0px_#000]">
           <div className="grid grid-cols-2 gap-2 font-cartoon text-xs">
             <div className="rounded-lg border-2 border-black px-2 py-1.5">
-              Base amount<div className="font-semibold">{money(outcome.base)}</div>
+              Base amount
+              <div className="font-semibold">
+                {money(outcome.base)}
+              </div>
             </div>
+
             <div className="rounded-lg border-2 border-black px-2 py-1.5">
-              Total GST<div className="font-semibold">{money(outcome.gstAmount)}</div>
+              Total GST
+              <div className="font-semibold">
+                {money(outcome.gstAmount)}
+              </div>
             </div>
 
             {interState ? (
               <div className="col-span-2 rounded-lg border-2 border-black px-2 py-1.5">
-                IGST ({rate}%)<div className="font-semibold">{money(outcome.igst)}</div>
+                IGST ({rate}%)
+                <div className="font-semibold">
+                  {money(outcome.igst)}
+                </div>
               </div>
             ) : (
               <>
                 <div className="rounded-lg border-2 border-black px-2 py-1.5">
-                  CGST ({rate / 2}%)<div className="font-semibold">{money(outcome.cgst)}</div>
+                  CGST ({rate / 2}%)
+                  <div className="font-semibold">
+                    {money(outcome.cgst)}
+                  </div>
                 </div>
+
                 <div className="rounded-lg border-2 border-black px-2 py-1.5">
-                  SGST ({rate / 2}%)<div className="font-semibold">{money(outcome.sgst)}</div>
+                  SGST ({rate / 2}%)
+                  <div className="font-semibold">
+                    {money(outcome.sgst)}
+                  </div>
                 </div>
               </>
             )}
@@ -120,10 +154,6 @@ export function GstCalculator() {
           </div>
         </div>
       )}
-
-      <p className="mt-3 font-cartoon text-[10px] italic text-black/50">
-        See the full HSN reference on the website.
-      </p>
     </div>
   );
 }

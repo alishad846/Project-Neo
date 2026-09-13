@@ -882,3 +882,183 @@ button:not(:disabled):active {
     transform: none;
   }
 }
+/* =========================================================
+   Neo Extension — Typography & Compact UI Refinement
+   Targeted visual cleanup only. Existing functionality/styles
+   are preserved.
+   ========================================================= */
+
+body {
+  font-size: 13px;
+  line-height: 1.45;
+}
+
+/* Clearer page hierarchy without taking extra vertical space */
+.pageIntro {
+  margin-bottom: 18px;
+}
+
+.pageIntro h1 {
+  font-size: 22px;
+  line-height: 1.2;
+}
+
+.pageIntro > p:last-child {
+  margin-top: 5px;
+  font-size: 12px;
+  line-height: 1.4;
+}
+
+/* Make section headings easier to scan */
+.sectionTitle {
+  margin-bottom: 9px;
+}
+
+.sectionTitle h2 {
+  font-size: 15px;
+  line-height: 1.25;
+}
+
+/* Improve readability of product information */
+.productTop h3 {
+  font-size: 12px;
+  line-height: 1.3;
+}
+
+.attributes {
+  font-size: 10px;
+  line-height: 1.35;
+}
+
+.productBottom {
+  margin-top: 8px;
+}
+
+/* Buttons: readable without making them bulky */
+.primaryButton,
+.secondaryButton,
+.generateButton,
+.primary-button,
+.secondary-button {
+  font-size: 11px;
+  line-height: 1.2;
+}
+
+/* Form labels and values */
+.composerCard label,
+.generatedCard label,
+.field label {
+  font-size: 11px;
+  line-height: 1.25;
+}
+
+.composerCard select,
+.generatedCard input,
+.generatedCard textarea,
+.field input,
+.field textarea,
+.priceInput {
+  font-size: 12px;
+  line-height: 1.4;
+}
+
+/* Reduce unnecessary vertical space inside cards */
+.composerCard,
+.priceCard,
+.infoCard,
+.generatedCard {
+  padding: 13px;
+  margin-top: 14px;
+}
+
+.priceCard p,
+.infoCard span,
+.previewCard p,
+.successCard p {
+  font-size: 10px;
+  line-height: 1.4;
+}
+
+/* Detail/review content */
+.detailSection {
+  margin-top: 15px;
+}
+
+.detailSection h2 {
+  margin-bottom: 8px;
+  font-size: 14px;
+}
+
+.descriptionBox {
+  font-size: 11px;
+  line-height: 1.45;
+}
+
+.attributeBox span {
+  font-size: 9px;
+}
+
+.attributeBox strong {
+  font-size: 11px;
+}
+
+/* Keep navigation compact but readable */
+.footer {
+  padding: 7px 6px;
+}
+
+.footerButton {
+  padding: 7px 9px;
+  font-size: 10px;
+}
+
+/* Small status/meta text should remain secondary */
+.status,
+.generatedHeader span,
+.meeshoBadge,
+.tags span {
+  font-size: 9px;
+}
+
+/* Avoid very large gaps on the review flow */
+.review-page {
+  padding: 18px;
+}
+
+.review-header {
+  margin-bottom: 16px;
+}
+
+.review-header h1 {
+  font-size: 23px;
+  line-height: 1.2;
+}
+
+.review-header p {
+  margin-top: 5px;
+  font-size: 12px;
+  line-height: 1.4;
+}
+
+.review-card {
+  padding: 16px;
+}
+
+.field {
+  margin-bottom: 14px;
+}
+
+.review-info {
+  padding: 11px;
+  margin-bottom: 16px;
+  gap: 6px;
+  font-size: 11px;
+}
+
+/* Preserve accessibility and the existing Neo interaction style */
+button:focus-visible,
+input:focus-visible,
+textarea:focus-visible,
+select:focus-visible {
+  outline-width: 2px;
+}

@@ -131,10 +131,12 @@ function fileToBase64(file: File): Promise<string> {
 }
 
 export function AIAutofill() {
-  const [referenceProducts, setReferenceProducts] = useState<Awaited<ReturnType<typeof getProducts>>>([]);
+  const [referenceProducts, setReferenceProducts] = useState<
+    Awaited<ReturnType<typeof getProducts>>
+  >([]);
   const [referenceSku, setReferenceSku] = useState("");
 
-    useEffect(() => {
+  useEffect(() => {
     getProducts()
       .then(setReferenceProducts)
       .catch((error) => {
@@ -156,9 +158,7 @@ export function AIAutofill() {
     getBusinessDetails().then(setBusiness);
   }, []);
 
-  // Warm the vision model the moment the seller opens this tab, so it's
-  // resident by the time they've picked a photo and hit Analyze — the first
-  // extraction no longer eats the ~45s cold-load.
+  // Warm the vision model the moment the seller opens this tab.
   useEffect(() => {
     void warmupExtractor();
   }, []);
@@ -168,8 +168,14 @@ export function AIAutofill() {
       const sku = (event as CustomEvent<{ sku: string }>).detail?.sku;
       if (sku) setReferenceSku(sku);
     };
+
     window.addEventListener("neo-set-reference-sku", onSetReferenceSku);
-    return () => window.removeEventListener("neo-set-reference-sku", onSetReferenceSku);
+
+    return () =>
+      window.removeEventListener(
+        "neo-set-reference-sku",
+        onSetReferenceSku,
+      );
   }, []);
 
   const businessEmpty =
@@ -205,17 +211,13 @@ export function AIAutofill() {
         const bits = [
           mapped.pattern,
           mapped.fabric,
-          mapped.occasion
-            ? `for ${mapped.occasion}`
-            : "",
+          mapped.occasion ? `for ${mapped.occasion}` : "",
         ]
           .filter(Boolean)
           .join(", ");
 
         if (bits) {
-          setDescription(
-            `${productName || "This product"} — ${bits}.`,
-          );
+          setDescription(`${productName || "This product"} — ${bits}.`);
         }
       }
     } catch (e) {
@@ -226,126 +228,126 @@ export function AIAutofill() {
   }
 
   async function autofill() {
-  setBusy(true);
-  setError(null);
+    setBusy(true);
+    setError(null);
 
-  try {
-    const businessFields = business
-      ? businessDetailsToFields(business)
-      : {};
+    try {
+      const businessFields = business
+        ? businessDetailsToFields(business)
+        : {};
 
-    const manufacturerDetails = business
-      ? [
-          business.manufacturer_name,
-          business.manufacturer_address,
-          business.manufacturer_pincode,
-        ]
-          .filter(Boolean)
-          .join(", ")
-      : "";
+      const manufacturerDetails = business
+        ? [
+            business.manufacturer_name,
+            business.manufacturer_address,
+            business.manufacturer_pincode,
+          ]
+            .filter(Boolean)
+            .join(", ")
+        : "";
 
-    const packerDetails = business
-      ? [
-          business.packer_name,
-          business.packer_address,
-          business.packer_pincode,
-        ]
-          .filter(Boolean)
-          .join(", ")
-      : "";
+      const packerDetails = business
+        ? [
+            business.packer_name,
+            business.packer_address,
+            business.packer_pincode,
+          ]
+            .filter(Boolean)
+            .join(", ")
+        : "";
 
-    const importerDetails = business
-      ? [
-          business.importer_name,
-          business.importer_address,
-          business.importer_pincode,
-        ]
-          .filter(Boolean)
-          .join(", ")
-      : "";
+      const importerDetails = business
+        ? [
+            business.importer_name,
+            business.importer_address,
+            business.importer_pincode,
+          ]
+            .filter(Boolean)
+            .join(", ")
+        : "";
 
-// Reference knowledge is opt-in only: it applies solely when the seller has
-// explicitly picked a past SKU. We never auto-merge from the catalogue, so
-// autofill can't inject attributes the seller didn't intend for this listing.
-const referenceProduct = referenceProducts.find(
-  (product) => product.sku === referenceSku,
-);
+      // Reference knowledge is opt-in only: it applies solely when the seller
+      // has explicitly picked a past SKU.
+      const referenceProduct = referenceProducts.find(
+        (product) => product.sku === referenceSku,
+      );
 
-const referenceAttributes =
-  referenceProduct?.attributes &&
-  typeof referenceProduct.attributes === "object"
-    ? (referenceProduct.attributes as Record<string, unknown>)
-    : {};
+      const referenceAttributes =
+        referenceProduct?.attributes &&
+        typeof referenceProduct.attributes === "object"
+          ? (referenceProduct.attributes as Record<string, unknown>)
+          : {};
 
-const referenceFallbackAttributes: Record<string, unknown> = {
-  ...referenceAttributes,
-  ...(referenceProduct?.fabric ? { fabric: referenceProduct.fabric } : {}),
-  ...(referenceProduct?.colour ? { color: referenceProduct.colour } : {}),
-  ...(referenceProduct?.hsnCode ? { hsn_id: referenceProduct.hsnCode } : {}),
-  ...(referenceProduct?.weight
-    ? { net_weight_gms: referenceProduct.weight }
-    : {}),
-  ...(Array.isArray(referenceProduct?.sizes)
-    ? { sizes: referenceProduct.sizes }
-    : {}),
-};
+      const referenceFallbackAttributes: Record<string, unknown> = {
+        ...referenceAttributes,
+        ...(referenceProduct?.fabric
+          ? { fabric: referenceProduct.fabric }
+          : {}),
+        ...(referenceProduct?.colour
+          ? { color: referenceProduct.colour }
+          : {}),
+        ...(referenceProduct?.hsnCode
+          ? { hsn_id: referenceProduct.hsnCode }
+          : {}),
+        ...(referenceProduct?.weight
+          ? { net_weight_gms: referenceProduct.weight }
+          : {}),
+        ...(Array.isArray(referenceProduct?.sizes)
+          ? { sizes: referenceProduct.sizes }
+          : {}),
+      };
 
-    const product = {
-      ...businessFields,
-      product_name: productName,
-      productName: productName,
-      title: productName,
-      description,
-      category,
-      product_weight_in_gms:
-        business?.product_weight_in_gms ?? "",
-      country_of_origin:
-        business?.country_of_origin ?? "India",
-      brand: business?.brand ?? "",
-      manufacturer_details: manufacturerDetails,
-      packer_details: packerDetails,
-      importer_details: importerDetails,
-      attributes: {
-  ...referenceFallbackAttributes,
-  ...attrs,
-},
-    };
+      const product = {
+        ...businessFields,
+        product_name: productName,
+        productName: productName,
+        title: productName,
+        description,
+        category,
+        product_weight_in_gms:
+          business?.product_weight_in_gms ?? "",
+        country_of_origin:
+          business?.country_of_origin ?? "India",
+        brand: business?.brand ?? "",
+        manufacturer_details: manufacturerDetails,
+        packer_details: packerDetails,
+        importer_details: importerDetails,
+        attributes: {
+          ...referenceFallbackAttributes,
+          ...attrs,
+        },
+      };
 
-    // Fire the fill and let it run to completion. No report is surfaced —
-    // autofill fills whatever it can and stops (the seller reviews the form
-    // itself). The on-page confetti + STOP AUTOFILL button are the only UX.
-    await sendMeeshoAutofill(product);
-  } catch (e) {
-    setError((e as Error).message);
-  } finally {
-    setBusy(false);
+      await sendMeeshoAutofill(product);
+    } catch (e) {
+      setError((e as Error).message);
+    } finally {
+      setBusy(false);
+    }
   }
-}
 
   return (
     <div className="p-4">
-      <div className="flex items-center gap-2">
+      <div className="mb-3 flex items-center gap-2">
         <Sparkles className="h-5 w-5 stroke-[3px] text-black" />
         <h2 className="font-accent text-xl tracking-wide text-black">
           AI Autofill
         </h2>
       </div>
 
-      <p className="mt-1 font-body text-xs text-black/60">
-        Open your Meesho “Add Product” page, upload the product photo here,
-        review, then Autofill.
-      </p>
-
       {businessEmpty && (
-        <p className="mt-2 rounded-lg border-2 border-black bg-[#fff3bf] px-2 py-1.5 font-cartoon text-xs">
-          Tip: fill your <strong>Business Details</strong> first so
-          manufacturer, packer and importer fields autofill too.
+        <p className="mb-2 rounded-lg border-2 border-black bg-[#fff3bf] px-2 py-1.5 font-cartoon text-[11px] leading-snug">
+          Complete <strong>Business Details</strong> to autofill
+          manufacturer, packer and importer fields.
         </p>
       )}
 
-      <div className="mt-3 grid gap-2 rounded-xl border-2 border-black bg-white p-3 shadow-[3px_3px_0px_0px_#000]">
+      <div className="mt-2 grid gap-2 rounded-xl border-2 border-black bg-white p-3 shadow-[3px_3px_0px_0px_#000]">
         <label className="font-cartoon text-xs font-semibold">
-          Category (optional — improves accuracy)
+          Category
+          <span className="ml-1 font-body text-[10px] font-normal text-black/50">
+            optional
+          </span>
 
           <input
             className={inputClass}
@@ -356,23 +358,29 @@ const referenceFallbackAttributes: Record<string, unknown> = {
         </label>
 
         <label className="font-cartoon text-xs font-semibold">
-  Reference Past SKU (optional)
-  <select
-    className={inputClass}
-    value={referenceSku}
-    onChange={(e) => setReferenceSku(e.target.value)}
-  >
-    <option value="">No reference SKU</option>
+          Reference SKU
+          <span className="ml-1 font-body text-[10px] font-normal text-black/50">
+            optional
+          </span>
 
-    {referenceProducts
-      .filter((product) => categoryMatches(category, product.category ?? ""))
-      .map((product) => (
-        <option key={product.id} value={product.sku}>
-          {product.sku} — {product.title || "Untitled Product"}
-        </option>
-      ))}
-  </select>
-</label>
+          <select
+            className={inputClass}
+            value={referenceSku}
+            onChange={(e) => setReferenceSku(e.target.value)}
+          >
+            <option value="">No reference SKU</option>
+
+            {referenceProducts
+              .filter((product) =>
+                categoryMatches(category, product.category ?? ""),
+              )
+              .map((product) => (
+                <option key={product.id} value={product.sku}>
+                  {product.sku} — {product.title || "Untitled Product"}
+                </option>
+              ))}
+          </select>
+        </label>
 
         <label className="font-cartoon text-xs font-semibold">
           Product photo
@@ -398,21 +406,21 @@ const referenceFallbackAttributes: Record<string, unknown> = {
 
         {extracted && (
           <p
-            className={`font-cartoon text-xs ${
+            className={`font-cartoon text-[10px] leading-snug ${
               extracted.confidence === "low"
                 ? "text-[#a15c00]"
                 : "text-green-700"
             }`}
           >
             {extracted.source === "model"
-              ? "AI-extracted from your photo — please review before filling."
-              : "Low-confidence result — review every field carefully."}
+              ? "AI result ready — review before filling."
+              : "Low confidence — review the fields carefully."}
           </p>
         )}
       </div>
 
       {error && (
-        <p className="mt-2 font-cartoon text-xs text-red-600">
+        <p className="mt-2 rounded-lg border-2 border-red-600 bg-red-50 px-2 py-1.5 font-cartoon text-[10px] leading-snug text-red-600">
           {error}
         </p>
       )}
@@ -425,9 +433,7 @@ const referenceFallbackAttributes: Record<string, unknown> = {
             <input
               className={inputClass}
               value={productName}
-              onChange={(e) =>
-                setProductName(e.target.value)
-              }
+              onChange={(e) => setProductName(e.target.value)}
             />
           </label>
 
@@ -438,16 +444,14 @@ const referenceFallbackAttributes: Record<string, unknown> = {
               className={inputClass}
               rows={3}
               value={description}
-              onChange={(e) =>
-                setDescription(e.target.value)
-              }
+              onChange={(e) => setDescription(e.target.value)}
             />
           </label>
 
           {Object.keys(attrs).length > 0 && (
             <div className="grid gap-2">
-              <p className="font-cartoon text-xs font-semibold text-black/70">
-                Detected attributes (editable):
+              <p className="font-cartoon text-[10px] font-semibold text-black/60">
+                Detected attributes
               </p>
 
               {Object.entries(attrs).map(([key, value]) => (
@@ -472,7 +476,7 @@ const referenceFallbackAttributes: Record<string, unknown> = {
             </div>
           )}
 
-          <div className="mt-2">
+          <div className="mt-1">
             <PopButton
               text={busy ? "Filling…" : "Autofill Meesho"}
               color="#ff8a65"
@@ -483,12 +487,6 @@ const referenceFallbackAttributes: Record<string, unknown> = {
               }}
             />
           </div>
-
-          <p className="font-cartoon text-[11px] text-black/60">
-            A pink “STOP AUTOFILL” button appears on the Meesho
-            tab so you can halt anytime. Neo never clicks Submit —
-            you review and submit yourself.
-          </p>
         </div>
       )}
     </div>
